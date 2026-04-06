@@ -4,13 +4,20 @@ import com.tttn.warehouseqr.modules.masterdata.category.entity.ProductCategory;
 import com.tttn.warehouseqr.modules.masterdata.category.service.impl.CategoryService;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductDTO;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductPageResponse;
+import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductQrDTO;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
+import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ImportQrService;
+import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductBatchService;
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductService;
 import com.tttn.warehouseqr.modules.masterdata.unit.entity.Unit;
 import com.tttn.warehouseqr.modules.masterdata.unit.service.impl.UnitService;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 
@@ -20,11 +27,34 @@ public class ProductController {
     private final ProductService productService;
     private final CategoryService categoryService;
     private final UnitService unitService;
+    private final ImportQrService importQrService;
+    private final ProductBatchService productBatchService;
 
-    public ProductController(ProductService productService, CategoryService categoryService, UnitService unitService) {
+    public ProductController(ProductService productService, CategoryService categoryService,
+                             UnitService unitService, ImportQrService importQrService,
+                             ProductBatchService productBatchService) {
         this.productService = productService;
         this.categoryService = categoryService;
         this.unitService = unitService;
+        this.importQrService = importQrService;
+        this.productBatchService=productBatchService;
+    }
+
+    @PostMapping("/import-csv")
+    public String importCsv(@RequestParam("files")MultipartFile file,
+                            RedirectAttributes redirectAttributes){
+        if(file.isEmpty()){
+            redirectAttributes.addFlashAttribute("error", "Vui lòng chọn file CSV!");
+            return "redireact:/products";
+        }
+        try {
+            importQrService.importCsvAndGenerateQr(file);
+            redirectAttributes.addFlashAttribute("success", "Đã Import dữ liệu và tự động sinh mã QR thành công!");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error","Lỗi kji Import: " + e.getMessage());
+        }
+
+        return "redirect:/products";
     }
 
     @GetMapping
@@ -33,9 +63,16 @@ public class ProductController {
                               @RequestParam(defaultValue = "") String keyw,
                               @RequestParam(defaultValue = "0") long categoryId,
                               Model model){
-        ProductPageResponse response = productService.getALlProductCustom(page,limit,keyw,categoryId);
+        Page<ProductQrDTO> batchPage = productBatchService.getBatchesWithQrCustom(page,limit,keyw,categoryId);
+        ProductPageResponse response = new ProductPageResponse();
+        response.setContent(batchPage);
+        response.setTotalPage(batchPage.getTotalPages());
+        response.setCurrentPage(page);
+        response.setTotalElements(batchPage.getTotalElements());
+
         model.addAttribute("productPage", response);
         model.addAttribute("keyword", keyw);
+        model.addAttribute("categoryId", categoryId);
 
         return "productAndQr/products/product-list/list";
     }
@@ -95,4 +132,10 @@ public class ProductController {
         return "redirect:/products";
     }
 
+    @PostMapping("/generate-qr")
+    @ResponseBody
+    public ResponseEntity<String> generateManualQr(@RequestBody List<Long> batchId){
+        importQrService.generateManualQr(batchId);
+        return ResponseEntity.ok("Success");
+    }
 }
