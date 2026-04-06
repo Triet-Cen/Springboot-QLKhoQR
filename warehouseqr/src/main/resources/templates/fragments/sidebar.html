@@ -1,10 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net/thymeleaf/layout"
+      layout:decorate="~{layouts/admin-layout}">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Admin</title>
 </head>
 <body>
-
+<div th:fragment="sidebar_fragment" class="bg-dark text-white p-3" style="width: 250px; min-height: 100vh;">
+    <h4>Menu Quản Trị</h4>
+    <hr>
+    <ul class="nav flex-column">
+        <li class="nav-item">
+            <a class="nav-link text-white" href="/products">Sản phẩm & QR</a>
+        </li>
+    </ul>
+</div>
 </body>
 </html>
