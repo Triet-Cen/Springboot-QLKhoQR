@@ -12,6 +12,7 @@ import java.util.List;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product,Long>{
+    Product findBySku(String sku);
     @Query(value = "SELECT p FROM Product p " +
             "WHERE (:keyw IS NULL OR p.productName LIKE CONCAT('%', :keyw, '%')) " +
             "AND (:categoryId = 0 OR p.category.categoryId = :categoryId) ")

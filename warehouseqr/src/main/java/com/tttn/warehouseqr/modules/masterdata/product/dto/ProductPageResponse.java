@@ -6,16 +6,16 @@ import org.springframework.data.domain.Page;
 import java.util.List;
 
 public class ProductPageResponse {
-    private Page<Product> content;
+    private Page<?> content;
     private int currentPage;
     private int totalPage;
     private long totalElements;
 
-    public Page<Product> getContent() {
+    public Page<?> getContent() {
         return content;
     }
 
-    public void setContent(Page<Product> content) {
+    public void setContent(Page<?> content) {
         this.content = content;
     }
 
@@ -40,6 +40,16 @@ public class ProductPageResponse {
     }
 
     public void setTotalElements(long totalElements) {
+        this.totalElements = totalElements;
+    }
+
+    public ProductPageResponse() {
+    }
+
+    public ProductPageResponse(Page<?> content, int currentPage, int totalPage, long totalElements) {
+        this.content = content;
+        this.currentPage = currentPage;
+        this.totalPage = totalPage;
         this.totalElements = totalElements;
     }
 }

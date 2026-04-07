@@ -1,14 +1,10 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layouts/admin-layout}"> <head>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
     <title>Quản lý Sản phẩm & QR</title>
 </head>
 <body>
-
-<div layout:fragment="content" class="container-fluid p-4">
+<div id="mainContent">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -16,7 +12,10 @@
             <p class="text-muted mb-0">Tạo và in mã QR cho sản phẩm trong kho</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-primary d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-success d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#importCsvModal">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Import CSV & Tạo QR
+            </button>
+            <button class="btn btn-primary d-flex align-items-center gap-2" onclick="generateSelectedQr()">
                 <i class="bi bi-qr-code-scan"></i> Tạo mã QR
             </button>
             <button class="btn btn-outline-secondary d-flex align-items-center gap-2">
@@ -64,61 +63,49 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="item, iterStat : ${productPage?.content}">
-                    <td><input class="form-check-input" type="checkbox"></td>
-                    <td class="text-start">
-                        <a href="#" class="text-decoration-none fw-medium text-primary" th:text="${item.sku}">SKU-12345</a>
-                    </td>
-                    <td class="text-start" th:text="${item.productName}">Sản phẩm A</td>
-                    <td class="text-muted">BATCH-001</td>
-                    <td class="text-muted">2024-12-31</td>
-                    <td class="fw-bold">150</td>
-                    <td class="text-muted">A3-S2-B5</td>
-
+                <tr th:each="item : ${productPage.content.content}">
                     <td>
-                            <span th:if="${iterStat.index % 2 == 0}" class="badge bg-success bg-opacity-10 text-success px-2 py-1 border border-success border-opacity-25 rounded-1">
-                                <i class="bi bi-qr-code"></i> Đã tạo
-                            </span>
-                        <span th:unless="${iterStat.index % 2 == 0}" class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 border border-secondary border-opacity-25 rounded-1">
-                                Chưa tạo
-                            </span>
+                        <input class="form-check-input batch-checkbox" type="checkbox" th:value="${item.batchId}" th:disabled="${item.hasQr}">
                     </td>
-
+                    <td class="text-start">
+                        <a href="#" class="text-decoration-none fw-medium text-primary" th:text="${item.sku}">SKU</a>
+                    </td>
+                    <td class="text-start" th:text="${item.productName}">Tên Sản phẩm</td>
+                    <td class="text-muted" th:text="${item.lotCode}">BATCH</td>
+                    <td class="text-muted" th:text="${item.expiryDate != null ? item.expiryDate : 'Không có'}">Date</td>
+                    <td class="fw-bold text-success">--</td>
+                    <td class="text-muted">--</td>
+                    <td>
+                        <span th:if="${item.hasQr}" class="badge bg-success bg-opacity-10 text-success px-2 py-1 border border-success border-opacity-25 rounded-1">
+                            <i class="bi bi-qr-code"></i> Đã tạo
+                        </span>
+                        <span th:unless="${item.hasQr}" class="badge bg-secondary bg-opacity-10 text-secondary px-2 py-1 border border-secondary border-opacity-25 rounded-1">
+                            Chưa tạo
+                        </span>
+                    </td>
                     <td>
                         <div class="d-flex justify-content-center gap-3">
-                            <a href="#" class="text-dark text-decoration-none" title="Xem chi tiết">
+                            <a href="#" th:if="${item.hasQr}" class="text-dark text-decoration-none" title="Xem mã QR"
+                               data-bs-toggle="modal" data-bs-target="#qrViewModal"
+                               th:data-qr="${item.qrBase64}" th:data-sku="${item.sku}" th:data-batch="${item.lotCode}"
+                               onclick="showQrModal(this)">
                                 <i class="bi bi-eye fs-5"></i>
                             </a>
-                            <a href="#" class="text-dark text-decoration-none" title="In QR">
+
+                            <a href="#" th:if="${item.hasQr}" class="text-dark text-decoration-none" title="In QR"
+                               th:data-qr="${item.qrBase64}" th:data-sku="${item.sku}" th:data-batch="${item.lotCode}"
+                               onclick="showQrModal(this); setTimeout(printQr, 300);">
                                 <i class="bi bi-printer fs-5"></i>
                             </a>
-                            <a th:href="@{/products/edit/{id}(id=${item.product_id})}" class="text-dark text-decoration-none" title="Chỉnh sửa">
+
+                            <a th:href="@{/products/edit/{id}(id=${item.productId})}" class="text-dark text-decoration-none" title="Chỉnh sửa">
                                 <i class="bi bi-pencil-square fs-5"></i>
                             </a>
                         </div>
                     </td>
                 </tr>
-
-                <tr th:if="${productPage == null or #lists.isEmpty(productPage.content)}">
-                    <td><input class="form-check-input" type="checkbox"></td>
-                    <td class="text-start"><a href="#" class="text-decoration-none fw-medium text-primary">SKU-23456</a></td>
-                    <td class="text-start">Sản phẩm B</td>
-                    <td class="text-muted">BATCH-045</td>
-                    <td class="text-muted">2024-11-15</td>
-                    <td class="fw-bold">85</td>
-                    <td class="text-muted">A2-S1-B3</td>
-                    <td>
-                            <span class="badge bg-success bg-opacity-10 text-success px-2 py-1 border border-success border-opacity-25 rounded-1">
-                                <i class="bi bi-qr-code"></i> Đã tạo
-                            </span>
-                    </td>
-                    <td>
-                        <div class="d-flex justify-content-center gap-3">
-                            <a href="#" class="text-dark text-decoration-none"><i class="bi bi-eye fs-5"></i></a>
-                            <a href="#" class="text-dark text-decoration-none"><i class="bi bi-printer fs-5"></i></a>
-                            <a href="#" class="text-dark text-decoration-none"><i class="bi bi-pencil-square fs-5"></i></a>
-                        </div>
-                    </td>
+                <tr th:if="${productPage == null or #lists.isEmpty(productPage.content.content)}">
+                    <td colspan="9" class="text-center py-4 text-muted">Không tìm thấy sản phẩm / lô hàng nào.</td>
                 </tr>
                 </tbody>
             </table>
@@ -126,35 +113,110 @@
 
         <div class="card-footer bg-white py-3 border-top-0" th:if="${productPage != null and productPage.totalPage > 0}">
             <div class="d-flex justify-content-between align-items-center">
-                <span class="text-muted small" th:text="'Hiển thị tổng cộng ' + ${productPage.totalElements} + ' dòng'">Hiển thị tổng cộng 0 dòng</span>
+                <span class="text-muted small" th:text="'Hiển thị tổng cộng ' + ${productPage.totalElements} + ' dòng'"></span>
                 <nav>
                     <ul class="pagination pagination-sm mb-0">
-
                         <li class="page-item" th:classappend="${productPage.currentPage == 1} ? 'disabled'">
-                            <a class="page-link"
-                               th:href="@{/products(page=${productPage.currentPage - 1}, keyw=${keyword})}"
-                               tabindex="-1">Trước</a>
+                            <a class="page-link" th:href="@{/products(page=${productPage.currentPage - 1}, keyw=${keyword})}" tabindex="-1">Trước</a>
                         </li>
-
-                        <li class="page-item"
-                            th:each="i : ${#numbers.sequence(1, productPage.totalPage)}"
-                            th:classappend="${productPage.currentPage == i} ? 'active'">
-                            <a class="page-link"
-                               th:href="@{/products(page=${i}, keyw=${keyword})}"
-                               th:text="${i}">1</a>
+                        <li class="page-item" th:each="i : ${#numbers.sequence(1, productPage.totalPage)}" th:classappend="${productPage.currentPage == i} ? 'active'">
+                            <a class="page-link" th:href="@{/products(page=${i}, keyw=${keyword})}" th:text="${i}">1</a>
                         </li>
-
                         <li class="page-item" th:classappend="${productPage.currentPage == productPage.totalPage} ? 'disabled'">
-                            <a class="page-link"
-                               th:href="@{/products(page=${productPage.currentPage + 1}, keyw=${keyword})}">Sau</a>
+                            <a class="page-link" th:href="@{/products(page=${productPage.currentPage + 1}, keyw=${keyword})}">Sau</a>
                         </li>
-
                     </ul>
                 </nav>
             </div>
         </div>
     </div>
-</div>
 
+    <div class="modal fade" id="importCsvModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form th:action="@{/products/import-csv}" method="post" enctype="multipart/form-data">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold">Import File CSV</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Vui lòng chọn file (.csv)</label>
+                            <input class="form-control" type="file" name="files" accept=".csv" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-top-0">
+                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-cloud-upload"></i> Bắt đầu Import</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="qrViewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content text-center">
+                <div class="modal-header border-0 pb-0">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-0" id="printArea">
+                    <h5 class="fw-bold mb-1" id="modalQrSku">SKU</h5>
+                    <p class="text-muted small mb-2" id="modalQrBatch">Batch</p>
+                    <img id="modalQrImage" src="" alt="QR Code" class="img-fluid border p-2 rounded mb-3" style="max-width: 200px;">
+                </div>
+                <div class="modal-footer border-0 justify-content-center">
+                    <button type="button" class="btn btn-primary" onclick="printQr()">
+                        <i class="bi bi-printer"></i> In tem QR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showQrModal(element) {
+            document.getElementById('modalQrImage').src = 'data:image/png;base64,' + element.getAttribute('data-qr');
+            document.getElementById('modalQrSku').innerText = element.getAttribute('data-sku');
+            document.getElementById('modalQrBatch').innerText = 'Lô: ' + element.getAttribute('data-batch');
+        }
+
+        function printQr() {
+            let printContent = document.getElementById('printArea').innerHTML;
+            let printWindow = window.open('', '', 'width=400,height=400');
+            printWindow.document.write('<html><head><title>In Tem QR</title></head><body style="text-align:center; font-family:sans-serif; margin-top:20px;">');
+            printWindow.document.write(printContent);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(function() {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        }
+
+        function generateSelectedQr() {
+            let selectedIds = [];
+            document.querySelectorAll('.batch-checkbox:checked').forEach(cb => { selectedIds.push(cb.value); });
+
+            if (selectedIds.length === 0) {
+                alert("Vui lòng tick chọn ít nhất 1 lô hàng để tạo mã QR!");
+                return;
+            }
+            fetch('/products/generate-qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(selectedIds)
+            }).then(response => {
+                if (response.ok) {
+                    alert("Đã tạo mã QR thành công!");
+                    window.location.reload();
+                } else {
+                    alert("Có lỗi xảy ra khi tạo mã QR.");
+                }
+            });
+        }
+    </script>
+</div>
 </body>
 </html>
