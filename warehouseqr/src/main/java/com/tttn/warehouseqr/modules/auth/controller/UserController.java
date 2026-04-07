@@ -1,13 +1,10 @@
 package com.tttn.warehouseqr.modules.auth.controller;
 
-import com.tttn.warehouseqr.common.exception.AppException;
 import com.tttn.warehouseqr.modules.auth.dto.UserCreateRequest;
 import com.tttn.warehouseqr.modules.auth.dto.UserUpdateRequest;
-import com.tttn.warehouseqr.modules.auth.repository.RoleRepository;
 import com.tttn.warehouseqr.modules.auth.service.RoleService;
 import com.tttn.warehouseqr.modules.auth.service.UserService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -32,43 +29,52 @@ public class UserController {
         return "auth/user-list";
     }
 
-    // GET: Mở form thêm mới
+    // --- MỞ FORM THÊM MỚI ---
     @GetMapping("/add")
     public String showAddForm(Model model) {
         model.addAttribute("userRequest", new UserCreateRequest());
         model.addAttribute("roles", roleService.getAllRoles());
-        return "auth/user-form";
+        return "auth/user-add";
     }
 
-    // POST: Xử lý lưu người dùng mới
+    // --- XỬ LÝ LƯU MỚI ---
     @PostMapping("/add")
     public String create(@Valid @ModelAttribute("userRequest") UserCreateRequest req,
-                         BindingResult result, RedirectAttributes ra) {
+                         BindingResult result, Model model, RedirectAttributes ra) {
         if (result.hasErrors()) {
-            return "auth/user-form"; // Nếu lỗi Validation, ở lại form để báo lỗi
+            model.addAttribute("roles", roleService.getAllRoles());
+            return "auth/user-add"; // Trả về trang add nếu có lỗi
         }
         userService.createUser(req);
         ra.addFlashAttribute("successMessage", "Thêm mới thành công!");
         return "redirect:/admin/users";
     }
-
-    // GET: Mở form chỉnh sửa
+    // --- MỞ FORM CẬP NHẬT ---
     @GetMapping("/edit/{id}")
     public String showEditForm(@PathVariable Long id, Model model) {
-        model.addAttribute("userRequest", userService.getUpdateById(id));
+        UserUpdateRequest updateReq = userService.getUpdateById(id);
+        model.addAttribute("userRequest", updateReq);
         model.addAttribute("roles", roleService.getAllRoles());
-        return "auth/user-form";
+        return "auth/user-edit";
     }
 
-    // POST: Xử lý cập nhật
+    // --- XỬ LÝ CẬP NHẬT ---
     @PostMapping("/edit")
     public String update(@Valid @ModelAttribute("userRequest") UserUpdateRequest req,
-                         BindingResult result, RedirectAttributes ra) {
+                         BindingResult result, Model model, RedirectAttributes ra) {
         if (result.hasErrors()) {
-            return "auth/user-form";
+            model.addAttribute("roles", roleService.getAllRoles());
+            return "auth/user-edit"; // Trả về trang edit nếu có lỗi
         }
         userService.updateUser(req);
         ra.addFlashAttribute("successMessage", "Cập nhật thành công!");
+        return "redirect:/admin/users";
+    }
+
+    @GetMapping("/delete/{id}")
+    public String delete(@PathVariable Long id, RedirectAttributes ra) {
+        userService.deleteUser(id); // Bạn cần viết hàm này trong Service
+        ra.addFlashAttribute("successMessage", "Xóa người dùng thành công!");
         return "redirect:/admin/users";
     }
 }

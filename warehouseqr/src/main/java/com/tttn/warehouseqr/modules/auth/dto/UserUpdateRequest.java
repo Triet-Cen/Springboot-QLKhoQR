@@ -4,17 +4,16 @@ import com.tttn.warehouseqr.modules.auth.entity.Role;
 import jakarta.validation.constraints.*;
 
 public class UserUpdateRequest {
-    @NotBlank(message = "ID_REQUIRED")
+    @NotNull(message = "ID_REQUIRED")
     private Long userId;
+
 
     @NotBlank(message = "FULLNAME_REQUIRED")
     private String fullName;
 
     @Email(message = "EMAIL_INVALID")
     private String email;
-
-    // Không bắt buộc nhập password khi update, nhưng nếu nhập thì phải đủ độ dài
-    @Size(min = 6, message = "PASSWORD_TOO_SHORT")
+    @Pattern(regexp = "^$|^.{6,}$", message = "PASSWORD_TOO_SHORT")
     private String password;
 
     @NotBlank(message = "PHONE_REQUIRED") // Nếu bạn muốn bắt buộc nhập

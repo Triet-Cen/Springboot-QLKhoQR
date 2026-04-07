@@ -1,32 +1,49 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layouts/main-layout}"> <head>
-    <title>Danh sách Người dùng</title>
-</head>
+      th:replace="~{layouts/admin-user-layout :: main-layout(~{:: .content-body})}">
 <body>
+<div class="content-body">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-people"></i> Danh sách người dùng</h2>
+        <a th:href="@{/admin/users/add}" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i> Thêm mới
+        </a>
+    </div>
 
-<div layout:fragment="content">
-    <h2>Danh sách User</h2>
-    <table border="1" width="100%">
-        <thead>
-        <tr>
-            <th>ID</th>
-            <th>Tên đăng nhập</th>
-            <th>Họ tên</th>
-            <th>Email</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="user : ${users}">
-            <td th:text="${user.userId}">1</td>
-            <td th:text="${user.username}">admin</td>
-            <td th:text="${user.fullName}">Nguyen Van A</td>
-            <td th:text="${user.email}">email@example.com</td>
-        </tr>
-        </tbody>
-    </table>
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Họ và tên</th>
+                    <th>Email</th>
+                    <th>Số điện thoại</th> <th>Vai trò</th>
+                    <th class="text-center">Hành động</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="user : ${users}">
+                    <td th:text="${user.userId}"></td>
+                    <td th:text="${user.username}" class="fw-bold"></td>
+                    <td th:text="${user.fullName}"></td>
+                    <td th:text="${user.email}"></td>
+                    <td th:text="${user.phone}"></td> <td><span class="badge bg-info text-dark" th:text="${user.roleName}"></span></td>
+                    <td class="text-center">
+                        <a th:href="@{/admin/users/edit/{id}(id=${user.userId})}" class="btn btn-sm btn-outline-warning me-1">Sửa</a>
+                        <a th:href="@{/admin/users/delete/{id}(id=${user.userId})}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa người dùng này?')">Xóa</a>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
-
 </body>
 </html>

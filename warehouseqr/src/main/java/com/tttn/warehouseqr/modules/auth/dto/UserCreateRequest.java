@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class UserCreateRequest {
+
     @NotBlank(message = "USERNAME_REQUIRED")
     private String username;
 

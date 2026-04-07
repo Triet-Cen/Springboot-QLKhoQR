@@ -63,11 +63,10 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(req.getUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
-        user.setFullName(req.getFullName());
-        user.setEmail(req.getEmail());
+        userMapper.updateUserFromRequest(req, user);
 
         // Chỉ mã hóa và cập nhật nếu người dùng có nhập mật khẩu mới
-        if (req.getPassword() != null && !req.getPassword().isEmpty()) {
+        if (req.getPassword() != null && !req.getPassword().trim().isEmpty()) {
             user.setPassword(passwordEncoder.encode(req.getPassword()));
         }
 
@@ -86,5 +85,16 @@ public class UserServiceImpl implements UserService {
 
         // 2. Map từ Entity sang DTO để Controller trả về View
         return userMapper.toUpdateRequest(user);
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(Long id) {
+        // 1. Kiểm tra xem user có tồn tại không
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // 2. Thực hiện xóa
+        userRepository.delete(user);
     }
 }

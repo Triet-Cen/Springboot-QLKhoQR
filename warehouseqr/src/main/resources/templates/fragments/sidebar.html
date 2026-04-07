@@ -17,7 +17,13 @@
         <li class="nav-item">
             <a class="nav-link text-white" href="/products">Sản phẩm & QR</a>
         </li>
+        <li class="nav-item mt-auto"> <form th:action="@{/logout}" method="post" id="logoutForm" style="display: none;"></form>
+            <a class="nav-link text-danger" href="javascript:void(0)" onclick="document.getElementById('logoutForm').submit();">
+                <i class="bi bi-box-arrow-right"></i> Đăng xuất
+            </a>
+        </li>
     </ul>
+
 </div>
 </body>
 </html>

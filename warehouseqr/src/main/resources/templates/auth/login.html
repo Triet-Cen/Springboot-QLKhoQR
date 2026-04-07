@@ -12,6 +12,7 @@
                 <div class="card-body">
                     <h3 class="text-center">Đăng Nhập</h3>
                     <div th:if="${param.error}" class="alert alert-danger">Sai tài khoản hoặc mật khẩu!</div>
+                    <div th:if="${param.logout}" class="alert alert-info">Bạn đã đăng xuất thành công.</div>
                     <form th:action="@{/auth/login}" method="post">
                         <div class="mb-3">
                             <label>Tên đăng nhập</label>

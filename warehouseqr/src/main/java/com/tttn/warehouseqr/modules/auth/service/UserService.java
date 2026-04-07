@@ -13,4 +13,5 @@ public interface UserService {
     void createUser(UserCreateRequest req);
     void updateUser(UserUpdateRequest req);
     UserUpdateRequest getUpdateById(Long id);
+    void deleteUser(Long id);
 }
