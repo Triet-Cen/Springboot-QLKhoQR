@@ -1,23 +1,97 @@
-<!doctype html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
-      xmlns:layout="http://www.ultraq.net/thymeleaf/layout"
-      layout:decorate="~{layouts/admin-layout}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Admin</title>
-</head>
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <body>
-<div th:fragment="sidebar_fragment" class="bg-dark text-white p-3" style="width: 250px; min-height: 100vh;">
-    <h4>Menu Quản Trị</h4>
-    <hr>
-    <ul class="nav flex-column">
+<aside th:fragment="sidebar" class="sidebar d-flex flex-column flex-shrink-0 h-100 overflow-y-auto" style="width: 260px; background-color: #141b2d;">
+    <div class="d-flex align-items-center gap-3 p-4 border-bottom border-secondary border-opacity-25 mb-3">
+        <i class="fa-solid fa-warehouse fs-4 text-info"></i>
+        <div class="lh-sm">
+            <h2 class="h5 mb-0 text-white fw-bold">WMS Pro</h2>
+            <small class="text-secondary" style="font-size: 11px;">Warehouse Management</small>
+        </div>
+    </div>
+
+    <ul class="nav flex-column px-3 gap-1 mb-4">
         <li class="nav-item">
-            <a class="nav-link text-white" href="/products">Sản phẩm & QR</a>
+            <a href="#" class="nav-link active d-flex align-items-center gap-2 text-white" style="background-color: #0d6efd; border-radius: 6px; padding: 10px 16px;">
+                <i class="fa-solid fa-border-all" style="width: 24px; text-align: center;"></i> Dashboard
+            </a>
+        </li>
+
+        <li class="nav-item mt-2">
+            <div class="text-white px-3 py-2 fs-6 fw-medium d-flex align-items-center gap-2">
+                <i class="fa-solid fa-database" style="width: 24px; text-align: center;"></i> Master Data
+            </div>
+            <ul class="nav flex-column sub-menu gap-1">
+                <li class="nav-item">
+                    <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                        <i class="fa-regular fa-building"></i> Company
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                        <i class="fa-solid fa-users"></i> Supplier
+                    </a>
+                </li>
+            </ul>
+        </li>
+
+        <li class="nav-item">
+            <a th:href="@{/products}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="fa-solid fa-qrcode" style="width: 24px; text-align: center;"></i> Products & QR
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-bookmark" style="width: 24px; text-align: center;"></i> Categories
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-bookmark" style="width: 24px; text-align: center;"></i> Units
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-house" style="width: 24px; text-align: center;"></i>  Warehouse & Locations
+            </a>
+        </li>
+        <li class="nav-item">
+            <a th:href="@{/scan-station}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-box-arrow-in-down-right" style="width: 24px; text-align: center;"></i> Inbound
+            </a>
+        </li>
+        <li class="nav-item">
+            <a th:href="@{/scan-station}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-box-arrow-right" style="width: 24px; text-align: center;"></i> Outbound
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-truck" style="width: 24px; text-align: center;"></i> Tranfer
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-archive" style="width: 24px; text-align: center;"></i> Inventory
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-graph-up-arrow" style="width: 24px; text-align: center;"></i> Stocktake
+            </a>
+        </li>
+
+        <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-alphabet" style="width: 24px; text-align: center;"></i> Traceability
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+                <i class="bi bi-file" style="width: 24px; text-align: center;"></i> Report
+            </a>
         </li>
     </ul>
-</div>
+</aside>
 </body>
 </html>

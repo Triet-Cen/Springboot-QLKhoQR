@@ -35,4 +35,5 @@ public class QrCodeUtil {
             return null;
         }
     }
+    //Co the dung chung cho toan bo module
 }

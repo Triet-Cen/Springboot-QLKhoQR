@@ -1,10 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
 <body>
+<header th:fragment="navbar" class="navbar bg-white border-bottom px-4 py-3 flex-shrink-0 w-100">
+    <div class="search-box input-group" style="max-width: 450px;">
+            <span class="input-group-text bg-transparent border-end-0 text-muted">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </span>
+        <input type="text" class="form-control border-start-0 ps-0" placeholder="Tìm kiếm sản phẩm, đơn hàng, SKU...">
+    </div>
 
+    <div class="d-flex align-items-center gap-4">
+        <div class="position-relative" style="cursor: pointer;">
+            <i class="fa-regular fa-bell fs-5 text-dark"></i>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-2 border-white" style="font-size: 10px;">3</span>
+        </div>
+
+        <div class="d-flex align-items-center gap-3 ps-4 border-start" style="cursor: pointer;">
+            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                <i class="fa-regular fa-user"></i>
+            </div>
+            <div class="d-flex flex-column lh-1">
+                <span class="fw-semibold text-dark mb-1" style="font-size: 14px;">Nguyễn Văn A</span>
+                <span class="text-secondary" style="font-size: 12px;">Quản lý kho</span>
+            </div>
+            <i class="fa-solid fa-chevron-down text-secondary" style="font-size: 12px;"></i>
+        </div>
+    </div>
+</header>
 </body>
 </html>
