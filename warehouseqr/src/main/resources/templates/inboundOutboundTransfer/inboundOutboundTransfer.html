@@ -98,6 +98,34 @@
             position: relative;
         }
 
+        .btn-inbound {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+            color: white !important;
+        }
+
+        .btn-outbound {
+            background: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%) !important;
+            color: white !important;
+        }
+
+        .btn-transfer {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+            color: white !important;
+        }
+
+        /* Đảm bảo nút mặc định không bị trắng */
+        #btnSubmitScan {
+            border: none !important;
+            min-height: 50px;
+            font-weight: bold;
+        }
+
+        .hub-title {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+
         /* Chế độ in: Ẩn mọi thứ, chỉ hiện modal body */
         @media print {
             body * { visibility: hidden; }
@@ -114,7 +142,7 @@
     <div class="container-fluid py-4">
         <div class="row mb-4">
             <div class="col-12 text-center">
-                <h1 class="fw-bold text-dark" style="background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                <h1 class="fw-bold text-dark hub-title" >
                     Warehouse Operations Hub
                 </h1>
                 <p class="text-secondary">Số hóa quy trình Nhập - Xuất - Chuyển kho thời gian thực</p>
@@ -258,7 +286,8 @@
                 docName: 'PHIẾU NHẬP KHO',
                 headerBg: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
                 btnText: 'XÁC NHẬN NHẬP KHO',
-                themeColor: '#22c55e'
+                themeColor: '#22c55e',
+                btnClass: 'btn-inbound'
             },
             'OUTBOUND': {
                 api: '/api/outbound/confirm',
@@ -267,7 +296,8 @@
                 headerBg: 'linear-gradient(135deg, #f43f5e 0%, #fb7185 100%)',
                 btnText: 'XÁC NHẬN XUẤT KHO',
                 themeColor: '#ef4444',
-                suggestionApi: '/api/outbound/suggest/'
+                suggestionApi: '/api/outbound/suggest/',
+                btnClass: 'btn-outbound'
             },
             'TRANSFER': {
                 api: '/scan-station/transfer',
@@ -275,7 +305,8 @@
                 docName: 'PHIẾU ĐIỀU CHUYỂN',
                 headerBg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                 btnText: 'XÁC NHẬN ĐIỀU CHUYỂN',
-                themeColor: '#f59e0b'
+                themeColor: '#f59e0b',
+                btnClass: 'btn-transfer'
             }
         };
         // ====== KHỞI TẠO BIẾN TOÀN CỤC ======
@@ -516,18 +547,27 @@
             currentMode = mode;
             const config = OP_CONFIG[mode];
 
-            // Cập nhật UI Tabs
+            // 1. Cập nhật Tab UI
             document.querySelectorAll("#opTab .nav-link").forEach(btn => btn.classList.remove("active"));
             element.classList.add("active");
 
-            // Cập nhật màu sắc và text dựa trên cấu hình
-            document.documentElement.style.setProperty("--success-color", config.themeColor);
-            dom.btnSubmit.style.background = config.headerBg;
+            // 2. Cập nhật màu sắc cho toàn trang (Variable)
+            document.documentElement.style.setProperty("--primary-gradient", config.headerBg);
+
+            // 3. Cập nhật Class và Text cho nút bấm (Xử lý lỗi trắng nút)
+            dom.btnSubmit.className = "btn btn-lg text-white shadow-sm"; // Reset class cơ bản
+            if (config.btnClass) {
+                dom.btnSubmit.classList.add(config.btnClass);
+            }
             dom.btnSubmit.innerText = config.btnText;
 
-            // Reset danh sách và lấy lại tham chiếu dom.noData mới
-            dom.scannedList.innerHTML = '<div class="text-center py-5 opacity-25" id="noData"><i class="bi bi-box-seam display-1"></i><p class="mt-2">Chưa có dữ liệu quét</p></div>';
-            dom.noData = document.getElementById("noData"); // CẬP NHẬT Ở ĐÂY
+            // 4. Reset danh sách hàng
+            dom.scannedList.innerHTML = `
+        <div class="text-center py-5 opacity-25" id="noData">
+            <i class="bi bi-box-seam display-1"></i>
+            <p class="mt-2">Chưa có dữ liệu quét</p>
+        </div>`;
+            dom.noData = document.getElementById("noData");
             updateCounter();
         }
 
@@ -643,6 +683,23 @@
             const modal = new bootstrap.Modal(document.getElementById('receiptModal'));
             modal.show();
         }
+
+        function initLayout() {
+            // Tìm tab đang có class 'active' do Thymeleaf gán
+            const activeTab = document.querySelector('#opTab .nav-link.active');
+            if (activeTab) {
+                // Lấy mode từ text của tab hoặc data attribute
+                const mode = activeTab.innerText.includes('NHẬP') ? 'INBOUND' :
+                    activeTab.innerText.includes('XUẤT') ? 'OUTBOUND' : 'TRANSFER';
+                switchMode(mode, activeTab);
+            }
+        }
+
+        // Chạy ngay khi DOM sẵn sàng
+        document.addEventListener('DOMContentLoaded', initLayout);
+
+        // Dự phòng cho trường hợp Navbar dùng kỹ thuật load động
+        window.addEventListener('pageshow', initLayout);
     </script>
 </div>
 
