@@ -2,6 +2,8 @@ package com.tttn.warehouseqr.modules.inbound.controller;
 
 import com.tttn.warehouseqr.modules.inbound.dto.InboundRequestDTO;
 import com.tttn.warehouseqr.modules.inbound.service.InboundService;
+import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
+import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -11,12 +13,26 @@ import org.springframework.web.bind.annotation.*;
 public class InboundController {
 
     private final InboundService inboundService;
+    private final ProductService productService;
 
-
-    public InboundController(InboundService inboundService) {
+    public InboundController(InboundService inboundService, ProductService productService) {
         this.inboundService = inboundService;
+        this.productService = productService;
     }
 
+
+    @GetMapping("/scan-item")
+    @ResponseBody
+    public ResponseEntity<?> scanItem(@RequestParam String sku, @RequestParam String lotCode) {
+        try {
+            // Gọi hàm xử lý logic từ ProductService mà bạn vừa viết
+            ProductScanDTO data = productService.getProductForScan(sku, lotCode);
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            // Trả về thông báo lỗi cụ thể để Frontend hiển thị Alert
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 
     @PostMapping("/confirm")
     @ResponseBody // Báo cho Spring trả về dữ liệu/text thay vì tìm file HTML
