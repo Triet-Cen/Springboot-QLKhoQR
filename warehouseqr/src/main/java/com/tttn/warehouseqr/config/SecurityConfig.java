@@ -17,10 +17,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // Tạm thời disable để test cho nhanh, nếu chạy rồi thì bật lại sau
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/img/**").permitAll()
-                        .requestMatchers("/auth/login","/").permitAll()
+                        .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/admin/users/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/products/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
-                        .requestMatchers("/").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(login -> login

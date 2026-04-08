@@ -7,11 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class LoginController {
     @GetMapping("/auth/login")
     public String login() {
-        return "auth/login"; // Trả về file login.html
+        return "auth/login";
     }
 
-//    @GetMapping("/dashboard")
-//    public String dashboard() {
-//        return "redirect:/admin/users";
-//    }
 }
