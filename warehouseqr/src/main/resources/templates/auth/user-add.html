@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Thêm mới người dùng</title>
+</head>
+<body>
+<div id="mainContent">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/admin/users}">Người dùng</a></li>
+            <li class="breadcrumb-item active">Thêm mới</li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0 fw-bold text-primary">
+                <i class="bi bi-person-plus me-2"></i>Tạo tài khoản mới
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <form th:action="@{/admin/users/add}" th:object="${userRequest}" method="post">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Tên đăng nhập</label>
+                        <input type="text" class="form-control" th:field="*{username}" placeholder="Ví dụ: nptthinh">
+                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('username')}" th:errors="*{username}"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Họ và tên</label>
+                        <input type="text" class="form-control" th:field="*{fullName}" placeholder="Nguyễn Phú Thịnh">
+                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" class="form-control" th:field="*{email}" placeholder="example@gmail.com">
+                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Số điện thoại</label>
+                        <input type="text" class="form-control" th:field="*{phone}" placeholder="09xxxxxxx">
+                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Mật khẩu</label>
+                        <input type="password" class="form-control" th:field="*{password}" placeholder="******">
+                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Vai trò</label>
+                        <select th:field="*{roleId}" class="form-select">
+                            <option th:each="r : ${roles}" th:value="${r.roleId}" th:text="${r.roleName}"></option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i> Xác nhận thêm
+                    </button>
+                    <a th:href="@{/admin/users}" class="btn btn-outline-secondary px-4">Quay lại</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
