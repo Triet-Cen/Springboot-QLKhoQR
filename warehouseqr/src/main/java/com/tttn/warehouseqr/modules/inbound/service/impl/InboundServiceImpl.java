@@ -44,13 +44,15 @@ public class InboundServiceImpl implements InboundService {
     @Override
     @Transactional
     public InboundReceipt createInboundReceipt(InboundRequestDTO dto) {
-        // 1. Kiểm tra Header
-        if (dto.getPurchaseOrderId() == null) throw new RuntimeException("Lỗi: purchaseOrderId bị null");
+        // 1. Kiểm tra Header cơ bản
         if (dto.getWarehouseId() == null) throw new RuntimeException("Lỗi: warehouseId bị null");
 
         InboundReceipt receipt = new InboundReceipt();
-        receipt.setInboundReceiptCode(dto.getInboundReceiptCode() != null ? dto.getInboundReceiptCode() : "PN-" + System.currentTimeMillis());
-        receipt.setPurchaseOrderId(dto.getPurchaseOrderId());
+        // Tạo mã phiếu tự động nếu FE không gửi
+        receipt.setInboundReceiptCode(dto.getInboundReceiptCode() != null ?
+                dto.getInboundReceiptCode() : "PN-" + System.currentTimeMillis());
+
+        receipt.setPurchaseOrderId(dto.getPurchaseOrderId()); // Có thể null khi quét lẻ
         receipt.setSupplierId(dto.getSupplierId());
         receipt.setWarehouseId(dto.getWarehouseId());
         receipt.setStatus("COMPLETED");
@@ -61,9 +63,8 @@ public class InboundServiceImpl implements InboundService {
 
         // 2. Duyệt Items
         for (var itemDto : dto.getItems()) {
-            // KIỂM TRA TỪNG BIẾN TRƯỚC KHI GỌI REPO
-            if (itemDto.getProductId() == null) throw new RuntimeException("Lỗi: productId của một item bị null");
-            if (itemDto.getLocationId() == null) throw new RuntimeException("Lỗi: locationId bị null. Hãy kiểm tra lại dữ liệu gửi từ FE");
+            if (itemDto.getProductId() == null) throw new RuntimeException("Lỗi: productId bị null");
+            if (itemDto.getLocationId() == null) throw new RuntimeException("Lỗi: locationId bị null");
 
             InboundReceiptItem item = new InboundReceiptItem();
             item.setInboundReceipt(savedReceipt);
@@ -85,18 +86,21 @@ public class InboundServiceImpl implements InboundService {
 
             itemRepo.save(item);
 
-            // Cập nhật các bảng liên quan - Đảm bảo các tham số KHÔNG NULL
-            poItemRepo.updateReceivedQty(dto.getPurchaseOrderId(), itemDto.getProductId(), itemDto.getActualQty());
+            // QUAN TRỌNG: Chỉ update PO nếu có PurchaseOrderId
+            if (dto.getPurchaseOrderId() != null) {
+                poItemRepo.updateReceivedQty(dto.getPurchaseOrderId(), itemDto.getProductId(), itemDto.getActualQty());
+            }
 
-            // Cần cực kỳ cẩn thận với plusStock
+            // Cập nhật tồn kho (Vẫn chạy bình thường cho cả quét lẻ và PO)
             balanceRepo.plusStock(
                     dto.getWarehouseId(),
                     itemDto.getLocationId(),
                     itemDto.getProductId(),
-                    itemDto.getBatchId(), // batchId có thể null nếu DB của bạn cho phép
+                    itemDto.getBatchId(),
                     itemDto.getActualQty()
             );
 
+            // Ghi lịch sử kho (Vẫn chạy bình thường)
             InventoryHistory history = new InventoryHistory();
             history.setTransactionType("INBOUND");
             history.setProductId(itemDto.getProductId());
