@@ -1,13 +1,17 @@
 package com.tttn.warehouseqr.modules.inventory.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Data
 @Entity
 @Table(name = "inventory_history")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class InventoryHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,4 +46,6 @@ public class InventoryHistory {
 
     @Column(name = "user_id")
     private Long userId;
+
+
 }

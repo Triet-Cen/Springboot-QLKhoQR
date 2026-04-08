@@ -3,6 +3,7 @@ package com.tttn.warehouseqr.modules.inventory.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -12,17 +13,24 @@ public class InventoryLocationBalance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private BigDecimal qty;
-
-    @Column(name = "warehouse_id")
+    @Column(name = "warehouse_id", nullable = false)
     private Long warehouseId;
 
-    @Column(name = "location_id")
+    @Column(name = "location_id", nullable = false)
     private Long locationId;
 
-    @Column(name = "product_id")
+    @Column(name = "product_id", nullable = false)
     private Long productId;
 
     @Column(name = "batch_id")
     private Long batchId;
+
+    @Column(name = "qty", precision = 15, scale = 2)
+    private BigDecimal qty;
+
+    @Column(name = "update_at")
+    private LocalDateTime updateAt;
+
+    @Column(name = "status")
+    private String status;
 }
