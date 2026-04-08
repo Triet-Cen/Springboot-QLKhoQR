@@ -3,7 +3,7 @@ package com.tttn.warehouseqr.modules.masterdata.supplier.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "supplier")
+@Table(name = "suppliers")
 public class Supplier {
 
     @Id
