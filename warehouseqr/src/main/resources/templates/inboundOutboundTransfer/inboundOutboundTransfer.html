@@ -1,0 +1,707 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Hệ thống Điều hành Kho Thông minh</title>
+
+
+    <style th:inline="css">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            --success-color: #22c55e;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --bg-soft: #f8fafc;
+        }
+
+
+        .nav-pills .nav-link {
+            border-radius: 12px;
+            padding: 12px 24px;
+            color: #64748b;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .nav-pills .nav-link.active {
+            background: var(--primary-gradient);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        .op-card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .scanner-viewport {
+            position: relative;
+            height: 300px;
+            background: #1a1a1a;
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scan-anim {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: #fff;
+            box-shadow: 0 0 15px #6366f1;
+            animation: scanning 2s infinite ease-in-out;
+            z-index: 20;
+            display: none;
+        }
+
+        @keyframes scanning {
+            0% { top: 10%; }
+            50% { top: 90%; }
+            100% { top: 10%; }
+        }
+
+        .item-list-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        .scanned-item {
+            border-left: 5px solid var(--success-color);
+            transition: all 0.3s ease;
+        }
+
+        .qty-input {
+            width: 70px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .border-dashed { border-style: dashed !important; }
+        .import-dropzone:hover {
+            background-color: #f1f3f5 !important;
+            border-color: #4f46e5 !important;
+        }
+
+        #reader video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+            border-radius: 16px;
+            background: black;
+        }
+
+        #reader {
+            width: 100%;
+            height: 300px;
+            position: relative;
+        }
+
+        .btn-inbound {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+            color: white !important;
+        }
+
+        .btn-outbound {
+            background: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%) !important;
+            color: white !important;
+        }
+
+        .btn-transfer {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+            color: white !important;
+        }
+
+        /* Đảm bảo nút mặc định không bị trắng */
+        #btnSubmitScan {
+            border: none !important;
+            min-height: 50px;
+            font-weight: bold;
+        }
+
+        .hub-title {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
+            -webkit-background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+        }
+
+        /* Chế độ in: Ẩn mọi thứ, chỉ hiện modal body */
+        @media print {
+            body * { visibility: hidden; }
+            #receiptModal .modal-content, #receiptModal .modal-content * { visibility: visible; }
+            #receiptModal .modal-content {
+                position: absolute; left: 0; top: 0; border: none; box-shadow: none; width: 100%;
+            }
+            .modal-header, .modal-footer { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <h1 class="fw-bold text-dark hub-title" >
+                    Warehouse Operations Hub
+                </h1>
+                <p class="text-secondary">Số hóa quy trình Nhập - Xuất - Chuyển kho thời gian thực</p>
+            </div>
+        </div>
+
+        <ul class="nav nav-pills justify-content-center mb-5 gap-3" id="opTab" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" onclick="switchMode('INBOUND', this)"><i class="bi bi-box-arrow-in-down me-2"></i>NHẬP KHO</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" onclick="switchMode('OUTBOUND', this)"><i class="bi bi-box-arrow-up me-2"></i>XUẤT KHO</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" onclick="switchMode('TRANSFER', this)"><i class="bi bi-arrow-left-right me-2"></i>ĐIỀU CHUYỂN</button>
+            </li>
+        </ul>
+
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="card op-card h-100 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="fw-bold mb-0">Trạm Quét Kỹ Thuật Số</h5>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="cameraSwitch" />
+                                <label class="form-check-label small fw-bold text-muted" for="cameraSwitch">CAMERA</label>
+                            </div>
+                        </div>
+
+                        <div id="reader" class="scanner-viewport mb-4">
+                            <video id="video" playsinline style="width: 100%; height: 100%; border-radius: 16px"></video>
+                            <div class="scan-anim" id="scannerLine"></div>
+                            <div class="text-center text-white opacity-50" id="placeholder">
+                                <i class="bi bi-camera-video-off fs-1"></i>
+                                <p class="small mt-2">Camera đang tắt</p>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Nhập dữ liệu lô hàng lớn</label>
+                            <div class="import-dropzone p-4 text-center border-2 border-dashed rounded-4 bg-light position-relative" id="dropzone">
+                                <input type="file" id="csvFileInput" class="position-absolute opacity-0 w-100 h-100 start-0 top-0" accept=".csv" style="cursor: pointer" />
+                                <div class="py-2">
+                                    <i class="bi bi-file-earmark-spreadsheet fs-2 text-success mb-2 d-block"></i>
+                                    <h6 class="fw-bold text-dark mb-1">Tải lên file CSV</h6>
+                                    <p class="text-muted small mb-0 text-primary">Chọn từ máy tính</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="card op-card h-100 shadow-sm">
+                    <div class="card-header bg-white border-0 py-4 px-4 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">Danh sách chờ xử lý</h5>
+                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill" id="itemCounter">0 sản phẩm</span>
+                    </div>
+
+                    <div class="card-body p-0">
+                        <div class="item-list-container px-4">
+                            <div class="list-group list-group-flush gap-3" id="scannedList">
+                                <div class="text-center py-5 opacity-25" id="noData">
+                                    <i class="bi bi-box-seam display-1"></i>
+                                    <p class="mt-2">Chưa có dữ liệu quét</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-white border-0 p-4">
+                        <div class="d-grid gap-2">
+                            <button id="btnSubmitScan" class="btn btn-lg text-white shadow-sm" style="background: var(--primary-gradient); border: none; border-radius: 14px;" onclick="submitDataToBackend()">
+                                XÁC NHẬN NHẬP KHO
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header text-white" id="receiptModalHeader" style="background: var(--primary-gradient);">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-check-circle-fill me-2"></i><span id="receiptTitle">GIAO DỊCH THÀNH CÔNG</span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-5">
+                    <div class="text-center mb-4">
+                        <h3 class="fw-bold text-uppercase" id="receiptDocName">PHIẾU XUẤT KHO</h3>
+                        <p class="text-muted mb-1">Mã tham chiếu: <strong>PX/PN-TEST-001</strong></p>
+                        <p class="text-muted mb-0" id="receiptTime"></p>
+                    </div>
+
+                    <div class="table-responsive rounded-3 border">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th class="text-center" width="10%">STT</th>
+                                <th>MÃ SẢN PHẨM / LÔ HÀNG</th>
+                                <th class="text-center" width="20%">SỐ LƯỢNG</th>
+                            </tr>
+                            </thead>
+                            <tbody id="receiptTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row mt-5 text-center">
+                        <div class="col-6">
+                            <p class="fw-bold mb-5">Người giao</p>
+                            <p class="text-muted">(Ký, họ tên)</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="fw-bold mb-5">Người nhận</p>
+                            <p class="text-muted">(Ký, họ tên)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4" onclick="window.print()">
+                        <i class="bi bi-printer me-2"></i>In Phiếu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest"></script>
+
+    <script th:inline="javascript">
+        const OP_CONFIG = {
+            'INBOUND': {
+                api: '/api/inbound/confirm',
+                title: 'NHẬP KHO THÀNH CÔNG',
+                docName: 'PHIẾU NHẬP KHO',
+                headerBg: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                btnText: 'XÁC NHẬN NHẬP KHO',
+                themeColor: '#22c55e',
+                btnClass: 'btn-inbound'
+            },
+            'OUTBOUND': {
+                api: '/api/outbound/confirm',
+                title: 'XUẤT KHO THÀNH CÔNG',
+                docName: 'PHIẾU XUẤT KHO',
+                headerBg: 'linear-gradient(135deg, #f43f5e 0%, #fb7185 100%)',
+                btnText: 'XÁC NHẬN XUẤT KHO',
+                themeColor: '#ef4444',
+                suggestionApi: '/api/outbound/suggest/',
+                btnClass: 'btn-outbound'
+            },
+            'TRANSFER': {
+                api: '/scan-station/transfer',
+                title: 'ĐIỀU CHUYỂN THÀNH CÔNG',
+                docName: 'PHIẾU ĐIỀU CHUYỂN',
+                headerBg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                btnText: 'XÁC NHẬN ĐIỀU CHUYỂN',
+                themeColor: '#f59e0b',
+                btnClass: 'btn-transfer'
+            }
+        };
+        // ====== KHỞI TẠO BIẾN TOÀN CỤC ======
+        const codeReader = new ZXing.BrowserQRCodeReader();
+        const beepSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+        let controls = null;
+        let currentMode = "INBOUND";
+        let lastScan = "";
+        let lastTime = 0;
+
+        // Các phần tử DOM hay dùng
+        let dom = {
+            cameraSwitch: document.getElementById("cameraSwitch"),
+            placeholder: document.getElementById("placeholder"),
+            scannerLine: document.getElementById("scannerLine"),
+            video: document.getElementById("video"),
+            scannedList: document.getElementById("scannedList"),
+            noData: document.getElementById("noData"),
+            counter: document.getElementById("itemCounter"),
+            btnSubmit: document.getElementById("btnSubmitScan")
+        };
+
+        // ====== QUẢN LÝ CAMERA ======
+        async function startCamera() {
+            try {
+                dom.placeholder.style.display = "none";
+                dom.scannerLine.style.display = "block";
+
+                const devices = await codeReader.listVideoInputDevices();
+                if (devices.length === 0) throw new Error("Không tìm thấy camera.");
+
+                // Ưu tiên camera sau (environment)
+                const selectedId = devices.find(d => /back|sau|environment/i.test(d.label))?.deviceId || devices[0].deviceId;
+
+                controls = await codeReader.decodeFromVideoDevice(selectedId, dom.video, (result, err) => {
+                    if (result) handleScan(result.getText());
+                });
+            } catch (err) {
+                alert("Lỗi: " + err.message);
+                dom.cameraSwitch.checked = false;
+                stopCamera();
+            }
+        }
+
+        function stopCamera() {
+            if (controls) controls.stop();
+            if (dom.video.srcObject) dom.video.srcObject.getTracks().forEach(t => t.stop());
+            dom.scannerLine.style.display = "none";
+            dom.placeholder.style.display = "block";
+        }
+
+        dom.cameraSwitch.addEventListener("change", e => e.target.checked ? startCamera() : stopCamera());
+
+        // ====== XỬ LÝ QUÉT MÃ (LOGIC CHÍNH) ======
+        async function handleScan(text) {
+            const now = Date.now();
+            // Chống quét lặp trong 2 giây
+            if (text === lastScan && now - lastTime < 2000) return;
+            lastScan = text;
+            lastTime = now;
+
+            beepSound.play().catch(() => {});
+
+            try {
+                if (currentMode === "OUTBOUND") {
+                    // === LOGIC XUẤT KHO (Sử dụng Sales Order Code) ===
+                    const soCode = text;
+                    const response = await fetch(`/api/outbound/suggest/${soCode}`);
+
+                    if (!response.ok) throw new Error("Không tìm thấy đơn hàng bán (SO)!");
+
+                    const suggestions = await response.json();
+
+                    // Xóa danh sách cũ
+                    dom.scannedList.innerHTML = "";
+
+                    // Lưu lại Sales Order ID từ item đầu tiên (giả sử đơn hàng có ít nhất 1 item)
+                    // Nếu API suggest chưa trả về SO_ID, bạn cần bổ sung vào API đó.
+                    window.currentSalesOrderId = suggestions.length > 0 ? suggestions[0].salesOrderId : null;
+
+                    suggestions.forEach(item => {
+                        // Lấy vị trí kệ đầu tiên được gợi ý (FIFO)
+                        const bestLoc = (item.suggestedLocations && item.suggestedLocations.length > 0)
+                            ? item.suggestedLocations[0]
+                            : { locationId: 'HẾT HÀNG', batchId: null, availableQty: 0 };
+
+                        renderOutboundItemToUI(item, bestLoc, soCode);
+                    });
+
+                } else if (currentMode === "INBOUND") {
+                    // === LOGIC NHẬP KHO (Giữ nguyên logic cũ của bạn) ===
+                    const poId = parseInt(text);
+                    if (isNaN(poId)) throw new Error("Mã đơn hàng nhập không hợp lệ!");
+
+                    window.currentPurchaseOrderId = poId;
+
+                    const response = await fetch(`/api/purchase-orders/${poId}/items`);
+                    if (!response.ok) throw new Error("Không tìm thấy đơn hàng mua (PO)!");
+
+                    const items = await response.json();
+
+                    dom.scannedList.innerHTML = "";
+                    items.forEach(item => {
+                        renderProductToUI(item.productId, item.productName, item.actualQty, poId, item.lotCode);
+                    });
+                }
+
+                updateCounter();
+
+            } catch (err) {
+                console.error(err);
+                alert("Lỗi quét mã: " + err.message);
+                // Reset lastScan để có thể quét lại ngay nếu lỗi
+                lastScan = "";
+            }
+        }
+
+        function renderOutboundItemToUI(item, bestLoc, soCode) {
+            if (dom.noData) dom.noData.style.display = "none";
+
+            const newItem = document.createElement("div");
+            newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
+
+            // Gán dữ liệu vào thuộc tính data để hàm submitDataToBackend có thể lấy ra
+            newItem.setAttribute('data-product-id', item.productId);
+            newItem.setAttribute('data-location-id', bestLoc.locationId);
+            newItem.setAttribute('data-batch-id', bestLoc.batchId);
+            newItem.setAttribute('data-req-qty', item.requiredQty);
+
+            newItem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="fw-bold mb-1 text-danger">SP ID: ${item.productId}</h6>
+                <div class="d-flex flex-column">
+                    <span class="badge bg-warning text-dark mb-1" style="width: fit-content;">
+                        <i class="bi bi-geo-alt-fill"></i> Lấy tại Kệ ID: ${bestLoc.locationId}
+                    </span>
+                    <small class="text-muted">Đơn hàng: ${soCode} | Tồn kệ: ${bestLoc.availableQty}</small>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end me-2">
+                    <small class="d-block text-muted">Cần lấy</small>
+                    <span class="fw-bold">${item.requiredQty}</span>
+                </div>
+                <input type="number" class="form-control qty-input shadow-sm border-0 bg-light"
+                       value="${item.requiredQty}" min="0">
+                <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>`;
+            dom.scannedList.appendChild(newItem);
+        }
+
+        function renderProductToUI(productId, productName, qty, poId, lotCode) {
+            if (dom.noData) dom.noData.style.display = "none";
+
+            // Nếu productName bị null/undefined, hiện tên mặc định để tránh lỗi
+            const displayName = productName ? productName : "Sản phẩm " + productId;
+
+            const newItem = document.createElement("div");
+            newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
+
+            newItem.setAttribute('data-product-id', productId);
+            newItem.setAttribute('data-product-name', productName);
+            newItem.setAttribute('data-lot-code', lotCode || 'Mặc định');
+
+
+            newItem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="fw-bold mb-0 text-primary">${displayName}</h6>
+                <small class="text-muted">Mã SP: ${productId} - Đơn hàng #${poId}</small>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <input type="number" class="form-control qty-input shadow-sm border-0 bg-light" value="${qty}" min="1">
+                <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>`;
+            dom.scannedList.appendChild(newItem);
+        }
+
+        function addProductToUI(sku) {
+            if (dom.noData) dom.noData.style.display = "none";
+
+            const existingRow = Array.from(document.querySelectorAll('.scanned-item'))
+                .find(row => row.querySelector('h6').innerText === sku);
+
+            if (existingRow) {
+                const qtyInput = existingRow.querySelector('.qty-input');
+                qtyInput.value = parseInt(qtyInput.value) + 1;
+                dom.scannedList.prepend(existingRow); // Đưa dòng vừa quét lên đầu
+
+                qtyInput.style.backgroundColor = "#e0e7ff";
+                setTimeout(() => qtyInput.style.backgroundColor = "#f8f9fa", 500);
+            } else {
+                const newItem = document.createElement("div");
+                newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
+                // ĐIỀN ĐẦY ĐỦ NỘI DUNG VÀO ĐÂY
+                newItem.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="fw-bold mb-0 text-primary">${sku}</h6>
+                    <small class="text-muted"><i class="bi bi-clock me-1"></i>${new Date().toLocaleTimeString()}</small>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <input type="number" class="form-control qty-input shadow-sm border-0 bg-light" value="1" min="1">
+                    <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>`;
+                dom.scannedList.prepend(newItem);
+            }
+            updateCounter();
+        }
+
+        function removeRow(btn) {
+            btn.closest('.list-group-item').remove();
+            updateCounter();
+        }
+
+        function updateCounter() {
+            const count = document.querySelectorAll(".scanned-item").length;
+            dom.counter.innerText = `${count} mã hàng`;
+            if (count === 0 && dom.noData) dom.noData.style.display = "block";
+        }
+
+        // ====== CHUYỂN CHẾ ĐỘ (UI STRATEGY) ======
+        function switchMode(mode, element) {
+            if (document.querySelectorAll(".scanned-item").length > 0) {
+                if (!confirm('Chuyển chế độ sẽ xóa danh sách hiện tại, bạn đồng ý chứ?')) return;
+            }
+
+            currentMode = mode;
+            const config = OP_CONFIG[mode];
+
+            // 1. Cập nhật Tab UI
+            document.querySelectorAll("#opTab .nav-link").forEach(btn => btn.classList.remove("active"));
+            element.classList.add("active");
+
+            // 2. Cập nhật màu sắc cho toàn trang (Variable)
+            document.documentElement.style.setProperty("--primary-gradient", config.headerBg);
+
+            // 3. Cập nhật Class và Text cho nút bấm (Xử lý lỗi trắng nút)
+            dom.btnSubmit.className = "btn btn-lg text-white shadow-sm"; // Reset class cơ bản
+            if (config.btnClass) {
+                dom.btnSubmit.classList.add(config.btnClass);
+            }
+            dom.btnSubmit.innerText = config.btnText;
+
+            // 4. Reset danh sách hàng
+            dom.scannedList.innerHTML = `
+        <div class="text-center py-5 opacity-25" id="noData">
+            <i class="bi bi-box-seam display-1"></i>
+            <p class="mt-2">Chưa có dữ liệu quét</p>
+        </div>`;
+            dom.noData = document.getElementById("noData");
+            updateCounter();
+        }
+
+        // ====== GỬI DỮ LIỆU (AJAX/FETCH) ======
+        async function submitDataToBackend() {
+            const config = OP_CONFIG[currentMode];
+            const scannedRows = document.querySelectorAll('.scanned-item');
+            if (scannedRows.length === 0) return alert("Danh sách trống!");
+
+            // 1. Thu thập danh sách hàng hóa từ giao diện
+            const items = Array.from(scannedRows).map(row => {
+                return {
+                    productId: parseInt(row.getAttribute('data-product-id')),
+                    // Các trường quan trọng cho Outbound (Lấy từ dataset đã render trước đó)
+                    locationId: parseInt(row.getAttribute('data-location-id')) || 1,
+                    batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
+                    requestedQty: parseFloat(row.getAttribute('data-req-qty')) || 0,
+
+                    // Tên sản phẩm và lô để hiển thị trên Modal sau khi lưu thành công
+                    productName: row.getAttribute('data-product-name') || "Sản phẩm",
+                    lotCode: row.getAttribute('data-lot-code') || "Mặc định",
+
+                    // Số lượng thực tế nhân viên nhập vào ô input
+                    actualQty: parseFloat(row.querySelector('.qty-input').value)
+                };
+            });
+
+            // Kiểm tra nhanh tính hợp lệ
+            if (items.some(item => isNaN(item.productId))) {
+                return alert("Lỗi: Dữ liệu sản phẩm không hợp lệ hoặc thiếu ID!");
+            }
+
+            // 2. Xây dựng Payload dựa trên chế độ đang chọn (Mode)
+            let payload = {};
+
+            if (currentMode === "OUTBOUND") {
+                payload = {
+                    salesOrderId: window.currentSalesOrderId, // ID đơn hàng đã lưu khi quét mã SO
+                    warehouseId: 1, // ID kho thực hiện xuất
+                    customerId: 1,  // ID khách hàng (có thể lấy từ đơn hàng)
+                    items: items
+                };
+            } else {
+                // Mặc định là INBOUND
+                payload = {
+                    inboundReceiptCode: "PN-" + Date.now(),
+                    purchaseOrderId: window.currentPurchaseOrderId,
+                    warehouseId: 1,
+                    supplierId: 1,
+                    items: items
+                };
+            }
+
+            console.log("Payload chuẩn bị gửi:", payload);
+
+            // 3. Thực hiện gọi API
+            dom.btnSubmit.disabled = true;
+            dom.btnSubmit.innerText = "ĐANG XỬ LÝ...";
+
+            try {
+                const response = await fetch(config.api, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText);
+                }
+
+                alert(config.title); // Hiện thông báo thành công (Nhập hoặc Xuất)
+
+                // Hiển thị modal phiếu (Receipt) để in
+                renderReceiptModal(config, items);
+
+                // Reset giao diện sau khi thành công
+                dom.scannedList.innerHTML = '<div class="text-center py-5 opacity-25" id="noData"><i class="bi bi-box-seam display-1"></i><p class="mt-2">Chưa có dữ liệu quét</p></div>';
+                dom.noData = document.getElementById("noData");
+                updateCounter();
+                lastScan = ""; // Reset mã quét để có thể quét lại đơn khác ngay lập tức
+
+            } catch (err) {
+                alert("Lỗi hệ thống: " + err.message);
+            } finally {
+                dom.btnSubmit.disabled = false;
+                dom.btnSubmit.innerText = config.btnText;
+            }
+        }
+
+        // ====== HIỂN THỊ PHIẾU (MODAL) ======
+        function renderReceiptModal(config, items) {
+            document.getElementById('receiptTime').innerText = "Thời gian: " + new Date().toLocaleString('vi-VN');
+            document.getElementById('receiptModalHeader').style.background = config.headerBg;
+            document.getElementById('receiptTitle').innerText = config.title;
+            document.getElementById('receiptDocName').innerText = config.docName;
+
+            const tbody = document.getElementById('receiptTableBody');
+            // Sửa lại đoạn map này cho sạch
+            tbody.innerHTML = items.map((item, index) => `
+            <tr>
+                <td class="text-center">${index + 1}</td>
+                <td>
+                    <div class="fw-bold text-primary">${item.productName || 'Sản phẩm'}</div>
+                    <small class="text-muted">Lô: ${item.lotCode || 'Mặc định'}</small>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-dark fs-6">${item.actualQty}</span>
+                </td>
+            </tr>
+        `).join('');
+
+            const modal = new bootstrap.Modal(document.getElementById('receiptModal'));
+            modal.show();
+        }
+
+        function initLayout() {
+            // Tìm tab đang có class 'active' do Thymeleaf gán
+            const activeTab = document.querySelector('#opTab .nav-link.active');
+            if (activeTab) {
+                // Lấy mode từ text của tab hoặc data attribute
+                const mode = activeTab.innerText.includes('NHẬP') ? 'INBOUND' :
+                    activeTab.innerText.includes('XUẤT') ? 'OUTBOUND' : 'TRANSFER';
+                switchMode(mode, activeTab);
+            }
+        }
+
+        // Chạy ngay khi DOM sẵn sàng
+        document.addEventListener('DOMContentLoaded', initLayout);
+
+        // Dự phòng cho trường hợp Navbar dùng kỹ thuật load động
+        window.addEventListener('pageshow', initLayout);
+    </script>
+</div>
+
+</body>
+</html>
