@@ -18,8 +18,9 @@ public class OutboundReceiptItem {
     @Column(name = "actual_qty")
     private BigDecimal actualQty;
 
-    @Column(name = "outbound_receipt_id")
-    private Long outboundReceiptId;
+    @ManyToOne
+    @JoinColumn(name = "outbound_receipt_id", nullable = false)
+    private OutboundReceipt outboundReceipt;
 
     @Column(name = "product_id")
     private Long productId;

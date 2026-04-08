@@ -14,15 +14,26 @@ import com.tttn.warehouseqr.modules.inventory.entity.InventoryHistory;
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryHistoryRepository;
 
+import com.tttn.warehouseqr.modules.outbound.dto.OutboundItemDTO;
+import com.tttn.warehouseqr.modules.outbound.dto.OutboundPickingSuggestionDTO;
+import com.tttn.warehouseqr.modules.outbound.entity.OutboundReceipt;
 import com.tttn.warehouseqr.modules.outbound.entity.OutboundReceiptItem;
 import com.tttn.warehouseqr.modules.outbound.repository.OutboundReceiptItemRepository;
 
 // 4. Các thư viện mặc định của Spring Boot và Java
+import com.tttn.warehouseqr.modules.outbound.repository.OutboundReceiptRepository;
+import com.tttn.warehouseqr.modules.outbound.request.OutboundRequestDTO;
 import com.tttn.warehouseqr.modules.outbound.service.OutboundService;
+import com.tttn.warehouseqr.modules.salesorder.entity.SalesOrder;
+import com.tttn.warehouseqr.modules.salesorder.repository.SalesOrderItemRepository;
+import com.tttn.warehouseqr.modules.salesorder.repository.SalesOrderRepository;
 import com.tttn.warehouseqr.modules.scan.dto.ScanSubmitDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class OutboundServiceImpl implements OutboundService {
@@ -33,18 +44,27 @@ public class OutboundServiceImpl implements OutboundService {
     private final OutboundReceiptItemRepository outboundItemRepository;
     private final InventoryLocationBalanceRepository balanceRepository;
     private final InventoryHistoryRepository historyRepository;
+    private final SalesOrderRepository salesOrderRepository;
+    private final SalesOrderItemRepository salesOrderItemRepository;
+    private final OutboundReceiptRepository outboundReceiptRepository;
+
 
     // Constructor để Spring Boot tự động "bơm" vào
     public OutboundServiceImpl(QrCodeResipotory qrCodeRepository,
                                ProductBatchRepository batchRepository,
                                OutboundReceiptItemRepository outboundItemRepository,
                                InventoryLocationBalanceRepository balanceRepository,
-                               InventoryHistoryRepository historyRepository) {
+                               InventoryHistoryRepository historyRepository,
+                               SalesOrderRepository salesOrderRepository, SalesOrderItemRepository salesOrderItemRepository,
+                               OutboundReceiptRepository outboundReceiptRepository) {
         this.qrCodeRepository = qrCodeRepository;
         this.batchRepository = batchRepository;
         this.outboundItemRepository = outboundItemRepository;
         this.balanceRepository = balanceRepository;
         this.historyRepository = historyRepository;
+        this.salesOrderRepository = salesOrderRepository;
+        this.salesOrderItemRepository = salesOrderItemRepository;
+        this.outboundReceiptRepository = outboundReceiptRepository;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -102,5 +122,103 @@ public class OutboundServiceImpl implements OutboundService {
             history.setUserId(userId);
             historyRepository.save(history);
         }
+    }
+
+    @Override
+    public List<OutboundPickingSuggestionDTO> getPickingSuggestions(String soCode) {
+        SalesOrder so = salesOrderRepository.findBySoCode(soCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + soCode));
+
+        return so.getItems().stream().map(item -> {
+            OutboundPickingSuggestionDTO dto = new OutboundPickingSuggestionDTO();
+            dto.setProductId(item.getProductId());
+            dto.setRequiredQty(item.getQuantity());
+
+            // Tìm sản phẩm trong kho, ưu tiên hàng nhập trước (FIFO)
+            List<InventoryLocationBalance> stocks = balanceRepository.findAvailableStock(item.getProductId());
+
+            // Chuyển đổi từ Entity Tồn kho sang danh sách gợi ý kệ gọn nhẹ
+            List<OutboundPickingSuggestionDTO.LocationSuggestion> locations = stocks.stream().map(s -> {
+                OutboundPickingSuggestionDTO.LocationSuggestion loc = new OutboundPickingSuggestionDTO.LocationSuggestion();
+                loc.setLocationId(s.getLocationId());
+                loc.setBatchId(s.getBatchId());
+                loc.setAvailableQty(s.getQty());
+                // Lưu ý: Bạn có thể cần join thêm bảng Location/Batch để lấy Code/LotCode hiển thị lên màn hình
+                return loc;
+            }).collect(Collectors.toList());
+
+            dto.setSuggestedLocations(locations);
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public OutboundReceipt confirmOutbound(OutboundRequestDTO request, Long userId) {
+        // 1. Lưu Header Phiếu xuất
+        OutboundReceipt receipt = new OutboundReceipt();
+
+        // Lưu ý: Sử dụng đúng tên hàm Setter trong Entity của bạn (outBoundReceiptCode)
+        receipt.setOutboundReceiptCode("PX-" + System.currentTimeMillis());
+
+        receipt.setWarehouseId(request.getWarehouseId()); // Sửa từ dto thành request
+        receipt.setCustomerId(request.getCustomerId());
+        receipt.setCreatedBy(userId); // Sử dụng tham số userId truyền vào
+        receipt.setStatus("SHIPPED");
+        receipt.setCreatedAt(LocalDateTime.now());
+        receipt.setShippedAt(LocalDateTime.now());
+
+        OutboundReceipt savedReceipt = outboundReceiptRepository.save(receipt);
+
+        // 2. Duyệt danh sách hàng nhân sviên đã quét từ OutboundRequestDTO
+        for (OutboundItemDTO itemDto : request.getItems()) {
+            // Đổi Double sang BigDecimal để tính toán chính xác
+            BigDecimal qty = BigDecimal.valueOf(itemDto.getActualQty());
+
+            // A. Trừ kho nguyên tử (Atomic Update)
+            int rowsAffected = balanceRepository.minusStock(
+                    request.getWarehouseId(),
+                    itemDto.getLocationId(),
+                    itemDto.getProductId(),
+                    itemDto.getBatchId(),
+                    qty
+            );
+
+            // Nếu không có dòng nào bị ảnh hưởng -> Kho không đủ hàng hoặc sai thông tin
+            if (rowsAffected == 0) {
+                throw new RuntimeException("Sản phẩm ID " + itemDto.getProductId() +
+                        " không đủ tồn kho tại vị trí kệ ID " + itemDto.getLocationId());
+            }
+
+            // B. Cập nhật số lượng thực tế đã xuất vào chi tiết Đơn hàng bán (Sales Order Item)
+            salesOrderItemRepository.updateShippedQty(request.getSalesOrderId(), itemDto.getProductId(), qty);
+
+            // C. Lưu chi tiết phiếu xuất (OutboundReceiptItem)
+            OutboundReceiptItem receiptItem = new OutboundReceiptItem();
+            receiptItem.setOutboundReceipt(savedReceipt);
+            receiptItem.setProductId(itemDto.getProductId());
+            receiptItem.setBatchId(itemDto.getBatchId());
+            receiptItem.setPickedLocationId(itemDto.getLocationId());
+
+            // Chuyển đổi Requested Qty từ DTO sang BigDecimal
+            receiptItem.setRequestedQty(BigDecimal.valueOf(itemDto.getRequestedQty()));
+            receiptItem.setActualQty(qty);
+
+            outboundItemRepository.save(receiptItem);
+
+            // D. Ghi nhật ký lịch sử kho (History) - Lưu số âm cho loại OUTBOUND
+            InventoryHistory history = new InventoryHistory();
+            history.setTransactionType("OUTBOUND");
+            history.setQtyChange(qty.negate()); // Trừ kho
+            history.setWarehouseId(request.getWarehouseId());
+            history.setFromLocationId(itemDto.getLocationId());
+            history.setBatchId(itemDto.getBatchId());
+            history.setProductId(itemDto.getProductId());
+            // history.setUserId(userId); // Nếu bảng history của bạn có cột user_id
+
+            historyRepository.save(history);
+        }
+
+        return savedReceipt;
     }
 }

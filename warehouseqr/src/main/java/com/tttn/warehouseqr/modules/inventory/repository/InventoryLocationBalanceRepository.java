@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -23,4 +24,31 @@ public interface InventoryLocationBalanceRepository extends JpaRepository<Invent
     void plusStock(@Param("wId") Long wId, @Param("lId") Long lId,
                    @Param("pId") Long pId, @Param("bId") Long bId,
                    @Param("qty") Double qty);
+
+    /**
+     * Tìm tất cả vị trí kệ đang có sẵn sản phẩm này.
+     * Ưu tiên sắp xếp theo update_at (Hàng nào vào trước xuất trước - FIFO)
+     */
+    @Query("SELECT b FROM InventoryLocationBalance b " +
+            "WHERE b.productId = :productId AND b.qty > 0 " +
+            "ORDER BY b.updateAt ASC")
+    List<InventoryLocationBalance> findAvailableStock(@Param("productId") Long productId);
+
+    /**
+     * TRỪ KHO AN TOÀN (Atomic Update)
+     * Chỉ trừ khi số lượng trong kho (qty) lớn hơn hoặc bằng số lượng cần xuất (:qty)
+     * Trả về số dòng bị ảnh hưởng (nếu trả về 0 nghĩa là không đủ hàng để trừ)
+     */
+    @Modifying
+    @Query("UPDATE InventoryLocationBalance b SET b.qty = b.qty - :qty, b.updateAt = NOW() " +
+            "WHERE b.warehouseId = :wId " +
+            "AND b.locationId = :lId " +
+            "AND b.productId = :pId " +
+            "AND b.batchId = :bId " +
+            "AND b.qty >= :qty")
+    int minusStock(@Param("wId") Long wId,
+                   @Param("lId") Long lId,
+                   @Param("pId") Long pId,
+                   @Param("bId") Long bId,
+                   @Param("qty") BigDecimal qty);
 }
