@@ -57,4 +57,6 @@ public interface InventoryLocationBalanceRepository extends JpaRepository<Invent
             "JOIN warehouse_locations l ON b.location_id = l.location_id " +
             "WHERE b.batch_id = :batchId", nativeQuery = true)
     List<Object[]> getStockAndLocationByBatchId(@Param("batchId") Long batchId);
+
+    Optional<InventoryLocationBalance> findByBatchIdAndLocationId(Long batchId, Long locationId);
 }
