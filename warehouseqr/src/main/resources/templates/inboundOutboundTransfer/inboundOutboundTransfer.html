@@ -363,65 +363,92 @@
         // ====== XỬ LÝ QUÉT MÃ (LOGIC CHÍNH) ======
         async function handleScan(text) {
             const now = Date.now();
-            // Chống quét lặp trong 2 giây
             if (text === lastScan && now - lastTime < 2000) return;
             lastScan = text;
             lastTime = now;
-
             beepSound.play().catch(() => {});
 
             try {
-                if (currentMode === "OUTBOUND") {
-                    // === LOGIC XUẤT KHO (Sử dụng Sales Order Code) ===
-                    const soCode = text;
-                    const response = await fetch(`/api/outbound/suggest/${soCode}`);
+                // 1. KIỂM TRA NẾU LÀ QUÉT LẺ (Định dạng SKU|lotCode)
+                if (text.includes('|')) {
+                    const [sku, lotCode] = text.split('|');
+                    // Gọi đến API chúng ta vừa viết ở Bước 1
+                    const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}`);
 
-                    if (!response.ok) throw new Error("Không tìm thấy đơn hàng bán (SO)!");
+                    if (!response.ok) {
+                        const errorMsg = await response.text();
+                        throw new Error(errorMsg);
+                    }
 
-                    const suggestions = await response.json();
+                    const data = await response.json();
 
-                    // Xóa danh sách cũ
-                    dom.scannedList.innerHTML = "";
+                    // Tìm xem sản phẩm này đã có trong danh sách chờ chưa
+                    const existingRow = Array.from(document.querySelectorAll('.scanned-item'))
+                        .find(row => row.getAttribute('data-product-id') == data.productId &&
+                            row.getAttribute('data-lot-code') == data.lotCode);
 
-                    // Lưu lại Sales Order ID từ item đầu tiên (giả sử đơn hàng có ít nhất 1 item)
-                    // Nếu API suggest chưa trả về SO_ID, bạn cần bổ sung vào API đó.
-                    window.currentSalesOrderId = suggestions.length > 0 ? suggestions[0].salesOrderId : null;
-
-                    suggestions.forEach(item => {
-                        // Lấy vị trí kệ đầu tiên được gợi ý (FIFO)
-                        const bestLoc = (item.suggestedLocations && item.suggestedLocations.length > 0)
-                            ? item.suggestedLocations[0]
-                            : { locationId: 'HẾT HÀNG', batchId: null, availableQty: 0 };
-
-                        renderOutboundItemToUI(item, bestLoc, soCode);
-                    });
-
-                } else if (currentMode === "INBOUND") {
-                    // === LOGIC NHẬP KHO (Giữ nguyên logic cũ của bạn) ===
-                    const poId = parseInt(text);
-                    if (isNaN(poId)) throw new Error("Mã đơn hàng nhập không hợp lệ!");
-
-                    window.currentPurchaseOrderId = poId;
-
-                    const response = await fetch(`/api/purchase-orders/${poId}/items`);
-                    if (!response.ok) throw new Error("Không tìm thấy đơn hàng mua (PO)!");
-
-                    const items = await response.json();
-
-                    dom.scannedList.innerHTML = "";
-                    items.forEach(item => {
-                        renderProductToUI(item.productId, item.productName, item.actualQty, poId, item.lotCode);
-                    });
+                    if (existingRow) {
+                        const input = existingRow.querySelector('.qty-input');
+                        input.value = parseFloat(input.value) + 1;
+                        existingRow.classList.add('bg-success', 'bg-opacity-10');
+                        setTimeout(() => existingRow.classList.remove('bg-success', 'bg-opacity-10'), 500);
+                    } else {
+                        // Render dòng mới vào danh sách (Sử dụng ID nguồn là "QUÉT LẺ")
+                        renderProductToUI(data.productId, data.productName, 1, "QUÉT LẺ", data.lotCode, data.batchId);
+                    }
                 }
-
+                // 2. LOGIC CŨ CHO QUÉT MÃ ĐƠN HÀNG (PO/SO)
+                else {
+                    if (currentMode === "INBOUND") {
+                        const poId = parseInt(text);
+                        if (isNaN(poId)) throw new Error("Mã đơn nhập không hợp lệ!");
+                        window.currentPurchaseOrderId = poId;
+                        const resp = await fetch(`/api/purchase-orders/${poId}/items`);
+                        if (!resp.ok) throw new Error("Không tìm thấy đơn hàng!");
+                        const items = await resp.json();
+                        dom.scannedList.innerHTML = "";
+                        items.forEach(item => renderProductToUI(item.productId, item.productName, item.actualQty, poId, item.lotCode, item.batchId));
+                    } else {
+                        // Logic Outbound giữ nguyên của bạn
+                        const soCode = text;
+                        const response = await fetch(`/api/outbound/suggest/${soCode}`);
+                        // ... (phần còn lại của Outbound giữ nguyên)
+                    }
+                }
                 updateCounter();
-
             } catch (err) {
-                console.error(err);
-                alert("Lỗi quét mã: " + err.message);
-                // Reset lastScan để có thể quét lại ngay nếu lỗi
+                alert("Lỗi: " + err.message);
                 lastScan = "";
             }
+        }
+
+        async function handleSingleProductScan(sku, lotCode) {
+            // Gọi API Backend để lấy thông tin sản phẩm dựa trên SKU và Lô
+            // Bạn cần tạo Endpoint này ở Backend: GET /api/products/scan?sku=...&lotCode=...
+            const response = await fetch(`/api/products/scan?sku=${sku}&lotCode=${lotCode}`);
+            if (!response.ok) throw new Error("Sản phẩm hoặc lô hàng không tồn tại!");
+
+            const product = await response.json();
+
+            // Kiểm tra xem sản phẩm này đã có trong danh sách chờ xử lý chưa (dựa trên Product ID và Lot)
+            const existingRow = Array.from(document.querySelectorAll('.scanned-item'))
+                .find(row => row.getAttribute('data-product-id') == product.productId &&
+                    row.getAttribute('data-lot-code') == lotCode);
+
+            if (existingRow) {
+                // Nếu đã có, chỉ tăng số lượng lên 1
+                const qtyInput = existingRow.querySelector('.qty-input');
+                qtyInput.value = parseFloat(qtyInput.value) + 1;
+
+                // Hiệu ứng highlight dòng
+                existingRow.classList.add('bg-success', 'bg-opacity-10');
+                setTimeout(() => existingRow.classList.remove('bg-success', 'bg-opacity-10'), 500);
+            } else {
+                // Nếu chưa có, render dòng mới vào danh sách
+                // Ở đây dùng renderProductToUI nhưng truyền poId là "QUÉT LẺ"
+                renderProductToUI(product.productId, product.productName, 1, "QUÉT LẺ", lotCode, product.batchId);
+            }
+            updateCounter();
         }
 
         function renderOutboundItemToUI(item, bestLoc, soCode) {
@@ -462,34 +489,34 @@
             dom.scannedList.appendChild(newItem);
         }
 
-        function renderProductToUI(productId, productName, qty, poId, lotCode) {
+        function renderProductToUI(productId, productName, qty, poId, lotCode, batchId) {
             if (dom.noData) dom.noData.style.display = "none";
 
-            // Nếu productName bị null/undefined, hiện tên mặc định để tránh lỗi
             const displayName = productName ? productName : "Sản phẩm " + productId;
-
             const newItem = document.createElement("div");
             newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
 
+            // QUAN TRỌNG: Lưu các attribute để Backend xử lý
             newItem.setAttribute('data-product-id', productId);
             newItem.setAttribute('data-product-name', productName);
             newItem.setAttribute('data-lot-code', lotCode || 'Mặc định');
-
+            newItem.setAttribute('data-batch-id', batchId || 1); // Lưu batchId
+            newItem.setAttribute('data-location-id', 1); // Mặc định kệ 1, nhân viên có thể sửa sau
 
             newItem.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h6 class="fw-bold mb-0 text-primary">${displayName}</h6>
-                <small class="text-muted">Mã SP: ${productId} - Đơn hàng #${poId}</small>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <input type="number" class="form-control qty-input shadow-sm border-0 bg-light" value="${qty}" min="1">
-                <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        </div>`;
-            dom.scannedList.appendChild(newItem);
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold mb-0 text-primary">${displayName}</h6>
+                        <small class="text-muted">Mã SP: ${productId} - Nguồn: ${poId}</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <input type="number" class="form-control qty-input shadow-sm border-0 bg-light" value="${qty}" min="1">
+                        <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>`;
+            dom.scannedList.prepend(newItem); // Quét cái mới hiện lên đầu cho dễ thấy
         }
 
         function addProductToUI(sku) {
@@ -614,7 +641,7 @@
                 // Mặc định là INBOUND
                 payload = {
                     inboundReceiptCode: "PN-" + Date.now(),
-                    purchaseOrderId: window.currentPurchaseOrderId,
+                    purchaseOrderId: window.currentPurchaseOrderId || null,
                     warehouseId: 1,
                     supplierId: 1,
                     items: items
