@@ -9,14 +9,25 @@ import com.tttn.warehouseqr.modules.inbound.service.InboundService;
 import com.tttn.warehouseqr.modules.inventory.entity.InventoryHistory;
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryHistoryRepository;
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
+import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
 import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrderItemRepository;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class InboundServiceImpl implements InboundService {
@@ -116,4 +127,44 @@ public class InboundServiceImpl implements InboundService {
     public InboundReceipt getById(Long id) {
         return receiptRepo.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nhập"));
     }
+
+    @Override
+    public List<ProductScanDTO> parseCsvToDTO(MultipartFile file) {
+        List<ProductScanDTO> dtos = new ArrayList<>();
+        try(BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            reader.mark(1);
+            if (reader.read() != 0xFEFF) {
+                reader.reset();
+            }
+
+            CSVParser parser = new CSVParser(reader,
+                    CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());
+
+            for (CSVRecord record : parser) {
+                String sku = record.get("SKU");
+                String lotCode = record.get("Mã Lô Hàng");
+                String qtyStr = record.get("Số Lượng");
+
+                Product product = productRepo.findBySku(sku);
+
+                var batch = batchRepo.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id()).orElse(null);
+
+
+                ProductScanDTO dto = new ProductScanDTO();
+                dto.setProductId(product.getProduct_id());
+                dto.setProductName(product.getProductName());
+                dto.setSku(sku);
+                dto.setLotCode(lotCode);
+                dto.setBatchId(batch != null ? batch.getBatchId(): null);
+                dto.setActualQty(Double.parseDouble(qtyStr));
+
+                dtos.add(dto);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi đọc file: " + e.getMessage());
+        }
+        return dtos;
+    }
+
+
 }

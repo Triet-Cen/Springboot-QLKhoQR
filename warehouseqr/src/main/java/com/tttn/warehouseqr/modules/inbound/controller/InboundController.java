@@ -7,6 +7,9 @@ import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductServi
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Controller
 @RequestMapping("/api/inbound")
@@ -44,6 +47,18 @@ public class InboundController {
         } catch (Exception e) {
             // Trả về lỗi 400 để JavaScript nhảy vào khối .catch()
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/parse-csv")
+    @ResponseBody
+    public ResponseEntity<?> parseInboundCsv(@RequestParam("file") MultipartFile file) {
+        try {
+            // Gọi hàm parse từ InboundService
+            List<ProductScanDTO> data = inboundService.parseCsvToDTO(file);
+            return ResponseEntity.ok(data);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi file Inbound: " + e.getMessage());
         }
     }
 
