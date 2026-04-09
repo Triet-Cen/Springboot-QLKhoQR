@@ -24,4 +24,6 @@ public class ProductScanDTO {
 
     // 5. SKU để đối soát nếu cần
     private String sku;
+
+    private Double actualQty;
 }
