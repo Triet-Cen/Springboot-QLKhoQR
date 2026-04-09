@@ -7,6 +7,7 @@ import com.tttn.warehouseqr.modules.inbound.repository.InboundReceiptItemReposit
 import com.tttn.warehouseqr.modules.inbound.repository.InboundReceiptRepository;
 import com.tttn.warehouseqr.modules.inbound.service.InboundService;
 import com.tttn.warehouseqr.modules.inventory.entity.InventoryHistory;
+import com.tttn.warehouseqr.modules.inventory.entity.InventoryLocationBalance; // ĐÃ THÊM IMPORT NÀY
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryHistoryRepository;
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
@@ -53,7 +54,7 @@ public class InboundServiceImpl implements InboundService {
 
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class) // Đã thêm rollback an toàn
     public InboundReceipt createInboundReceipt(InboundRequestDTO dto) {
         // 1. Kiểm tra Header cơ bản
         if (dto.getWarehouseId() == null) throw new RuntimeException("Lỗi: warehouseId bị null");
@@ -102,19 +103,36 @@ public class InboundServiceImpl implements InboundService {
                 poItemRepo.updateReceivedQty(dto.getPurchaseOrderId(), itemDto.getProductId(), itemDto.getActualQty());
             }
 
-            // Cập nhật tồn kho (Vẫn chạy bình thường cho cả quét lẻ và PO)
-            balanceRepo.plusStock(
-                    dto.getWarehouseId(),
-                    itemDto.getLocationId(),
-                    itemDto.getProductId(),
-                    itemDto.getBatchId(),
-                    itemDto.getActualQty()
+            // =================================================================
+            // ĐÃ THAY THẾ: Cập nhật tồn kho (Kiểm tra xem có chưa mới cộng dồn)
+            // =================================================================
+            var balanceOpt = balanceRepo.findFirstByWarehouseIdAndProductIdAndBatchId(
+                    dto.getWarehouseId(), itemDto.getProductId(), itemDto.getBatchId()
             );
 
-            // Ghi lịch sử kho (Vẫn chạy bình thường)
+            if (balanceOpt.isPresent()) {
+                // NẾU ĐÃ CÓ HÀNG TRÊN KỆ -> Lấy số lượng cũ cộng (+) thêm số lượng mới
+                InventoryLocationBalance existingBalance = balanceOpt.get();
+                existingBalance.setQty(existingBalance.getQty().add(qty));
+                balanceRepo.save(existingBalance);
+            } else {
+                // NẾU TRÊN KỆ CHƯA CÓ MÓN NÀY -> Tạo dòng mới tinh
+                InventoryLocationBalance newBalance = new InventoryLocationBalance();
+                newBalance.setWarehouseId(dto.getWarehouseId());
+                newBalance.setLocationId(itemDto.getLocationId());
+                newBalance.setProductId(itemDto.getProductId());
+                newBalance.setBatchId(itemDto.getBatchId());
+                newBalance.setQty(qty);
+                newBalance.setStatus("AVAILABLE");
+                balanceRepo.save(newBalance);
+            }
+            // =================================================================
+
+            // Ghi lịch sử kho
             InventoryHistory history = new InventoryHistory();
             history.setTransactionType("INBOUND");
             history.setProductId(itemDto.getProductId());
+            history.setBatchId(itemDto.getBatchId()); // ĐÃ THÊM: Lưu Batch ID vào lịch sử
             history.setQtyChange(qty);
             history.setToLocationId(itemDto.getLocationId());
             history.setWarehouseId(dto.getWarehouseId());
@@ -165,6 +183,4 @@ public class InboundServiceImpl implements InboundService {
         }
         return dtos;
     }
-
-
 }

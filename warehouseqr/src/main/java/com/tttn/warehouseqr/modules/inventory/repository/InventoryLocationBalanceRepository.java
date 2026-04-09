@@ -12,6 +12,7 @@ import java.util.Optional;
 
 @Repository
 public interface InventoryLocationBalanceRepository extends JpaRepository<InventoryLocationBalance, Long> {
+    java.util.Optional<InventoryLocationBalance> findFirstByWarehouseIdAndProductIdAndBatchId(Long warehouseId, Long productId, Long batchId);
     Optional<InventoryLocationBalance> findFirstByWarehouseIdAndProductIdAndBatchIdAndQtyGreaterThan(
             Long warehouseId, Long productId, Long batchId, BigDecimal qty);
 
