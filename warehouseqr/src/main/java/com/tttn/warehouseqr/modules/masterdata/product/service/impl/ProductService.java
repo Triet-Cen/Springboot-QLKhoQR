@@ -124,7 +124,8 @@ public class ProductService {
                 product.getProductName(),
                 batch.getBatchId(),
                 batch.getLotCode(),
-                product.getSku()
+                product.getSku(),
+                1.0
         );
     }
 
