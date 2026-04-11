@@ -14,7 +14,7 @@ public class Warehouse {
     private String warehouseCode;
 
     @Column(name = "warehouse_name",nullable = false,length = 255)
-    private String warehosueName;
+    private String warehouseName;
 
     @Column(name = "warehouse_address",nullable = true,columnDefinition = "TEXT")
     private String warehouseAddress;
@@ -22,10 +22,10 @@ public class Warehouse {
     public Warehouse() {
     }
 
-    public Warehouse(long warehouseId, String warehouseCode, String warehosueName, String warehouseAddress) {
+    public Warehouse(long warehouseId, String warehouseCode, String warehouseName, String warehouseAddress) {
         this.warehouseId = warehouseId;
         this.warehouseCode = warehouseCode;
-        this.warehosueName = warehosueName;
+        this.warehouseName = warehouseName;
         this.warehouseAddress = warehouseAddress;
     }
 
@@ -45,12 +45,12 @@ public class Warehouse {
         this.warehouseCode = warehouseCode;
     }
 
-    public String getWarehosueName() {
-        return warehosueName;
+    public String getWarehouseName() {
+        return warehouseName;
     }
 
-    public void setWarehosueName(String warehosueName) {
-        this.warehosueName = warehosueName;
+    public void setWarehouseName(String warehouseName) {
+        this.warehouseName = warehouseName;
     }
 
     public String getWarehouseAddress() {
