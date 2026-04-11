@@ -10,7 +10,7 @@ import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ImportQrServ
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductBatchService;
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductService;
 import com.tttn.warehouseqr.modules.masterdata.unit.entity.Unit;
-import com.tttn.warehouseqr.modules.masterdata.unit.service.impl.UnitService;
+import com.tttn.warehouseqr.modules.masterdata.unit.service.UnitService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;

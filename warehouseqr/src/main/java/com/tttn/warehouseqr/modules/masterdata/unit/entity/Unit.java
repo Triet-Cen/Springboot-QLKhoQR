@@ -1,6 +1,9 @@
 package com.tttn.warehouseqr.modules.masterdata.unit.entity;
 
+import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import jakarta.persistence.*;
+
+import java.util.List;
 
 @Entity
 @Table(name = "units")
@@ -10,15 +13,19 @@ public class Unit {
     @Column(name = "unit_id")
     private long unitId;
 
-    @Column(name = "unit_name",nullable = false,length = 100)
+    @Column(name = "unit_name", nullable = false, unique = true, length = 100)
     private String unitName;
+
+    @OneToMany(mappedBy = "unit")
+    private List<Product> products;
 
     public Unit() {
     }
 
-    public Unit(long unitId, String unitName) {
+    public Unit(long unitId, String unitName, List<Product> products) {
         this.unitId = unitId;
         this.unitName = unitName;
+        this.products = products;
     }
 
     public long getUnitId() {
@@ -35,5 +42,13 @@ public class Unit {
 
     public void setUnitName(String unitName) {
         this.unitName = unitName;
+    }
+
+    public List<Product> getProducts() {
+        return products;
+    }
+
+    public void setProducts(List<Product> products) {
+        this.products = products;
     }
 }
