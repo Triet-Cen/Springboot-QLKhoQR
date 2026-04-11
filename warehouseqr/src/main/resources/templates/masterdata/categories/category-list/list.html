@@ -11,22 +11,27 @@
             <h2 class="fw-bold mb-1">Quản lý Danh Mục</h2>
         </div>
         <div class="d-flex gap-2">
-            <a th:href="@{/categories/create}" class="btn btn-success"> Thêm Danh Mục</a>
+            <a th:href="@{/categories/create}" class="btn btn-success">Thêm Danh Mục</a>
         </div>
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
-            <div class="row gx-2">
+            <form th:action="@{/categories}" method="get" class="row gx-2">
                 <div class="col-md-9">
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0 text-muted">
                             <i class="bi bi-search"></i>
                         </span>
-                        <input type="text" class="form-control border-start-0 ps-0" placeholder="Tìm Danh Mục">
+                        <input type="text" name="keyw" th:value="${keyw}" class="form-control border-start-0 ps-0"
+                               placeholder="Tìm theo mã hoặc tên danh mục">
                     </div>
                 </div>
-            </div>
+                <div class="col-md-3 d-flex gap-2 mt-2 mt-md-0">
+                    <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+                    <a th:href="@{/categories}" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -37,24 +42,31 @@
                 <tr>
                     <th scope="col" class="text-start">ID</th>
                     <th scope="col" class="text-start">CODE</th>
-                    <th scope="col">NAME</th>
+                    <th scope="col" class="text-start">NAME</th>
+                    <th scope="col">Hành động</th>
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="category : ${catePage.content.content}">
+                <tr th:each="category : ${catePage.content}">
                     <td class="text-start" th:text="${category.categoryId}"></td>
                     <td class="text-start" th:text="${category.categoryCode}"></td>
-                    <td class="text-muted" th:text="${category.categoryName}"></td>
+                    <td class="text-start text-muted" th:text="${category.categoryName}"></td>
                     <td>
                         <div class="d-flex justify-content-center gap-3">
                             <a th:href="@{/categories/edit/{id}(id=${category.categoryId})}" class="text-dark text-decoration-none" title="Chỉnh sửa">
                                 <i class="bi bi-pencil-square fs-5"></i>
                             </a>
+                            <form th:action="@{/categories/delete/{id}(id=${category.categoryId})}" method="post"
+                                  onsubmit="return confirm('Bạn có chắc muốn xóa danh mục này?');">
+                                <button type="submit" class="btn btn-link p-0 text-danger" title="Xóa">
+                                    <i class="bi bi-trash fs-5"></i>
+                                </button>
+                            </form>
                         </div>
                     </td>
                 </tr>
-                <tr th:if="${catePage == null or #lists.isEmpty(catePage.content.content)}">
-                    <td colspan="9" class="text-center py-4 text-muted">Không tìm thấy Danh Mục nào!</td>
+                <tr th:if="${catePage == null or #lists.isEmpty(catePage.content)}">
+                    <td colspan="4" class="text-center py-4 text-muted">Không tìm thấy Danh Mục nào!</td>
                 </tr>
                 </tbody>
             </table>
@@ -66,13 +78,13 @@
                 <nav>
                     <ul class="pagination pagination-sm mb-0">
                         <li class="page-item" th:classappend="${catePage.currentPage == 1} ? 'disabled'">
-                            <a class="page-link" th:href="@{/categories(page=${catePage.currentPage - 1}, keyw=${keyword})}" tabindex="-1">Trước</a>
+                            <a class="page-link" th:href="@{/categories(page=${catePage.currentPage - 1}, keyw=${keyw})}" tabindex="-1">Trước</a>
                         </li>
                         <li class="page-item" th:each="i : ${#numbers.sequence(1, catePage.totalPage)}" th:classappend="${catePage.currentPage == i} ? 'active'">
-                            <a class="page-link" th:href="@{/categories(page=${i}, keyw=${keyword})}" th:text="${i}">1</a>
+                            <a class="page-link" th:href="@{/categories(page=${i}, keyw=${keyw})}" th:text="${i}">1</a>
                         </li>
                         <li class="page-item" th:classappend="${catePage.currentPage == catePage.totalPage} ? 'disabled'">
-                            <a class="page-link" th:href="@{/categories(page=${catePage.currentPage + 1}, keyw=${keyword})}">Sau</a>
+                            <a class="page-link" th:href="@{/categories(page=${catePage.currentPage + 1}, keyw=${keyw})}">Sau</a>
                         </li>
                     </ul>
                 </nav>

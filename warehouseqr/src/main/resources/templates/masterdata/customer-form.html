@@ -1,14 +1,16 @@
+
+
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
 <head>
-    <title th:text="${isEdit} ? 'Cập nhật nhà cung cấp' : 'Thêm mới nhà cung cấp'">Nhà cung cấp</title>
+    <title th:text="${isEdit} ? 'Cập nhật khách hàng' : 'Thêm mới khách hàng'">Khách hàng</title>
 </head>
 <body>
 <div id="mainContent">
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a th:href="@{/suppliers}">Nhà cung cấp</a></li>
+            <li class="breadcrumb-item"><a th:href="@{/customers}">Khách hàng</a></li>
             <li class="breadcrumb-item active" th:text="${isEdit} ? 'Cập nhật' : 'Thêm mới'"></li>
         </ol>
     </nav>
@@ -16,30 +18,30 @@
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white py-3">
             <h5 class="card-title mb-0 fw-bold text-primary">
-                <i class="fa-solid fa-users me-2"></i>
-                <span th:text="${isEdit} ? 'Chỉnh sửa nhà cung cấp' : 'Tạo nhà cung cấp mới'"></span>
+                <i class="fa-solid fa-user-group me-2"></i>
+                <span th:text="${isEdit} ? 'Chỉnh sửa khách hàng' : 'Tạo khách hàng mới'"></span>
             </h5>
         </div>
 
         <div class="card-body p-4">
-            <form th:action="${isEdit} ? @{/suppliers/edit} : @{/suppliers/add}"
-                  th:object="${supplierRequest}" method="post">
+            <form th:action="${isEdit} ? @{/customers/edit} : @{/customers/add}"
+                  th:object="${customerRequest}" method="post">
 
-                <input type="hidden" th:if="${isEdit}" th:field="*{supplierId}"/>
+                <input type="hidden" th:if="${isEdit}" th:field="*{customerId}"/>
 
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">Mã nhà cung cấp</label>
-                        <input type="text" class="form-control" th:field="*{supplierCode}" placeholder="NCC001">
+                        <label class="form-label fw-bold">Mã khách hàng</label>
+                        <input type="text" class="form-control" th:field="*{customerCode}" placeholder="KH001">
                         <div class="text-danger mt-1 small"
-                             th:if="${#fields.hasErrors('supplierCode')}" th:errors="*{supplierCode}"></div>
+                             th:if="${#fields.hasErrors('customerCode')}" th:errors="*{customerCode}"></div>
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label fw-bold">Tên nhà cung cấp</label>
-                        <input type="text" class="form-control" th:field="*{supplierName}" placeholder="Công ty ABC">
+                        <label class="form-label fw-bold">Tên khách hàng</label>
+                        <input type="text" class="form-control" th:field="*{customerName}" placeholder="Công ty ABC">
                         <div class="text-danger mt-1 small"
-                             th:if="${#fields.hasErrors('supplierName')}" th:errors="*{supplierName}"></div>
+                             th:if="${#fields.hasErrors('customerName')}" th:errors="*{customerName}"></div>
                     </div>
 
                     <div class="col-md-6">
@@ -58,22 +60,14 @@
 
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Email</label>
-                        <input type="email" class="form-control" th:field="*{email}" placeholder="supplier@example.com">
+                        <input type="email" class="form-control" th:field="*{email}" placeholder="customer@example.com">
                         <div class="text-danger mt-1 small"
                              th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
                     </div>
 
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Trạng thái</label>
-                        <select class="form-select" th:field="*{active}">
-                            <option th:value="true">Đang hoạt động</option>
-                            <option th:value="false">Ngừng hoạt động</option>
-                        </select>
-                    </div>
-
                     <div class="col-12">
                         <label class="form-label fw-bold">Địa chỉ</label>
-                        <textarea class="form-control" rows="3" th:field="*{address}" placeholder="Địa chỉ nhà cung cấp"></textarea>
+                        <textarea class="form-control" rows="3" th:field="*{address}" placeholder="Địa chỉ khách hàng"></textarea>
                     </div>
                 </div>
 
@@ -82,7 +76,7 @@
                         <i class="bi bi-check-lg me-1"></i>
                         <span th:text="${isEdit} ? 'Cập nhật' : 'Xác nhận thêm'"></span>
                     </button>
-                    <a th:href="@{/suppliers}" class="btn btn-outline-secondary px-4">Quay lại</a>
+                    <a th:href="@{/customers}" class="btn btn-outline-secondary px-4">Quay lại</a>
                 </div>
             </form>
         </div>
@@ -90,3 +84,4 @@
 </div>
 </body>
 </html>
+

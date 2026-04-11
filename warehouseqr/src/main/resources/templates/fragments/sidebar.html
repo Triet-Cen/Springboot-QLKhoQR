@@ -31,13 +31,18 @@
             </div>
             <ul class="nav flex-column sub-menu gap-1">
                 <li class="nav-item">
-                    <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                    <a th:href="@{/companies}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
                         <i class="fa-regular fa-building"></i> Company
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                    <a th:href="@{/suppliers}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
                         <i class="fa-solid fa-users"></i> Supplier
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a th:href="@{/customers}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                        <i class="fa-solid fa-user-group"></i> Customer
                     </a>
                 </li>
             </ul>
@@ -54,7 +59,9 @@
             </a>
         </li>
         <li class="nav-item">
-            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
+            <a th:href="@{/units}" class="nav-link d-flex align-items-center gap-2 text-secondary"
+               th:classappend="${#execInfo.templateName.contains('unit-') ? 'active text-white' : ''}"
+               style="padding: 10px 16px;">
                 <i class="bi bi-bookmark" style="width: 24px; text-align: center;"></i> Units
             </a>
         </li>
