@@ -9,8 +9,26 @@ public class ProductQrDTO {
     private String productName;
     private String lotCode;
     private LocalDate expiryDate;
-    private boolean hasQr;       // Trạng thái: Đã tạo QR hay chưa?
+    private Boolean hasQr;       // Trạng thái: Đã tạo QR hay chưa?
     private String qrBase64;
+    private Double quantity;
+    private String location;
+
+    public Double getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(Double quantity) {
+        this.quantity = quantity;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
 
     public Long getProductId() {
         return productId;
@@ -79,7 +97,7 @@ public class ProductQrDTO {
     public ProductQrDTO() {
     }
 
-    public ProductQrDTO(Long productId, Long batchId, String sku, String productName, String lotCode, LocalDate expiryDate, boolean hasQr, String qrBase64) {
+    public ProductQrDTO(Long productId, Long batchId, String sku, String productName, String lotCode, LocalDate expiryDate, Boolean hasQr, String qrBase64) {
         this.productId = productId;
         this.batchId = batchId;
         this.sku = sku;

@@ -4,7 +4,10 @@ import com.tttn.warehouseqr.modules.masterdata.category.entity.ProductCategory;
 import com.tttn.warehouseqr.modules.masterdata.category.repository.CategoryRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductDTO;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductPageResponse;
+import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.ProductBatch;
+import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
 import com.tttn.warehouseqr.modules.masterdata.unit.entity.Unit;
 import com.tttn.warehouseqr.modules.masterdata.unit.repository.UnitRepository;
@@ -20,12 +23,14 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final UnitRepository unitRepository;
+    private final ProductBatchRepository productBatchRepository;
 
     public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository
-            , UnitRepository unitRepository) {
+            , UnitRepository unitRepository, ProductBatchRepository productBatchRepository) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.unitRepository = unitRepository;
+        this.productBatchRepository = productBatchRepository;
     }
     public ProductPageResponse getALlProductCustom(int page, int limit, String keyw, long categoryId){
         Pageable pageable = PageRequest.of(page -1,limit);
@@ -103,4 +108,25 @@ public class ProductService {
         productRepository.delete(deletePro);
         return "Đã xóa sản phẩm";
     }
+
+    public ProductScanDTO getProductForScan(String sku, String lotCode) {
+        // 1. Tìm Product
+        Product product = productRepository.findBySku(sku);
+        if (product == null) throw new RuntimeException("SKU " + sku + " không tồn tại!");
+
+        // 2. Tìm Batch liên kết với Product đó
+        ProductBatch batch = productBatchRepository.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id())
+                .orElseThrow(() -> new RuntimeException("Lô " + lotCode + " không thuộc sản phẩm này!"));
+
+        // 3. Đóng gói vào DTO
+        return new ProductScanDTO(
+                product.getProduct_id(),
+                product.getProductName(),
+                batch.getBatchId(),
+                batch.getLotCode(),
+                product.getSku(),
+                1.0
+        );
+    }
+
 }

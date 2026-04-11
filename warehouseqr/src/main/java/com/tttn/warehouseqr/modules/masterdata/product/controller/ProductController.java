@@ -45,7 +45,7 @@ public class ProductController {
                             RedirectAttributes redirectAttributes){
         if(file.isEmpty()){
             redirectAttributes.addFlashAttribute("error", "Vui lòng chọn file CSV!");
-            return "redireact:/products";
+            return "redirect:/products";
         }
         try {
             importQrService.importCsvAndGenerateQr(file);

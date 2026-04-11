@@ -3,6 +3,9 @@ package com.tttn.warehouseqr.modules.masterdata.category.service.impl;
 import com.tttn.warehouseqr.modules.masterdata.category.dto.CategoryDTO;
 import com.tttn.warehouseqr.modules.masterdata.category.entity.ProductCategory;
 import com.tttn.warehouseqr.modules.masterdata.category.repository.CategoryRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,12 +18,24 @@ public class CategoryService {
         this.categoryRepository = categoryRepository;
     }
 
-    public List<ProductCategory> getAllCategory(){
-        List<ProductCategory> categories = categoryRepository.findAll();
+    public Page<CategoryDTO> getCategoryCustom(int page, int limit, String keyw){
+        Pageable pageable = PageRequest.of(page -1,limit);
 
-        return categories;
+        return categoryRepository.categoryPage(keyw,pageable);
     }
 
+    public  List<ProductCategory> getAllCategory(){
+        List<ProductCategory> categories = categoryRepository.findAll();
+
+        return  categories;
+    }
+
+    public ProductCategory getCategoryById(long id){
+        ProductCategory category = categoryRepository.findById(id).orElseThrow(
+                ()-> new RuntimeException("Không tìm thấy Danh Mục")
+        );
+        return category;
+    }
     public ProductCategory createCategory(CategoryDTO categoryDTO){
         ProductCategory category = new ProductCategory();
         category.setCategoryCode(categoryDTO.getCategoryCode());
