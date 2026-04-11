@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title th:text="${isEdit} ? 'Cap nhat don vi tinh' : 'Them moi don vi tinh'">Don vi tinh</title>
+</head>
+<body>
+<div id="mainContent">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/units}">Don vi tinh</a></li>
+            <li class="breadcrumb-item active" th:text="${isEdit} ? 'Cap nhat' : 'Them moi'"></li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0 fw-bold text-primary">
+                <i class="bi bi-rulers me-2"></i>
+                <span th:text="${isEdit} ? 'Chinh sua don vi tinh' : 'Tao don vi tinh moi'"></span>
+            </h5>
+        </div>
+
+        <div class="card-body p-4">
+            <form th:action="${isEdit} ? @{/units/edit} : @{/units/add}"
+                  th:object="${unitRequest}" method="post">
+
+                <input type="hidden" th:if="${isEdit}" th:field="*{unitId}"/>
+
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Ten don vi tinh</label>
+                        <input type="text" class="form-control" th:field="*{unitName}" placeholder="Vi du: Chiec">
+                        <div class="text-danger mt-1 small"
+                             th:if="${#fields.hasErrors('unitName')}" th:errors="*{unitName}"></div>
+                    </div>
+                </div>
+
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i>
+                        <span th:text="${isEdit} ? 'Cap nhat' : 'Xac nhan them'"></span>
+                    </button>
+                    <a th:href="@{/units}" class="btn btn-outline-secondary px-4">Quay lai</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+

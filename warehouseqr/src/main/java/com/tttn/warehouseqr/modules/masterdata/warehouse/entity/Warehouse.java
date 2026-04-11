@@ -49,8 +49,8 @@ public class Warehouse {
         return warehouseName;
     }
 
-    public void setWarehouseName(String warehosueName) {
-        this.warehouseName = warehosueName;
+    public void setWarehouseName(String warehouseName) {
+        this.warehouseName = warehouseName;
     }
 
     public String getWarehouseAddress() {
