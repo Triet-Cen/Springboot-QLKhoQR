@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <header th:fragment="navbar" class="navbar bg-white border-bottom px-4 py-3 flex-shrink-0 w-100">
     <div class="search-box input-group" style="max-width: 450px;">
@@ -20,8 +21,12 @@
                 <i class="fa-regular fa-user"></i>
             </div>
             <div class="d-flex flex-column lh-1">
-                <span class="fw-semibold text-dark mb-1" style="font-size: 14px;">Nguyễn Văn A</span>
-                <span class="text-secondary" style="font-size: 12px;">Quản lý kho</span>
+                <span class="fw-semibold text-dark mb-1" style="font-size: 14px;" sec:authentication="principal.Username">Nguyễn Văn A</span>
+                <small class="text-secondary" style="font-size: 11px;"
+                       th:text="${#authentication.authorities[0].authority.replace('ROLE_', '')}">
+                    Vai trò
+                </small>
+                <!--                <span class="text-secondary" style="font-size: 12px;">Quản lý kho</span>-->
             </div>
             <i class="fa-solid fa-chevron-down text-secondary" style="font-size: 12px;"></i>
         </div>

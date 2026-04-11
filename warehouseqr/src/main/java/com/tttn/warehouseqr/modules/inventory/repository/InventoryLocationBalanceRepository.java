@@ -12,6 +12,7 @@ import java.util.Optional;
 
 @Repository
 public interface InventoryLocationBalanceRepository extends JpaRepository<InventoryLocationBalance, Long> {
+    java.util.Optional<InventoryLocationBalance> findFirstByWarehouseIdAndProductIdAndBatchId(Long warehouseId, Long productId, Long batchId);
     Optional<InventoryLocationBalance> findFirstByWarehouseIdAndProductIdAndBatchIdAndQtyGreaterThan(
             Long warehouseId, Long productId, Long batchId, BigDecimal qty);
 
@@ -51,4 +52,12 @@ public interface InventoryLocationBalanceRepository extends JpaRepository<Invent
                    @Param("pId") Long pId,
                    @Param("bId") Long bId,
                    @Param("qty") BigDecimal qty);
+
+    @Query(value = "SELECT b.qty, l.location_code " +
+            "FROM inventory_location_balances b " +
+            "JOIN warehouse_locations l ON b.location_id = l.location_id " +
+            "WHERE b.batch_id = :batchId", nativeQuery = true)
+    List<Object[]> getStockAndLocationByBatchId(@Param("batchId") Long batchId);
+
+    Optional<InventoryLocationBalance> findByBatchIdAndLocationId(Long batchId, Long locationId);
 }

@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long> {
     @Query("SELECT new com.tttn.warehouseqr.modules.masterdata.product.dto.ProductQrDTO(" +
@@ -21,4 +23,7 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
             "WHERE (:keyw IS NULL OR :keyw = '' OR p.sku LIKE %:keyw% OR p.productName LIKE %:keyw% OR b.lotCode LIKE %:keyw%) " +
             "AND (:categoryId = 0 OR p.category.categoryId = :categoryId)")
     Page<ProductQrDTO> searchBatchesWithQr(@Param("keyw") String keyw,@Param("categoryId") long categoryId, Pageable pageable);
+
+    @Query("SELECT pb FROM ProductBatch pb WHERE pb.lotCode = :lotCode AND pb.product.product_id = :productId")
+    Optional<ProductBatch> findByLotCodeAndProductProduct_id(String lotCode, long productId);
 }

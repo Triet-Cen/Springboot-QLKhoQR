@@ -7,16 +7,28 @@ import com.tttn.warehouseqr.modules.inbound.repository.InboundReceiptItemReposit
 import com.tttn.warehouseqr.modules.inbound.repository.InboundReceiptRepository;
 import com.tttn.warehouseqr.modules.inbound.service.InboundService;
 import com.tttn.warehouseqr.modules.inventory.entity.InventoryHistory;
+import com.tttn.warehouseqr.modules.inventory.entity.InventoryLocationBalance; // ĐÃ THÊM IMPORT NÀY
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryHistoryRepository;
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
+import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
 import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrderItemRepository;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class InboundServiceImpl implements InboundService {
@@ -42,15 +54,17 @@ public class InboundServiceImpl implements InboundService {
 
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class) // Đã thêm rollback an toàn
     public InboundReceipt createInboundReceipt(InboundRequestDTO dto) {
-        // 1. Kiểm tra Header
-        if (dto.getPurchaseOrderId() == null) throw new RuntimeException("Lỗi: purchaseOrderId bị null");
+        // 1. Kiểm tra Header cơ bản
         if (dto.getWarehouseId() == null) throw new RuntimeException("Lỗi: warehouseId bị null");
 
         InboundReceipt receipt = new InboundReceipt();
-        receipt.setInboundReceiptCode(dto.getInboundReceiptCode() != null ? dto.getInboundReceiptCode() : "PN-" + System.currentTimeMillis());
-        receipt.setPurchaseOrderId(dto.getPurchaseOrderId());
+        // Tạo mã phiếu tự động nếu FE không gửi
+        receipt.setInboundReceiptCode(dto.getInboundReceiptCode() != null ?
+                dto.getInboundReceiptCode() : "PN-" + System.currentTimeMillis());
+
+        receipt.setPurchaseOrderId(dto.getPurchaseOrderId()); // Có thể null khi quét lẻ
         receipt.setSupplierId(dto.getSupplierId());
         receipt.setWarehouseId(dto.getWarehouseId());
         receipt.setStatus("COMPLETED");
@@ -61,9 +75,8 @@ public class InboundServiceImpl implements InboundService {
 
         // 2. Duyệt Items
         for (var itemDto : dto.getItems()) {
-            // KIỂM TRA TỪNG BIẾN TRƯỚC KHI GỌI REPO
-            if (itemDto.getProductId() == null) throw new RuntimeException("Lỗi: productId của một item bị null");
-            if (itemDto.getLocationId() == null) throw new RuntimeException("Lỗi: locationId bị null. Hãy kiểm tra lại dữ liệu gửi từ FE");
+            if (itemDto.getProductId() == null) throw new RuntimeException("Lỗi: productId bị null");
+            if (itemDto.getLocationId() == null) throw new RuntimeException("Lỗi: locationId bị null");
 
             InboundReceiptItem item = new InboundReceiptItem();
             item.setInboundReceipt(savedReceipt);
@@ -85,21 +98,41 @@ public class InboundServiceImpl implements InboundService {
 
             itemRepo.save(item);
 
-            // Cập nhật các bảng liên quan - Đảm bảo các tham số KHÔNG NULL
-            poItemRepo.updateReceivedQty(dto.getPurchaseOrderId(), itemDto.getProductId(), itemDto.getActualQty());
+            // QUAN TRỌNG: Chỉ update PO nếu có PurchaseOrderId
+            if (dto.getPurchaseOrderId() != null) {
+                poItemRepo.updateReceivedQty(dto.getPurchaseOrderId(), itemDto.getProductId(), itemDto.getActualQty());
+            }
 
-            // Cần cực kỳ cẩn thận với plusStock
-            balanceRepo.plusStock(
-                    dto.getWarehouseId(),
-                    itemDto.getLocationId(),
-                    itemDto.getProductId(),
-                    itemDto.getBatchId(), // batchId có thể null nếu DB của bạn cho phép
-                    itemDto.getActualQty()
+            // =================================================================
+            // ĐÃ THAY THẾ: Cập nhật tồn kho (Kiểm tra xem có chưa mới cộng dồn)
+            // =================================================================
+            var balanceOpt = balanceRepo.findFirstByWarehouseIdAndProductIdAndBatchId(
+                    dto.getWarehouseId(), itemDto.getProductId(), itemDto.getBatchId()
             );
 
+            if (balanceOpt.isPresent()) {
+                // NẾU ĐÃ CÓ HÀNG TRÊN KỆ -> Lấy số lượng cũ cộng (+) thêm số lượng mới
+                InventoryLocationBalance existingBalance = balanceOpt.get();
+                existingBalance.setQty(existingBalance.getQty().add(qty));
+                balanceRepo.save(existingBalance);
+            } else {
+                // NẾU TRÊN KỆ CHƯA CÓ MÓN NÀY -> Tạo dòng mới tinh
+                InventoryLocationBalance newBalance = new InventoryLocationBalance();
+                newBalance.setWarehouseId(dto.getWarehouseId());
+                newBalance.setLocationId(itemDto.getLocationId());
+                newBalance.setProductId(itemDto.getProductId());
+                newBalance.setBatchId(itemDto.getBatchId());
+                newBalance.setQty(qty);
+                newBalance.setStatus("AVAILABLE");
+                balanceRepo.save(newBalance);
+            }
+            // =================================================================
+
+            // Ghi lịch sử kho
             InventoryHistory history = new InventoryHistory();
             history.setTransactionType("INBOUND");
             history.setProductId(itemDto.getProductId());
+            history.setBatchId(itemDto.getBatchId()); // ĐÃ THÊM: Lưu Batch ID vào lịch sử
             history.setQtyChange(qty);
             history.setToLocationId(itemDto.getLocationId());
             history.setWarehouseId(dto.getWarehouseId());
@@ -111,5 +144,43 @@ public class InboundServiceImpl implements InboundService {
     @Override
     public InboundReceipt getById(Long id) {
         return receiptRepo.findById(id).orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu nhập"));
+    }
+
+    @Override
+    public List<ProductScanDTO> parseCsvToDTO(MultipartFile file) {
+        List<ProductScanDTO> dtos = new ArrayList<>();
+        try(BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            reader.mark(1);
+            if (reader.read() != 0xFEFF) {
+                reader.reset();
+            }
+
+            CSVParser parser = new CSVParser(reader,
+                    CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());
+
+            for (CSVRecord record : parser) {
+                String sku = record.get("SKU");
+                String lotCode = record.get("Mã Lô Hàng");
+                String qtyStr = record.get("Số Lượng");
+
+                Product product = productRepo.findBySku(sku);
+
+                var batch = batchRepo.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id()).orElse(null);
+
+
+                ProductScanDTO dto = new ProductScanDTO();
+                dto.setProductId(product.getProduct_id());
+                dto.setProductName(product.getProductName());
+                dto.setSku(sku);
+                dto.setLotCode(lotCode);
+                dto.setBatchId(batch != null ? batch.getBatchId(): null);
+                dto.setActualQty(Double.parseDouble(qtyStr));
+
+                dtos.add(dto);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi đọc file: " + e.getMessage());
+        }
+        return dtos;
     }
 }

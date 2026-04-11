@@ -1,5 +1,9 @@
 package com.tttn.warehouseqr.modules.masterdata.product.service.impl;
 
+import com.tttn.warehouseqr.modules.inventory.entity.InventoryHistory;
+import com.tttn.warehouseqr.modules.inventory.entity.InventoryLocationBalance;
+import com.tttn.warehouseqr.modules.inventory.repository.InventoryHistoryRepository;
+import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
 import com.tttn.warehouseqr.modules.masterdata.category.entity.ProductCategory;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.ProductBatch;
@@ -9,6 +13,8 @@ import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductReposit
 import com.tttn.warehouseqr.modules.masterdata.product.repository.QrCodeResipotory;
 import com.tttn.warehouseqr.modules.masterdata.supplier.entity.Supplier;
 import com.tttn.warehouseqr.modules.masterdata.unit.entity.Unit;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.entity.WarehouseLocation;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseLocationRepository;
 import com.tttn.warehouseqr.utils.QrCodeUtil;
 import jakarta.transaction.Transactional;
 import org.apache.commons.csv.CSVFormat;
@@ -22,7 +28,9 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ImportQrService {
@@ -30,12 +38,22 @@ public class ImportQrService {
     private final ProductBatchRepository productBatchRepository;
     private final QrCodeResipotory qrCodeResipotory;
 
+    private final InventoryHistoryRepository inventoryHistoryRepository;
+    private final InventoryLocationBalanceRepository inventoryLocationBalanceRepository;
+    private final WarehouseLocationRepository warehouseLocationRepository;
+
     public ImportQrService(ProductRepository productRepository,
                            ProductBatchRepository productBatchRepository,
-                           QrCodeResipotory qrCodeResipotory) {
+                           QrCodeResipotory qrCodeResipotory,
+                           InventoryHistoryRepository inventoryHistoryRepository,
+                           InventoryLocationBalanceRepository inventoryLocationBalanceRepository,
+                           WarehouseLocationRepository warehouseLocationRepository) {
         this.productRepository = productRepository;
         this.productBatchRepository = productBatchRepository;
         this.qrCodeResipotory = qrCodeResipotory;
+        this.inventoryHistoryRepository = inventoryHistoryRepository;
+        this.inventoryLocationBalanceRepository = inventoryLocationBalanceRepository;
+        this.warehouseLocationRepository = warehouseLocationRepository;
     }
 
     @Transactional
@@ -59,6 +77,10 @@ public class ImportQrService {
                 String expiryDate = csvRecord.get("Ngày Hết Hạn");
                 String  supplierId = csvRecord.get("Mã NCC");
                 Long parseSupplierId = parseLong(supplierId, null);
+
+                String qtyStr = csvRecord.isSet("Số Lượng") ? csvRecord.get("Số Lượng") : "0";
+                String locationCodeStr = csvRecord.isSet("Mã Vị Trí") ? csvRecord.get("Mã Vị Trí") : "";
+
 
                 Product product = productRepository.findBySku(sku);
                 if(product == null){
@@ -106,6 +128,56 @@ public class ImportQrService {
                 qrCode.setPrinted(false);
 
                 qrCodeResipotory.save(qrCode);
+
+                double importQty = 0;
+                try {
+                    importQty = Double.parseDouble(qtyStr);
+                }
+                catch (NumberFormatException e){
+                    importQty = 0;
+                }
+
+                if(importQty > 0 && !locationCodeStr.isEmpty()){
+                    WarehouseLocation location = warehouseLocationRepository.findByLocationCode(locationCodeStr).orElseGet(
+                            () -> {
+                                WarehouseLocation newLocation = new WarehouseLocation();
+                                newLocation.setLocationCode(locationCodeStr);
+                                com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse defaultWarehouse = new com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse();
+                                defaultWarehouse.setWarehouseId(1L);
+                                newLocation.setWarehouses(defaultWarehouse);
+                                return warehouseLocationRepository.save(newLocation);
+                            }
+                    );
+
+                    Optional<InventoryLocationBalance> balanceOpt = inventoryLocationBalanceRepository.findByBatchIdAndLocationId(batch.getBatchId(), location.getLocationId());
+                    InventoryLocationBalance balance;
+
+                    if (balanceOpt.isPresent()){
+                        balance = balanceOpt.get();
+                        BigDecimal currentQty = balance.getQty() != null ? balance.getQty() : BigDecimal.ZERO;
+                        balance.setQty(currentQty.add(BigDecimal.valueOf(importQty)));
+                    }
+                    else {
+                        balance = new InventoryLocationBalance();
+                        balance.setBatchId(batch.getBatchId());
+                        balance.setLocationId(location.getLocationId());
+                        balance.setProductId(product.getProduct_id());
+                        balance.setWarehouseId(location.getWarehouses().getWarehouseId());
+                        balance.setQty(BigDecimal.valueOf(importQty));
+                    }
+                    balance.setUpdateAt(LocalDateTime.now());
+                    inventoryLocationBalanceRepository.save(balance);
+
+                    InventoryHistory history = new InventoryHistory();
+                    history.setTransactionType("INITIAL_IMPORT");
+                    history.setProductId(product.getProduct_id());
+                    history.setBatchId(batch.getBatchId());
+                    history.setToLocationId(location.getLocationId());
+                    history.setQtyChange(BigDecimal.valueOf(importQty));
+                    history.setWarehouseId(location.getWarehouses().getWarehouseId());
+                    history.setCreatedAt(LocalDateTime.now());
+                    inventoryHistoryRepository.save(history);
+                }
             }
         }
         catch (Exception e){
