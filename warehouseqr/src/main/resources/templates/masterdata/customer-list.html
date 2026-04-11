@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Quản lý khách hàng</title>
+</head>
+<body>
+<div id="mainContent">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="fa-solid fa-user-group"></i> Quản lý khách hàng</h2>
+            <p class="text-muted mb-0">Danh sách thông tin khách hàng trong hệ thống</p>
+        </div>
+        <a th:href="@{/customers/add}" class="btn btn-primary d-flex align-items-center gap-2">
+            <i class="bi bi-plus-circle"></i> Thêm mới
+        </a>
+    </div>
+
+    <form th:action="@{/customers}" method="get" class="mb-3">
+        <div class="input-group" style="max-width: 520px;">
+            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+            <input type="text" name="keyword" class="form-control"
+                   placeholder="Tìm theo mã KH, tên KH, người liên hệ, số điện thoại..."
+                   th:value="${keyword}">
+            <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+            <a th:href="@{/customers}" class="btn btn-outline-secondary">Reset</a>
+        </div>
+    </form>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Mã KH</th>
+                        <th>Tên khách hàng</th>
+                        <th>Người liên hệ</th>
+                        <th>Điện thoại</th>
+                        <th>Email</th>
+                        <th>Địa chỉ</th>
+                        <th class="text-center pe-4">Hành động</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(customers)}">
+                        <td colspan="8" class="text-center text-muted py-4">Chưa có dữ liệu khách hàng</td>
+                    </tr>
+
+                    <tr th:each="c : ${customers}">
+                        <td class="ps-4" th:text="${c.customerId}"></td>
+                        <td th:text="${c.customerCode}"></td>
+                        <td class="fw-semibold" th:text="${c.customerName}"></td>
+                        <td th:text="${c.contactPerson}"></td>
+                        <td th:text="${c.phone}"></td>
+                        <td th:text="${c.email}"></td>
+                        <td th:text="${c.address}"></td>
+                        <td class="text-center pe-4">
+                            <div class="d-flex justify-content-center gap-2">
+                                <a th:href="@{/customers/edit/{id}(id=${c.customerId})}" class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-pencil"></i> Sửa
+                                </a>
+
+                                <form th:action="@{/customers/delete/{id}(id=${c.customerId})}" method="post"
+                                      onsubmit="return confirm('Bạn có chắc chắn muốn xóa khách hàng này?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Xóa
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+

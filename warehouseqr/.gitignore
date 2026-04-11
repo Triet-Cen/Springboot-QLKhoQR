@@ -12,7 +12,8 @@ target/
 .settings
 .springBeans
 .sts4-cache
-
+Requirement.txt
+qlkho.sql
 ### IntelliJ IDEA ###
 .idea
 *.iws

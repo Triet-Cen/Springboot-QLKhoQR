@@ -20,6 +20,8 @@ public class SecurityConfig {
                         .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/admin/users/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/products/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers("/categories/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers("/units/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
                         .anyRequest().authenticated()
                 )
                 .formLogin(login -> login

@@ -651,11 +651,16 @@
             const scannedRows = document.querySelectorAll('.scanned-item');
             if (scannedRows.length === 0) return alert("Danh sách trống!");
 
+            // 1. ĐÃ SỬA: Thêm "|| 1" để nếu thiếu, hệ thống tự mặc định cất vào Kệ số 1
             const items = Array.from(scannedRows).map(row => ({
                 productId: parseInt(row.getAttribute('data-product-id')),
-                batchId: parseInt(row.getAttribute('data-batch-id')),
+                // FIX LỖI Ở ĐÂY:
+                locationId: parseInt(row.getAttribute('data-location-id')) || 1,
+                batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
                 actualQty: parseFloat(row.querySelector('.qty-input').value),
-                lotCode: row.getAttribute('data-lot-code')
+                productName: row.getAttribute('data-product-name'),
+                lotCode: row.getAttribute('data-lot-code') || "Mặc định",
+                requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value)
             }));
 
             let payload = {};
