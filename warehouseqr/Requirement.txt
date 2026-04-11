@@ -1,0 +1,75 @@
+Dưới đây là mô tả chi tiết các nhóm nhiệm vụ chính của phần mềm quản lý kho bằng mã QR trên nền tảng web:
+1. Quản lý Danh mục và Cấp phát Mã (Identity Management)
+Đây là bước đặt "căn cước" cho hàng hóa ngay khi vào hệ thống:
+•	Tạo mã QR duy nhất: Tự động sinh mã QR chứa các thông tin như mã sản phẩm, lô sản xuất, ngày nhập, và hạn sử dụng.
+•	Thiết kế và In ấn: Cung cấp công cụ thiết kế nhãn dán QR ngay trên trình duyệt để in và dán lên bao bì hoặc pallet hàng hóa.
+•	Phân loại vị trí: Gán mã QR cho từng kệ, ô hoặc khu vực trong kho để quản lý vị trí chính xác của hàng hóa. 
+2. Số hóa Quy trình Nhập - Xuất - Chuyển kho (Operational Workflow)
+Phần mềm sử dụng camera thiết bị hoặc máy quét để thực hiện các nghiệp vụ:
+•	Nhập kho (Check-in): Quét mã QR để đối chiếu hàng thực tế với đơn đặt hàng, tự động tăng số lượng tồn kho và ghi nhận thời gian nhập.
+•	Xuất kho (Check-out): Quét mã để xác nhận đúng loại hàng và số lượng cần xuất, giảm trừ tồn kho và tự động tạo phiếu xuất kho.
+•	Điều chuyển nội bộ: Quét mã để cập nhật việc di dời hàng từ vị trí này sang vị trí khác hoặc giữa các kho khác nhau. 
+3. Kiểm kê và Đối soát (Auditing)
+Đây là nhiệm vụ quan trọng nhất để giảm thất thoát:
+•	Quét kiểm kê định kỳ: Nhân viên chỉ cần cầm điện thoại quét lần lượt các mã QR trong kho. Hệ thống sẽ tự động so sánh với số liệu trên phần mềm.
+•	Phát hiện sai lệch: Ngay lập tức cảnh báo nếu số lượng quét thực tế chênh lệch với dữ liệu hệ thống, giúp tìm ra nguyên nhân thất thoát nhanh chóng. 
+4. Giám sát và Cảnh báo Thời gian thực (Monitoring)
+•	Truy xuất nguồn gốc: Chỉ cần quét mã QR trên sản phẩm là có thể xem toàn bộ lịch sử: ai nhập, nhập khi nào, nằm ở kệ nào, đã luân chuyển đi đâu.
+•	Cảnh báo tồn kho an toàn: Tự động thông báo khi hàng hóa xuống dưới mức tối thiểu hoặc sắp hết hạn sử dụng.
+•	Báo cáo thông minh: Tổng hợp dữ liệu nhập-xuất-tồn, tỷ lệ quay vòng hàng hóa dưới dạng biểu đồ trực quan giúp quản lý đưa ra quyết định nhập hàng hợp lý. 
+5. Quản trị Hệ thống (Administration)
+•	Phân quyền người dùng: Quy định rõ ai được quyền quét nhập, ai được quyền duyệt xuất hoặc chỉnh sửa danh mục hàng hóa.
+•	Đồng bộ hóa dữ liệu: Đảm bảo dữ liệu từ các lần quét trên di động được cập nhật tức thì lên máy chủ trung tâm để tất cả các bộ phận (kế toán, bán hàng) đều nắm được con số thực tế. 
+
+MÔ TẢ TRONG DANH MỤC TRONG KHO
+1. Danh mục dữ liệu quản lý (Thông tin trong mã QR)
+Mã QR có khả năng lưu trữ lượng thông tin lớn, giúp nhân viên kho truy xuất nhanh các dữ liệu sau:
+•	Thông tin sản phẩm: Mã SKU, tên sản phẩm, mô tả đặc tính, hình ảnh, video hướng dẫn.
+•	Thông tin định danh: Số lô (Lot ID), số sê-ri (Serial number) để truy xuất nguồn gốc chính xác.
+•	Thông tin tồn kho: Số lượng, đơn vị tính, trạng thái hàng hóa (sẵn sàng, hỏng, đang chờ xuất).
+•	Thông tin vị trí: Vị trí lưu kho chi tiết (sublocation), số pallet, số thùng.
+•	Thông tin thương mại: Nhà cung cấp, giá vốn, giá bán, hạn sử dụng. 
+2. Danh mục quy trình nghiệp vụ bằng mã QR
+Hệ thống quản lý kho sử dụng mã QR để tự động hóa các bước vận hành sau:
+•	Nhập kho (Receiving): Quét mã QR trên phiếu giao hàng hoặc sản phẩm để tự động tạo phiếu nhập kho mà không cần nhập tay.
+•	Lưu kho & Sắp xếp (Put-away): Quét mã QR tại vị trí kệ/ô chứa để xác nhận hàng đã được đặt đúng chỗ, giúp tối ưu không gian.
+•	Xuất kho (Picking/Shipping): Quét mã để lấy đúng mặt hàng theo đơn, cập nhật trạng thái đơn hàng và giảm thiểu sai sót.
+•	Kiểm kê (Inventory Audit): Nhân viên quét mã trên kiện hàng hoặc vị trí kệ để đối chiếu số lượng thực tế với phần mềm, giúp kiểm kê nhanh gấp nhiều lần so với thủ công.
+•	Điều chuyển kho (Transfer): Theo dõi việc di chuyển hàng hóa giữa các kho nội bộ hoặc giữa các khu vực trong cùng một kho.
+•	Báo cáo & Truy xuất (Reporting): Xem lịch sử xuất nhập, tỷ lệ lấp đầy kho và cảnh báo khi tồn kho gần chạm ngưỡng tối thiểu. 
+3. Phân loại đối tượng gắn mã QR
+Để quản lý toàn diện, mã QR thường được dán lên các danh mục đối tượng sau:
+•	Sản phẩm/Hàng hóa: Gắn trực tiếp lên bao bì hoặc nhãn dán sản phẩm.
+•	Đơn vị vận chuyển: Dán lên thùng carton, pallet hoặc container để quản lý theo lô hàng.
+•	Vị trí vật lý: Dán lên các giá kệ, ô chứa hoặc cửa kho để quản lý layout kho thông minh. 
+ 
+THONG TIN CTY lưu trữ thông tin công ty
+NHÀ CUNG CẤP quản lý thông tin nhà cung cầp
+NGƯỜI DÙNG quản lý thông tin người dùng hệ thống
+KHÁCH HÀNG quản lý thông tin khách hàng
+NHẬP KHO quản lý phiếu nhập kho
+NHẬP KHO CT chi tiết nhập kho
+SẢN PHẨM quản lý thông tin sản phẩm
+TỒN VỊ TRÍ quản lý tồn kho theo vị trí
+XUẤT KHO quản lý phiếu xuất kho
+XUẤT KHO CT chi tiết xuất kho
+CHUYỂN KHO quản lý chuyển kho
+VỊ TRÍ KHO quản lý vi trí trong kho
+
+Quản lý danh mục
+-	Nhà cung cấp: quản lý thông tin các đơn vị nhà cung cấp hàng
+-	Khách hàng: thông tin khách hàng
+-	Danh mục kho: quản lý các kho hàng
+Quản lý nhập kho:
+-	Nhập kho: quản lý thông tin phiếu nhập kho
+-	Nhập kho chi tiết: quản lý chi tiết từng mặt hàng trong phiếu nhập
+Quản lý xuất kho:
+-	Xuất kho: quản lý thông tin phiếu xuất kho
+-	Xuất kho chi tiết: quản lý chi tiết từng mặt hàng trong phiếu xuất
+Quản lý chuyển kho
+-	Chuyển kho: quản lý việc di chuyễn hàng hóa giữa các kho
+Kiểm soát kho
+-	Kiểm kho: công cụ hỗ trợ kiểm kê hàng hóa trong kho
+-	Danh sách kiểm kho: quản lý các đợt kiểm kê
+
+

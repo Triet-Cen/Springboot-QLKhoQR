@@ -2,28 +2,28 @@
 <html xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
 <head>
-    <title>Quản lý nhà cung cấp</title>
+    <title>Quản lý công ty</title>
 </head>
 <body>
 <div id="mainContent">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold mb-1"><i class="fa-solid fa-users"></i> Quản lý nhà cung cấp</h2>
-            <p class="text-muted mb-0">Danh sách nhà cung cấp trong hệ thống</p>
+            <h2 class="fw-bold mb-1"><i class="fa-regular fa-building"></i> Quản lý công ty</h2>
+            <p class="text-muted mb-0">Danh sách thông tin công ty trong hệ thống</p>
         </div>
-        <a th:href="@{/suppliers/add}" class="btn btn-primary d-flex align-items-center gap-2">
+        <a th:href="@{/companies/add}" class="btn btn-primary d-flex align-items-center gap-2">
             <i class="bi bi-plus-circle"></i> Thêm mới
         </a>
     </div>
 
-    <form th:action="@{/suppliers}" method="get" class="mb-3">
+    <form th:action="@{/companies}" method="get" class="mb-3">
         <div class="input-group" style="max-width: 520px;">
             <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
             <input type="text" name="keyword" class="form-control"
-                   placeholder="Tìm theo mã NCC, tên NCC, người liên hệ, số điện thoại..."
+                   placeholder="Tìm theo tên công ty, MST, điện thoại, email, địa chỉ..."
                    th:value="${keyword}">
             <button type="submit" class="btn btn-primary">Tìm kiếm</button>
-            <a th:href="@{/suppliers}" class="btn btn-outline-secondary">Reset</a>
+            <a th:href="@{/companies}" class="btn btn-outline-secondary">Reset</a>
         </div>
     </form>
 
@@ -44,38 +44,34 @@
                     <thead class="table-light">
                     <tr>
                         <th class="ps-4">ID</th>
-                        <th>Mã NCC</th>
-                        <th>Tên nhà cung cấp</th>
-                        <th>Người liên hệ</th>
+                        <th>Tên công ty</th>
+                        <th>Mã số thuế</th>
+                        <th>Địa chỉ</th>
                         <th>Điện thoại</th>
                         <th>Email</th>
-                        <th>Trạng thái</th>
                         <th class="text-center pe-4">Hành động</th>
                     </tr>
                     </thead>
                     <tbody>
-                    <tr th:if="${#lists.isEmpty(suppliers)}">
-                        <td colspan="8" class="text-center text-muted py-4">Chưa có dữ liệu nhà cung cấp</td>
+                    <tr th:if="${#lists.isEmpty(companies)}">
+                        <td colspan="7" class="text-center text-muted py-4">Chưa có dữ liệu công ty</td>
                     </tr>
 
-                    <tr th:each="s : ${suppliers}">
-                        <td class="ps-4" th:text="${s.supplierId}"></td>
-                        <td th:text="${s.supplierCode}"></td>
-                        <td class="fw-semibold" th:text="${s.supplierName}"></td>
-                        <td th:text="${s.contactPerson}"></td>
-                        <td th:text="${s.phone}"></td>
-                        <td th:text="${s.email}"></td>
-                        <td>
-                            <span th:if="${s.active}" class="badge bg-success-subtle text-success">Đang hoạt động</span>
-                            <span th:if="${!s.active}" class="badge bg-secondary-subtle text-secondary">Ngừng hoạt động</span>
-                        </td>
+                    <tr th:each="c : ${companies}">
+                        <td class="ps-4" th:text="${c.companyId}"></td>
+                        <td class="fw-semibold" th:text="${c.companyName}"></td>
+                        <td th:text="${c.taxCode}"></td>
+                        <td th:text="${c.address}"></td>
+                        <td th:text="${c.phone}"></td>
+                        <td th:text="${c.email}"></td>
                         <td class="text-center pe-4">
                             <div class="d-flex justify-content-center gap-2">
-                                <a th:href="@{/suppliers/edit/{id}(id=${s.supplierId})}" class="btn btn-sm btn-outline-warning">
+                                <a th:href="@{/companies/edit/{id}(id=${c.companyId})}" class="btn btn-sm btn-outline-warning">
                                     <i class="bi bi-pencil"></i> Sửa
                                 </a>
-                                <form th:action="@{/suppliers/delete/{id}(id=${s.supplierId})}" method="post"
-                                      onsubmit="return confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?');">
+
+                                <form th:action="@{/companies/delete/{id}(id=${c.companyId})}" method="post"
+                                      onsubmit="return confirm('Bạn có chắc chắn muốn xóa công ty này?');">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">
                                         <i class="bi bi-trash"></i> Xóa
                                     </button>
@@ -91,3 +87,4 @@
 </div>
 </body>
 </html>
+
