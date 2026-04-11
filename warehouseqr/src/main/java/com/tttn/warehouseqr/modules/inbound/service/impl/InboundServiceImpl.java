@@ -14,6 +14,7 @@ import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseLocationRepository;
 import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrderItemRepository;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -42,7 +43,9 @@ public class InboundServiceImpl implements InboundService {
     private final ProductRepository productRepo;
     private final ProductBatchRepository batchRepo;
 
-    public InboundServiceImpl(InboundReceiptRepository receiptRepo, InboundReceiptItemRepository itemRepo, PurchaseOrderItemRepository poItemRepo, InventoryLocationBalanceRepository balanceRepo, InventoryHistoryRepository historyRepo, ProductRepository productRepo, ProductBatchRepository batchRepo) {
+    private final WarehouseLocationRepository warehouseLocationRepository;
+
+    public InboundServiceImpl(InboundReceiptRepository receiptRepo, InboundReceiptItemRepository itemRepo, PurchaseOrderItemRepository poItemRepo, InventoryLocationBalanceRepository balanceRepo, InventoryHistoryRepository historyRepo, ProductRepository productRepo, ProductBatchRepository batchRepo, WarehouseLocationRepository warehouseLocationRepository) {
         this.receiptRepo = receiptRepo;
         this.itemRepo = itemRepo;
         this.poItemRepo = poItemRepo;
@@ -50,6 +53,7 @@ public class InboundServiceImpl implements InboundService {
         this.historyRepo = historyRepo;
         this.productRepo = productRepo;
         this.batchRepo = batchRepo;
+        this.warehouseLocationRepository = warehouseLocationRepository;
     }
 
 
@@ -104,21 +108,23 @@ public class InboundServiceImpl implements InboundService {
             }
 
             // =================================================================
-            // ĐÃ THAY THẾ: Cập nhật tồn kho (Kiểm tra xem có chưa mới cộng dồn)
+            // Cập nhật tồn kho (Kiểm tra xem có chưa mới cộng dồn)
             // =================================================================
-            var balanceOpt = balanceRepo.findFirstByWarehouseIdAndProductIdAndBatchId(
-                    dto.getWarehouseId(), itemDto.getProductId(), itemDto.getBatchId()
+            var balanceOpt = balanceRepo.findByWarehouseIdAndLocationIdAndProductIdAndBatchId(
+                    dto.getWarehouseId(),
+                    itemDto.getLocationId(),
+                    itemDto.getProductId(),
+                    itemDto.getBatchId()
             );
 
             if (balanceOpt.isPresent()) {
-                // NẾU ĐÃ CÓ HÀNG TRÊN KỆ -> Lấy số lượng cũ cộng (+) thêm số lượng mới
+                // NẾU ĐÃ CÓ HÀNG TẠI VỊ TRÍ NÀY -> Cộng dồn
                 InventoryLocationBalance existingBalance = balanceOpt.get();
                 existingBalance.setQty(existingBalance.getQty().add(qty));
-                // THÊM DÒNG NÀY: Cập nhật lại thời gian
-                existingBalance.setUpdateAt(LocalDateTime.now());
+                existingBalance.setUpdateAt(LocalDateTime.now()); // Cập nhật thời gian
                 balanceRepo.save(existingBalance);
             } else {
-                // NẾU TRÊN KỆ CHƯA CÓ MÓN NÀY -> Tạo dòng mới tinh
+                // NẾU CHƯA CÓ -> Tạo dòng mới tại vị trí này
                 InventoryLocationBalance newBalance = new InventoryLocationBalance();
                 newBalance.setWarehouseId(dto.getWarehouseId());
                 newBalance.setLocationId(itemDto.getLocationId());
@@ -166,11 +172,13 @@ public class InboundServiceImpl implements InboundService {
                 String sku = record.get("SKU");
                 String lotCode = record.get("Mã Lô Hàng");
                 String qtyStr = record.get("Số Lượng");
+                String locationCode = record.get("Mã Vị Trí");
 
                 Product product = productRepo.findBySku(sku);
 
                 var batch = batchRepo.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id()).orElse(null);
 
+                var location = warehouseLocationRepository.findByLocationCode(locationCode).orElseThrow(() -> new RuntimeException("Vị trí đặt không tồn : " + locationCode));
 
                 ProductScanDTO dto = new ProductScanDTO();
                 dto.setProductId(product.getProduct_id());
@@ -179,6 +187,8 @@ public class InboundServiceImpl implements InboundService {
                 dto.setLotCode(lotCode);
                 dto.setBatchId(batch != null ? batch.getBatchId(): null);
                 dto.setActualQty(Double.parseDouble(qtyStr));
+                dto.setLocationId(location.getLocationId());
+                dto.setLocationCode(locationCode);
 
                 dtos.add(dto);
             }

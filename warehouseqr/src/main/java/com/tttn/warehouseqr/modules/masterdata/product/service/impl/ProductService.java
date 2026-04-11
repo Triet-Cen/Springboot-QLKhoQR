@@ -125,7 +125,9 @@ public class ProductService {
                 batch.getBatchId(),
                 batch.getLotCode(),
                 product.getSku(),
-                1.0
+                1.0,
+                1L,
+                "LOC-DEFAULT"
         );
     }
 
