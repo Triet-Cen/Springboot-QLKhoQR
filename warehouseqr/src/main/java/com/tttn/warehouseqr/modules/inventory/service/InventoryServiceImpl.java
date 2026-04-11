@@ -17,8 +17,9 @@ public class InventoryServiceImpl implements InventoryService {
     private final ProductRepository productRepository;
 
     @Override
-    public List<InventoryItemDto> getInventoryItems(String keyword) {
-        return productRepository.getInventoryReport(keyword);
+    public List<InventoryItemDto> getInventoryItems(String keyword, Long warehouseId) {
+        // Truyền thêm warehouseId vào Repository
+        return productRepository.getInventoryReport(keyword, warehouseId);
     }
 
     @Override

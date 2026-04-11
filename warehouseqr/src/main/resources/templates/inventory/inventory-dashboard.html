@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
-    <head th:replace="fragments/header"></head>
+    <th:block th:replace="fragments/header"></th:block>
 
     <style>
         body { background-color: #f8f9fa; }
@@ -48,16 +48,20 @@
 
 <div class="d-flex min-vh-100">
 
+    <!-- Sidebar -->
     <div th:replace="fragments/sidebar"></div>
 
     <div class="flex-grow-1 d-flex flex-column w-100">
 
+        <!-- Navbar -->
         <div th:replace="fragments/navbar"></div>
 
+        <!-- Nội dung chính -->
         <div class="p-4 flex-grow-1">
             <div class="container-fluid">
                 <h5 class="mb-4 text-secondary fw-bold">Theo dõi số lượng và giá trị hàng tồn kho</h5>
 
+                <!-- 4 thẻ thống kê -->
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <div class="card-stat">
@@ -97,13 +101,33 @@
                     </div>
                 </div>
 
+                <!-- Thanh tìm kiếm + bộ lọc kho -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <form th:action="@{/admin/inventory}" method="get" class="flex-grow-1 me-3 position-relative" style="max-width: 400px;">
-                        <i class="bi bi-search position-absolute" style="top: 10px; left: 15px; color: #9ca3af;"></i>
-                        <input type="text" name="keyword" th:value="${keyword}" class="form-control ps-5 rounded-pill border-0 shadow-sm" placeholder="Tìm theo SKU, tên sản phẩm...">
+                    <form th:action="@{/admin/inventory}" method="get" class="flex-grow-1 d-flex gap-2">
+                        <!-- Ô tìm kiếm -->
+                        <div class="position-relative flex-grow-1" style="max-width: 350px;">
+                            <i class="bi bi-search position-absolute" style="top: 10px; left: 15px; color: #9ca3af;"></i>
+                            <input type="text" name="keyword" th:value="${keyword}" class="form-control ps-5 rounded-pill border-0 shadow-sm" placeholder="Tìm theo SKU, tên sản phẩm...">
+                        </div>
+
+                        <!-- Dropdown chọn kho -->
+                        <div style="min-width: 220px;">
+                            <select name="warehouseId" class="form-select rounded-pill border-0 shadow-sm" onchange="this.form.submit()">
+                                <option value="">-- Tất cả kho --</option>
+                                <option th:each="wh : ${warehouses}"
+                                        th:value="${wh.warehouseId}"
+                                        th:text="${wh.warehouseName}"
+                                        th:selected="${wh.warehouseId == selectedWarehouseId}">
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Nút lọc (có thể bỏ nếu dùng onchange) -->
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Lọc</button>
                     </form>
                 </div>
 
+                <!-- Bảng tồn kho -->
                 <div class="bg-white rounded-3 shadow-sm overflow-hidden">
                     <table class="table table-borderless table-custom mb-0 w-100">
                         <thead>
@@ -119,24 +143,22 @@
                         <tbody>
                         <tr th:each="item : ${items}" th:classappend="${item?.lowStock} ? 'row-warning' : ''">
                             <td><a href="#" class="sku-link" th:text="${item?.sku}">SKU</a></td>
-                            <td th:text="${item?.productName}" class="fw-semibold">Tên SP</td>
+                            <td><span th:text="${item?.productName}" class="fw-semibold">Tên SP</span></td>
                             <td><span class="badge-category" th:text="${item?.categoryName}">Danh mục</span></td>
-
-                            <td th:text="${#numbers.formatDecimal(item?.totalQuantity ?: 0, 0, 'COMMA', 0, 'POINT')}"
-                                th:classappend="${item?.lowStock} ? 'text-warning-red' : ''">0</td>
-
-                            <td th:text="${#numbers.formatDecimal(item?.totalValue ?: 0, 0, 'COMMA', 0, 'POINT')}">0</td>
-
                             <td>
-                                        <span th:if="${item?.lowStock}" class="badge-status status-danger">
-                                            <i class="bi bi-exclamation-octagon-fill me-2"></i> Báo động
-                                        </span>
+                                    <span th:text="${#numbers.formatDecimal(item?.totalQuantity ?: 0, 0, 'COMMA', 0, 'POINT')}"
+                                          th:classappend="${item?.lowStock} ? 'text-warning-red' : ''">0</span>
+                            </td>
+                            <td><span th:text="${#numbers.formatDecimal(item?.totalValue ?: 0, 0, 'COMMA', 0, 'POINT')}">0</span></td>
+                            <td>
+                                    <span th:if="${item?.lowStock}" class="badge-status status-danger">
+                                        <i class="bi bi-exclamation-octagon-fill me-2"></i> Báo động
+                                    </span>
                                 <span th:unless="${item?.lowStock}" class="badge-status status-safe">
-                                            <i class="bi bi-check-circle-fill me-2"></i> Ổn định
-                                        </span>
+                                        <i class="bi bi-check-circle-fill me-2"></i> Ổn định
+                                    </span>
                             </td>
                         </tr>
-
                         <tr th:if="${#lists.isEmpty(items)}">
                             <td colspan="6" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox fs-1 d-block mb-2 text-light"></i>
@@ -149,6 +171,7 @@
             </div>
         </div>
 
+        <!-- Footer -->
         <div th:replace="fragments/footer"></div>
 
     </div>

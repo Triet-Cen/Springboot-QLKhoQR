@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface InventoryService {
 
-    List<InventoryItemDto> getInventoryItems(String keyword);
+    List<InventoryItemDto> getInventoryItems(String keyword, Long warehouseId);
 
     InventoryDashboardDto getDashboardStats(List<InventoryItemDto> items);
 }

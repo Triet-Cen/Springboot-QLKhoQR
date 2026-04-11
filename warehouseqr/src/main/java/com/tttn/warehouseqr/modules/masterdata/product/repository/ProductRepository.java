@@ -35,10 +35,11 @@ public interface ProductRepository extends JpaRepository<Product,Long>{
             "FROM Product p " +
             "LEFT JOIN p.category c " +
             "LEFT JOIN InventoryLocationBalance ilb ON p.product_id = ilb.productId " +
-            // THÊM ĐIỀU KIỆN LỌC KHO Ở ĐÂY
             "AND (:warehouseId IS NULL OR ilb.warehouseId = :warehouseId) " +
             "LEFT JOIN ProductBatch pb ON ilb.batchId = pb.batchId " +
-            "WHERE (:keyword IS NULL OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-            "GROUP BY p.product_id, p.sku, p.productName, c.categoryName, p.minStock")
+            "WHERE (:keyword IS NULL OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+            "OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "GROUP BY p.product_id, p.sku, p.productName, c.categoryName, p.minStock " +
+            "HAVING (:warehouseId IS NULL OR COALESCE(SUM(ilb.qty), 0) > 0)")
     List<InventoryItemDto> getInventoryReport(@Param("keyword") String keyword, @Param("warehouseId") Long warehouseId);
 }

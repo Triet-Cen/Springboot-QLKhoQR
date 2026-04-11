@@ -3,6 +3,9 @@ package com.tttn.warehouseqr.modules.inventory.controller;
 import com.tttn.warehouseqr.modules.inventory.dto.InventoryDashboardDto;
 import com.tttn.warehouseqr.modules.inventory.dto.InventoryItemDto;
 import com.tttn.warehouseqr.modules.inventory.service.InventoryService;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseRepository;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.service.WarehouseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -18,16 +21,23 @@ import java.util.List;
 public class InventoryController {
 
     private final InventoryService inventoryService;
+    private final WarehouseRepository warehouseRepository; // cần tạo repository này
 
     @GetMapping
-    public String viewInventoryDashboard(@RequestParam(value = "keyword", required = false) String keyword, Model model) {
-        // Lấy danh sách sản phẩm và tồn kho
-        List<InventoryItemDto> items = inventoryService.getInventoryItems(keyword);
+    public String viewInventoryDashboard(
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "warehouseId", required = false) Long warehouseId,
+            Model model) {
 
-        // Tính toán số liệu cho 4 thẻ thống kê
+        // Lấy danh sách tất cả kho để hiển thị dropdown
+        List<Warehouse> warehouses = warehouseRepository.findAll();
+        model.addAttribute("warehouses", warehouses);
+        model.addAttribute("selectedWarehouseId", warehouseId);
+
+        // Lấy dữ liệu tồn kho theo kho được chọn
+        List<InventoryItemDto> items = inventoryService.getInventoryItems(keyword, warehouseId);
         InventoryDashboardDto dashboard = inventoryService.getDashboardStats(items);
 
-        // Đẩy data xuống View
         model.addAttribute("items", items);
         model.addAttribute("dashboard", dashboard);
         model.addAttribute("keyword", keyword);
