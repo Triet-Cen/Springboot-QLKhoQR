@@ -197,6 +197,13 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="mb-4" id="customerSelectionBlock" style="display: none;">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Chọn Khách Hàng (Tùy chọn)</label>
+                            <select class="form-select shadow-sm border-0 bg-light" id="customerSelect" style="height: 50px; font-weight: 500; border-radius: 12px;">
+                                <option value="">-- Khách Lẻ (Không lưu thông tin) --</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -599,6 +606,17 @@
             currentMode = mode;
             const config = OP_CONFIG[mode];
 
+            // ==========================================
+            // LOGIC ẨN/HIỆN Ô CHỌN KHÁCH HÀNG TỰ ĐỘNG
+            // ==========================================
+            const customerBlock = document.getElementById('customerSelectionBlock');
+            if (mode === 'OUTBOUND') {
+                customerBlock.style.display = 'block';
+            } else {
+                customerBlock.style.display = 'none';
+                document.getElementById('customerSelect').value = ""; // Reset về khách lẻ
+            }
+
             // 4. CẬP NHẬT GIAO DIỆN TAB (NAV-PILLS)
             document.querySelectorAll("#opTab .nav-link").forEach(btn => btn.classList.remove("active"));
             element.classList.add("active");
@@ -635,24 +653,37 @@
 
             const items = Array.from(scannedRows).map(row => ({
                 productId: parseInt(row.getAttribute('data-product-id')),
-                locationId: parseInt(row.getAttribute('data-location-id')),
                 batchId: parseInt(row.getAttribute('data-batch-id')),
                 actualQty: parseFloat(row.querySelector('.qty-input').value),
-                productName: row.getAttribute('data-product-name'),
                 lotCode: row.getAttribute('data-lot-code')
             }));
 
-            let payload = currentMode === "OUTBOUND" ?
-                { salesOrderId: window.currentSalesOrderId, warehouseId: 1, items } :
-                { inboundReceiptCode: "PN-" + Date.now(), purchaseOrderId: window.currentPurchaseOrderId || null, warehouseId: 1, supplierId: 1, items };
+            let payload = {};
+            if (currentMode === "OUTBOUND") {
+                // LẤY GIÁ TRỊ TỪ Ô CHỌN KHÁCH HÀNG
+                const selectElement = document.getElementById('customerSelect');
+                const selectedCustomerId = selectElement ? selectElement.value : "";
 
+                payload = {
+                    salesOrderId: window.currentSalesOrderId || null,
+                    warehouseId: 1,
+                    // Ép kiểu sang số Long cho Java nhận diện đúng
+                    customerId: selectedCustomerId ? parseInt(selectedCustomerId) : null,
+                    items: items
+                };
+            } else {
+                // ... giữ nguyên logic Nhập kho / Điều chuyển cũ của bạn
+                payload = { inboundReceiptCode: "PN-" + Date.now(), purchaseOrderId: window.currentPurchaseOrderId || null, warehouseId: 1, supplierId: 1, items: items };
+            }
+
+            // Gửi dữ liệu đi (Giữ nguyên logic cũ)
             dom.btnSubmit.disabled = true; dom.btnSubmit.innerText = "ĐANG XỬ LÝ...";
             try {
                 const response = await fetch(config.api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) throw new Error(await response.text());
+
                 alert(config.title);
-                renderReceiptModal(config, items);
-                dom.scannedList.innerHTML = ""; updateCounter();
+                location.reload(); // Tải lại để dọn dẹp danh sách
             } catch (err) { alert("Lỗi: " + err.message); }
             finally { dom.btnSubmit.disabled = false; dom.btnSubmit.innerText = config.btnText; }
         }
@@ -668,6 +699,28 @@
                 <td class="text-center"><span class="badge bg-dark">${item.actualQty}</span></td></tr>`).join('');
             new bootstrap.Modal(document.getElementById('receiptModal')).show();
         }
+
+        // ==========================================
+        // HÀM TẢI DANH SÁCH KHÁCH HÀNG TỪ BACKEND
+        // ==========================================
+        async function loadCustomers() {
+            try {
+                const response = await fetch('api/customers');
+                if (response.ok) {
+                    const customers = await response.json();
+                    const select = document.getElementById('customerSelect');
+                    customers.forEach(cus => {
+                        const option = document.createElement('option');
+                        option.value = cus.id || cus.customer_id || cus.customerId;
+                        option.text = `${cus.customerCode || ''} - ${cus.customerName || cus.name}`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.warn("Chưa load được danh sách khách hàng:", error);
+            }
+        }
+
         function initLayout() {
             if (controls) stopCamera();
 
@@ -685,6 +738,7 @@
 
             // 🔥 QUAN TRỌNG
             initCSVImport();
+            loadCustomers(); // Khởi chạy tải danh sách khách hàng
         }
 
         document.addEventListener('DOMContentLoaded', initLayout);

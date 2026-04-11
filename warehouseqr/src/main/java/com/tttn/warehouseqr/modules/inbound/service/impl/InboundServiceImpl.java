@@ -114,6 +114,8 @@ public class InboundServiceImpl implements InboundService {
                 // NẾU ĐÃ CÓ HÀNG TRÊN KỆ -> Lấy số lượng cũ cộng (+) thêm số lượng mới
                 InventoryLocationBalance existingBalance = balanceOpt.get();
                 existingBalance.setQty(existingBalance.getQty().add(qty));
+                // THÊM DÒNG NÀY: Cập nhật lại thời gian
+                existingBalance.setUpdateAt(LocalDateTime.now());
                 balanceRepo.save(existingBalance);
             } else {
                 // NẾU TRÊN KỆ CHƯA CÓ MÓN NÀY -> Tạo dòng mới tinh
@@ -124,6 +126,8 @@ public class InboundServiceImpl implements InboundService {
                 newBalance.setBatchId(itemDto.getBatchId());
                 newBalance.setQty(qty);
                 newBalance.setStatus("AVAILABLE");
+                // THÊM DÒNG NÀY: Ghi lại thời gian tạo
+                newBalance.setUpdateAt(LocalDateTime.now());
                 balanceRepo.save(newBalance);
             }
             // =================================================================
