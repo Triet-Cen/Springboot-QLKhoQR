@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title th:text="${isEdit} ? 'Cập nhật công ty' : 'Thêm mới công ty'">Công ty</title>
+</head>
+<body>
+<div id="mainContent">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/companies}">Công ty</a></li>
+            <li class="breadcrumb-item active" th:text="${isEdit} ? 'Cập nhật' : 'Thêm mới'"></li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0 fw-bold text-primary">
+                <i class="fa-regular fa-building me-2"></i>
+                <span th:text="${isEdit} ? 'Chỉnh sửa công ty' : 'Tạo công ty mới'"></span>
+            </h5>
+        </div>
+
+        <div class="card-body p-4">
+            <form th:action="${isEdit} ? @{/companies/edit} : @{/companies/add}"
+                  th:object="${companyRequest}" method="post">
+
+                <input type="hidden" th:if="${isEdit}" th:field="*{companyId}"/>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Tên công ty</label>
+                        <input type="text" class="form-control" th:field="*{companyName}" placeholder="Công ty ABC">
+                        <div class="text-danger mt-1 small"
+                             th:if="${#fields.hasErrors('companyName')}" th:errors="*{companyName}"></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Mã số thuế</label>
+                        <input type="text" class="form-control" th:field="*{taxCode}" placeholder="0123456789">
+                        <div class="text-danger mt-1 small"
+                             th:if="${#fields.hasErrors('taxCode')}" th:errors="*{taxCode}"></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Điện thoại</label>
+                        <input type="text" class="form-control" th:field="*{phone}" placeholder="0912345678">
+                        <div class="text-danger mt-1 small"
+                             th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" class="form-control" th:field="*{email}" placeholder="company@example.com">
+                        <div class="text-danger mt-1 small"
+                             th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Địa chỉ</label>
+                        <textarea class="form-control" rows="3" th:field="*{address}" placeholder="Địa chỉ công ty"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i>
+                        <span th:text="${isEdit} ? 'Cập nhật' : 'Xác nhận thêm'"></span>
+                    </button>
+                    <a th:href="@{/companies}" class="btn btn-outline-secondary px-4">Quay lại</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+

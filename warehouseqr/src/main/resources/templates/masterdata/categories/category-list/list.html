@@ -41,7 +41,7 @@
                 </tr>
                 </thead>
                 <tbody>
-                <tr th:each="category : ${catePage.content.content}">
+                <tr th:each="category : ${catePage.content}">
                     <td class="text-start" th:text="${category.categoryId}"></td>
                     <td class="text-start" th:text="${category.categoryCode}"></td>
                     <td class="text-muted" th:text="${category.categoryName}"></td>
@@ -53,7 +53,7 @@
                         </div>
                     </td>
                 </tr>
-                <tr th:if="${catePage == null or #lists.isEmpty(catePage.content.content)}">
+                <tr th:if="${catePage == null or #lists.isEmpty(catePage.content)}">
                     <td colspan="9" class="text-center py-4 text-muted">Không tìm thấy Danh Mục nào!</td>
                 </tr>
                 </tbody>
@@ -66,13 +66,13 @@
                 <nav>
                     <ul class="pagination pagination-sm mb-0">
                         <li class="page-item" th:classappend="${catePage.currentPage == 1} ? 'disabled'">
-                            <a class="page-link" th:href="@{/categories(page=${catePage.currentPage - 1}, keyw=${keyword})}" tabindex="-1">Trước</a>
+                            <a class="page-link" th:href="@{/categories(page=${catePage.currentPage - 1}, keyw=${keyw})}" tabindex="-1">Trước</a>
                         </li>
                         <li class="page-item" th:each="i : ${#numbers.sequence(1, catePage.totalPage)}" th:classappend="${catePage.currentPage == i} ? 'active'">
-                            <a class="page-link" th:href="@{/categories(page=${i}, keyw=${keyword})}" th:text="${i}">1</a>
+                            <a class="page-link" th:href="@{/categories(page=${i}, keyw=${keyw})}" th:text="${i}">1</a>
                         </li>
                         <li class="page-item" th:classappend="${catePage.currentPage == catePage.totalPage} ? 'disabled'">
-                            <a class="page-link" th:href="@{/categories(page=${catePage.currentPage + 1}, keyw=${keyword})}">Sau</a>
+                            <a class="page-link" th:href="@{/categories(page=${catePage.currentPage + 1}, keyw=${keyw})}">Sau</a>
                         </li>
                     </ul>
                 </nav>

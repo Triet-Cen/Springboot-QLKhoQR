@@ -14,6 +14,6 @@ public interface CategoryRepository extends JpaRepository<ProductCategory,Long> 
     @Query("SELECT new com.tttn.warehouseqr.modules.masterdata.category.dto.CategoryDTO(" +
             "c.categoryId ,c.categoryCode, c.categoryName) " +
             "FROM ProductCategory c " +
-            "WHERE (:keyw IS NULL OR :keyw = '' OR c.categoryCode LIKE %:keyw% OR c.categoryName LIKE %:key%)")
+            "WHERE (:keyw IS NULL OR :keyw = '' OR c.categoryCode LIKE %:keyw% OR c.categoryName LIKE %:keyw%)")
     Page<CategoryDTO> categoryPage(@Param("keyw") String keyw, Pageable pageable);
 }
