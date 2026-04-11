@@ -131,8 +131,9 @@ public class InboundServiceImpl implements InboundService {
                 newBalance.setProductId(itemDto.getProductId());
                 newBalance.setBatchId(itemDto.getBatchId());
                 newBalance.setQty(qty);
-                newBalance.setUpdateAt(LocalDateTime.now());
                 newBalance.setStatus("AVAILABLE");
+                // THÊM DÒNG NÀY: Ghi lại thời gian tạo
+                newBalance.setUpdateAt(LocalDateTime.now());
                 balanceRepo.save(newBalance);
             }
             // =================================================================

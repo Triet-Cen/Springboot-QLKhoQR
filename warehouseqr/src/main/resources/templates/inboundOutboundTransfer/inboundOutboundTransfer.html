@@ -4,7 +4,6 @@
 <head>
     <title>Hệ thống Điều hành Kho Thông minh</title>
 
-
     <style th:inline="css">
         :root {
             --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
@@ -13,7 +12,6 @@
             --warning-color: #f59e0b;
             --bg-soft: #f8fafc;
         }
-
 
         .nav-pills .nav-link {
             border-radius: 12px;
@@ -113,7 +111,6 @@
             color: white !important;
         }
 
-        /* Đảm bảo nút mặc định không bị trắng */
         #btnSubmitScan {
             border: none !important;
             min-height: 50px;
@@ -127,10 +124,9 @@
         }
 
         .scanned-item {
-            transition: background-color 0.5s ease; /* Giúp hiệu ứng nháy vàng đẹp hơn */
+            transition: background-color 0.5s ease;
         }
 
-        /* Chế độ in: Ẩn mọi thứ, chỉ hiện modal body */
         @media print {
             body * { visibility: hidden; }
             #receiptModal .modal-content, #receiptModal .modal-content * { visibility: visible; }
@@ -227,6 +223,13 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="mb-4" id="customerSelectionBlock" style="display: none;">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Chọn Khách Hàng (Tùy chọn)</label>
+                            <select class="form-select shadow-sm border-0 bg-light" id="customerSelect" style="height: 50px; font-weight: 500; border-radius: 12px;">
+                                <option value="">-- Khách Lẻ (Không lưu thông tin) --</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -270,8 +273,8 @@
                 </div>
                 <div class="modal-body p-5">
                     <div class="text-center mb-4">
-                        <h3 class="fw-bold text-uppercase" id="receiptDocName">PHIẾU XUẤT KHO</h3>
-                        <p class="text-muted mb-1">Mã tham chiếu: <strong>PX/PN-TEST-001</strong></p>
+                        <h3 class="fw-bold text-uppercase" id="receiptDocName">PHIẾU KHO</h3>
+                        <p class="text-muted mb-1">Mã tham chiếu: <strong id="refCodeDisplay">PX/PN-TEST-001</strong></p>
                         <p class="text-muted mb-0" id="receiptTime"></p>
                     </div>
 
@@ -346,7 +349,7 @@
                 btnClass: 'btn-transfer'
             }
         };
-        // ====== KHỞI TẠO BIẾN TOÀN CỤC ======
+
         const codeReader = new ZXing.BrowserQRCodeReader();
         const beepSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
         let controls = null;
@@ -367,7 +370,6 @@
             dropzone: document.getElementById("dropzone")
         };
 
-        // ====== QUẢN LÝ CAMERA (Giữ nguyên start/stop) ======
         async function startCamera() {
             try {
                 dom.placeholder.style.display = "none";
@@ -379,39 +381,32 @@
                 });
             } catch (err) { alert("Lỗi: " + err.message); dom.cameraSwitch.checked = false; stopCamera(); }
         }
+        
         function stopCamera() {
             if (controls) {
-                // 1. Dừng giải mã QR
                 controls.stop();
-                controls = null; // QUAN TRỌNG: Giải phóng biến để khởi động lại lần sau
+                controls = null;
             }
-
-            // 2. Dừng hẳn luồng vật lý của webcam
             if (dom.video && dom.video.srcObject) {
                 const tracks = dom.video.srcObject.getTracks();
                 tracks.forEach(track => track.stop());
                 dom.video.srcObject = null;
             }
-
-            // 3. Cập nhật UI
             dom.scannerLine.style.display = "none";
             dom.placeholder.style.display = "block";
         }
         dom.cameraSwitch.addEventListener("change", e => e.target.checked ? startCamera() : stopCamera());
 
-        // ====== HÀM TRUNG TÂM XỬ LÝ DÒNG DỮ LIỆU (TỐI ƯU) ======
         function checkAndAddRow(data, source) {
             if (dom.noData) dom.noData.style.display = "none";
-
             const scannedRows = document.querySelectorAll('.scanned-item');
             let existingRow = null;
 
             for (let row of scannedRows) {
                 const rowId = String(row.getAttribute('data-product-id'));
                 const rowLot = String(row.getAttribute('data-lot-code'));
-                const rowLocId = String(row.getAttribute('data-location-id')); // <--- Lấy ID kệ hiện tại
+                const rowLocId = String(row.getAttribute('data-location-id'));
 
-                // So khớp cả ID sản phẩm, Mã lô và ID kệ
                 if (rowId === String(data.productId) &&
                     rowLot === String(data.lotCode || 'Mặc định') &&
                     rowLocId === String(data.locationId)) {
@@ -429,7 +424,6 @@
                 if (currentMode === "OUTBOUND") {
                     renderOutboundItemToUI(data, { locationId: data.locationId, batchId: data.batchId }, source);
                 } else {
-                    // TRUYỀN THÊM locationId và locationCode
                     renderProductToUI(
                         data.productId,
                         data.productName,
@@ -437,15 +431,14 @@
                         source,
                         data.lotCode,
                         data.batchId,
-                        data.locationId,    // <--- Tham số mới
-                        data.locationCode   // <--- Tham số mới
+                        data.locationId,
+                        data.locationCode
                     );
                 }
             }
             updateCounter();
         }
 
-        // ====== XỬ LÝ QUÉT MÃ ======
         async function handleScan(text) {
             const now = Date.now();
             if (text === lastScan && now - lastTime < 2000) return;
@@ -459,12 +452,10 @@
                     if (!response.ok) throw new Error(await response.text());
                     const data = await response.json();
 
-                    // Nếu quét lẻ bằng Camera, ta tạm thời gán vào vị trí mặc định (ID = 1)
                     if (!data.locationId) {
                         data.locationId = 1;
                         data.locationCode = "LOC-DEFAULT-01";
                     }
-
                     checkAndAddRow(data, "QUÉT LẺ");
                 } else {
                     if (currentMode === "INBOUND") {
@@ -474,14 +465,7 @@
                         const items = await resp.json();
                         dom.scannedList.innerHTML = "";
                         items.forEach(item => renderProductToUI(
-                            item.productId,
-                            item.productName,
-                            item.actualQty,
-                            poId,
-                            item.lotCode,
-                            item.batchId,
-                            item.locationId,
-                            item.locationCode));
+                            item.productId, item.productName, item.actualQty, poId, item.lotCode, item.batchId, item.locationId, item.locationCode));
                     } else if (currentMode === "OUTBOUND") {
                         const response = await fetch(`${OP_CONFIG.OUTBOUND.suggestionApi}${text}`);
                         if (!response.ok) throw new Error("Không tìm thấy đơn hàng!");
@@ -495,7 +479,6 @@
             } catch (err) { alert(err.message); lastScan = ""; }
         }
 
-        // ====== CSV IMPORT HANDLER ======
         function initCSVImport() {
             dom.csvInput.addEventListener('change', handleCSVUpload);
         }
@@ -506,8 +489,6 @@
 
             const formData = new FormData();
             formData.append('file', file);
-
-            // UI loading (KHÔNG phá input)
             const dropContent = dom.dropzone.querySelector('.py-2');
             const originalContent = dropContent.innerHTML;
 
@@ -515,16 +496,11 @@
         <div class="d-flex flex-column align-items-center">
             <div class="spinner-border text-primary mb-2"></div>
             <span class="small text-muted">Đang xử lý file...</span>
-        </div>
-    `;
+        </div>`;
 
             try {
                 const config = OP_CONFIG[currentMode];
-
-                const response = await fetch(config.parseApi, {
-                    method: 'POST',
-                    body: formData
-                });
+                const response = await fetch(config.parseApi, { method: 'POST', body: formData });
 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -532,48 +508,35 @@
                 }
 
                 const items = await response.json();
-
                 if (!items || items.length === 0) {
                     alert("File CSV trống hoặc không khớp dữ liệu hệ thống.");
                     return;
                 }
 
-                // Ẩn "Chưa có dữ liệu"
                 if (dom.noData) dom.noData.style.display = "none";
-
-                // ===== CORE LOGIC: cộng dồn dữ liệu =====
-                items.forEach(item => {
-                    checkAndAddRow(item, "CSV IMPORT");
-                });
-
+                items.forEach(item => { checkAndAddRow(item, "CSV IMPORT"); });
                 alert(`Đã import thành công ${items.length} dòng!`);
 
             } catch (err) {
                 console.error("CSV Import Error:", err);
                 alert("Lỗi CSV: " + err.message);
             } finally {
-                // Reset input để cho phép chọn lại cùng file
                 e.target.value = "";
-
-                // Restore UI
                 dropContent.innerHTML = originalContent;
-
                 updateCounter();
             }
         }
 
-        // ====== HÀM RENDER (TỐI ƯU DATA ATTRIBUTES) ======
         function renderProductToUI(productId, productName, qty, poId, lotCode, batchId, locationId, locationCode) {
             if (dom.noData) dom.noData.style.display = "none";
             const newItem = document.createElement("div");
             newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
 
-            // Gán dữ liệu vào Attribute để submit (Sử dụng tham số locationId vừa thêm)
             newItem.setAttribute('data-product-id', productId);
             newItem.setAttribute('data-product-name', productName || 'SP ' + productId);
             newItem.setAttribute('data-lot-code', lotCode || 'Mặc định');
             newItem.setAttribute('data-batch-id', batchId || 1);
-            newItem.setAttribute('data-location-id', locationId || 1); // <--- Đã sửa
+            newItem.setAttribute('data-location-id', locationId || 1); 
 
             newItem.innerHTML = `
         <div class="d-flex justify-content-between align-items-center">
@@ -617,24 +580,11 @@
         function removeRow(btn) { btn.closest('.list-group-item').remove(); updateCounter(); }
 
         function updateCounter() {
-            // 1. Đếm số lượng thẻ sản phẩm đang có trên giao diện
             const count = document.querySelectorAll(".scanned-item").length;
-
-            // 2. Cập nhật con số hiển thị lên Badge phía trên danh sách
-            if (dom.counter) {
-                dom.counter.innerText = `${count} mã hàng`;
-            }
-
-            // 3. Quản lý việc hiển thị thông báo "Chưa có dữ liệu"
+            if (dom.counter) dom.counter.innerText = `${count} mã hàng`;
             if (dom.noData) {
-                if (count > 0) {
-                    dom.noData.style.display = "none";
-                } else {
-                    dom.noData.style.display = "block";
-                }
+                dom.noData.style.display = (count > 0) ? "none" : "block";
             }
-
-            // 4. Quản lý trạng thái nút bấm (vô hiệu hóa nếu không có hàng)
             if (dom.btnSubmit) {
                 dom.btnSubmit.disabled = (count === 0);
                 dom.btnSubmit.style.opacity = (count === 0) ? "0.6" : "1";
@@ -654,6 +604,17 @@
             currentMode = mode;
             const config = OP_CONFIG[mode];
 
+            // Ẩn/Hiện ô chọn Khách hàng
+            const customerBlock = document.getElementById('customerSelectionBlock');
+            if (mode === 'OUTBOUND') {
+                customerBlock.style.display = 'block';
+            } else {
+                customerBlock.style.display = 'none';
+                if (document.getElementById('customerSelect')) {
+                    document.getElementById('customerSelect').value = ""; 
+                }
+            }
+
             document.querySelectorAll("#opTab .nav-link").forEach(btn => btn.classList.remove("active"));
             element.classList.add("active");
 
@@ -668,28 +629,25 @@
                 </div>`;
             dom.noData = document.getElementById("noData");
 
-            // 8. ẨN/HIỆN CHỌN NHÀ CUNG CẤP
+            // Ẩn/Hiện chọn Nhà cung cấp
             const supplierSelect = document.getElementById('supplierSelect');
             if (supplierSelect) {
                 supplierSelect.parentElement.style.display = (mode === 'INBOUND') ? 'block' : 'none';
                 if (mode !== 'INBOUND') supplierSelect.value = "";
             }
 
-            // 9. ẨN/HIỆN CHỌN KHO (FIX LỖI)
+            // Ẩn/Hiện chọn Kho
             const warehouseSelect = document.getElementById('warehouseSelect');
             const targetWarehouseContainer = document.getElementById('targetWarehouseContainer');
 
             if (warehouseSelect) {
-                // Luôn hiện kho xử lý (Kho nguồn) cho cả 3 chế độ
                 warehouseSelect.parentElement.style.display = 'block';
-
-                // Chỉ hiện Kho đích khi ở chế độ ĐIỀU CHUYỂN
                 if (targetWarehouseContainer) {
                     targetWarehouseContainer.style.display = (mode === 'TRANSFER') ? 'block' : 'none';
                 }
-            } // <--- ĐÃ THÊM DẤU ĐÓNG NGOẶC Ở ĐÂY
+            }
 
-            // 10. RESET CÁC BIẾN
+            // Reset
             window.currentPurchaseOrderId = null;
             window.currentSalesOrderId = null;
             lastScan = "";
@@ -701,16 +659,14 @@
             const scannedRows = document.querySelectorAll('.scanned-item');
             if (scannedRows.length === 0) return alert("Danh sách trống!");
 
-            const supplierId = document.getElementById('supplierSelect').value;
-            const warehouseId = document.getElementById('warehouseSelect').value;
-            // FIX LỖI: Lấy giá trị kho đích
+            const supplierId = document.getElementById('supplierSelect') ? document.getElementById('supplierSelect').value : null;
+            const warehouseId = document.getElementById('warehouseSelect') ? document.getElementById('warehouseSelect').value : null;
             const targetWarehouseSelect = document.getElementById('targetWarehouseSelect');
             const targetWarehouseId = targetWarehouseSelect ? targetWarehouseSelect.value : null;
 
             if (!warehouseId) return alert("Vui lòng chọn Kho xử lý!");
             if (currentMode === "INBOUND" && !supplierId) return alert("Vui lòng chọn Nhà cung cấp!");
 
-            // KIỂM TRA ĐIỀU CHUYỂN
             if (currentMode === 'TRANSFER') {
                 if (!targetWarehouseId) return alert("Vui lòng chọn Kho đích!");
                 if (warehouseId === targetWarehouseId) return alert("Kho đích không được trùng với kho nguồn!");
@@ -718,11 +674,12 @@
 
             const items = Array.from(scannedRows).map(row => ({
                 productId: parseInt(row.getAttribute('data-product-id')),
-                locationId: parseInt(row.getAttribute('data-location-id')),
-                batchId: parseInt(row.getAttribute('data-batch-id')),
+                locationId: parseInt(row.getAttribute('data-location-id')) || 1,
+                batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
                 actualQty: parseFloat(row.querySelector('.qty-input').value),
                 productName: row.getAttribute('data-product-name'),
-                lotCode: row.getAttribute('data-lot-code'),
+                lotCode: row.getAttribute('data-lot-code') || "Mặc định",
+                requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value),
                 toWarehouseId: currentMode === 'TRANSFER' ? parseInt(targetWarehouseId) : null
             }));
 
@@ -733,16 +690,24 @@
                     toWarehouseId: parseInt(targetWarehouseId),
                     items: items
                 };
+            } else if (currentMode === "OUTBOUND") {
+                const selectElement = document.getElementById('customerSelect');
+                const selectedCustomerId = selectElement ? selectElement.value : "";
+                
+                payload = {
+                    salesOrderId: window.currentSalesOrderId || null,
+                    warehouseId: parseInt(warehouseId),
+                    customerId: selectedCustomerId ? parseInt(selectedCustomerId) : null,
+                    items: items
+                };
             } else {
-                payload = currentMode === "OUTBOUND" ?
-                    { salesOrderId: window.currentSalesOrderId, warehouseId: parseInt(warehouseId), items } :
-                    {
-                        inboundReceiptCode: "PN-" + Date.now(),
-                        purchaseOrderId: window.currentPurchaseOrderId || null,
-                        warehouseId: parseInt(warehouseId),
-                        supplierId: parseInt(supplierId),
-                        items
-                    };
+                payload = {
+                    inboundReceiptCode: "PN-" + Date.now(),
+                    purchaseOrderId: window.currentPurchaseOrderId || null,
+                    warehouseId: parseInt(warehouseId),
+                    supplierId: parseInt(supplierId),
+                    items: items
+                };
             }
 
             dom.btnSubmit.disabled = true; dom.btnSubmit.innerText = "ĐANG XỬ LÝ...";
@@ -753,9 +718,9 @@
                     body: JSON.stringify(payload)
                 });
                 if (!response.ok) throw new Error(await response.text());
+
                 alert(config.title);
-                renderReceiptModal(config, items);
-                dom.scannedList.innerHTML = ""; updateCounter();
+                location.reload(); 
             } catch (err) { alert("Lỗi: " + err.message); }
             finally { dom.btnSubmit.disabled = false; dom.btnSubmit.innerText = config.btnText; }
         }
@@ -772,7 +737,23 @@
             new bootstrap.Modal(document.getElementById('receiptModal')).show();
         }
 
-
+        async function loadCustomers() {
+            try {
+                const response = await fetch('/api/customers');
+                if (response.ok) {
+                    const customers = await response.json();
+                    const select = document.getElementById('customerSelect');
+                    customers.forEach(cus => {
+                        const option = document.createElement('option');
+                        option.value = cus.id || cus.customer_id || cus.customerId;
+                        option.text = `${cus.customerCode || ''} - ${cus.customerName || cus.name}`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.warn("Chưa load được danh sách khách hàng:", error);
+            }
+        }
 
         function initLayout() {
             if (controls) stopCamera();
@@ -789,8 +770,8 @@
                 switchMode(mode, activeTab);
             }
 
-
             initCSVImport();
+            loadCustomers();
         }
 
         document.addEventListener('DOMContentLoaded', initLayout);
