@@ -26,4 +26,12 @@ public class ProductScanDTO {
     private String sku;
 
     private Double actualQty;
+
+    // 6. ID vị trí
+    private Long locationId;
+
+    // 7. Mã vị trí (ví dụ: KE-A-01)
+    private String locationCode;
+
+
 }
