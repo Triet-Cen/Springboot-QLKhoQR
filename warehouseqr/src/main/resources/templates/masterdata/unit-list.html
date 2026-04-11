@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Quan ly don vi tinh</title>
+</head>
+<body>
+<div id="mainContent">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-rulers"></i> Quan ly don vi tinh</h2>
+            <p class="text-muted mb-0">Danh sach don vi tinh trong he thong</p>
+        </div>
+        <a th:href="@{/units/add}" class="btn btn-primary d-flex align-items-center gap-2">
+            <i class="bi bi-plus-circle"></i> Them moi
+        </a>
+    </div>
+
+    <form th:action="@{/units}" method="get" class="mb-3">
+        <div class="input-group" style="max-width: 520px;">
+            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+            <input type="text" name="keyword" class="form-control"
+                   placeholder="Tim theo ten don vi tinh..."
+                   th:value="${keyword}">
+            <button type="submit" class="btn btn-primary">Tim kiem</button>
+            <a th:href="@{/units}" class="btn btn-outline-secondary">Reset</a>
+        </div>
+    </form>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">ID</th>
+                        <th>Ten don vi tinh</th>
+                        <th class="text-center pe-4">Hanh dong</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(units)}">
+                        <td colspan="3" class="text-center text-muted py-4">Chua co du lieu don vi tinh</td>
+                    </tr>
+
+                    <tr th:each="u : ${units}">
+                        <td class="ps-4" th:text="${u.unitId}"></td>
+                        <td class="fw-semibold" th:text="${u.unitName}"></td>
+                        <td class="text-center pe-4">
+                            <div class="d-flex justify-content-center gap-2">
+                                <a th:href="@{/units/edit/{id}(id=${u.unitId})}" class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-pencil"></i> Sua
+                                </a>
+
+                                <form th:action="@{/units/delete/{id}(id=${u.unitId})}" method="post"
+                                      onsubmit="return confirm('Ban co chac chan muon xoa don vi tinh nay?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Xoa
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+
