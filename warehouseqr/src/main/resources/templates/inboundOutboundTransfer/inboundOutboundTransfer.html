@@ -69,8 +69,7 @@
             transition: all 0.3s ease;
         }
 
-        .qty-input {
-            width: 70px;
+        .qty-input, .price-input {
             border-radius: 8px;
             text-align: center;
             font-weight: bold;
@@ -294,7 +293,7 @@
                 <div class="modal-body p-5">
                     <div class="text-center mb-4">
                         <h3 class="fw-bold text-uppercase" id="receiptDocName">PHIẾU KHO</h3>
-                        <p class="text-muted mb-1">Mã tham chiếu: <strong id="refCodeDisplay">PX/PN-TEST-001</strong></p>
+                        <p class="text-muted mb-1">Mã tham chiếu: <strong id="refCodeDisplay">WMS-AUTO-GEN</strong></p>
                         <p class="text-muted mb-0" id="receiptTime"></p>
                     </div>
 
@@ -302,13 +301,17 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                             <tr>
-                                <th class="text-center" width="10%">STT</th>
+                                <th class="text-center" width="5%">STT</th>
                                 <th>MÃ SẢN PHẨM / LÔ HÀNG</th>
-                                <th class="text-center" width="20%">SỐ LƯỢNG</th>
+                                <th class="text-end" width="20%">ĐƠN GIÁ</th>
+                                <th class="text-center" width="10%">SL</th>
+                                <th class="text-end" width="25%">THÀNH TIỀN</th>
                             </tr>
                             </thead>
                             <tbody id="receiptTableBody">
                             </tbody>
+                            <tfoot id="receiptTableFoot">
+                            </tfoot>
                         </table>
                     </div>
 
@@ -418,6 +421,7 @@
         dom.cameraSwitch.addEventListener("change", e => e.target.checked ? startCamera() : stopCamera());
 
         function normalizeItemData(rawData) {
+            const detectedPrice = rawData.price || rawData.exportPrice || rawData.export_price || rawData.unitPrice || rawData.importPrice || rawData.gia_xuat || rawData.gia_nhap || 0;
             return {
                 ...rawData,
                 productId: rawData.productId || rawData.product_id || rawData.id,
@@ -427,7 +431,10 @@
                 locationId: rawData.locationId || rawData.location_id || 1,
                 locationCode: rawData.locationCode || rawData.location_code || "LOC-DEFAULT-01",
                 batchId: rawData.batchId || rawData.batch_id || 1,
-                requiredQty: rawData.requiredQty || rawData.required_qty || rawData.requestedQty || rawData.requested_qty
+                requiredQty: rawData.requiredQty || rawData.required_qty || rawData.requestedQty || rawData.requested_qty,
+                price: detectedPrice,
+                exportPrice: detectedPrice,
+                importPrice: detectedPrice
             };
         }
 
@@ -469,7 +476,7 @@
                         data.batchId,
                         data.locationId,
                         data.locationCode,
-                        data.importPrice || 0
+                        data.price || 0
                     );
                 }
             }
@@ -504,7 +511,7 @@
                         dom.scannedList.innerHTML = "";
                         items.forEach(item => {
                             const n = normalizeItemData(item);
-                            renderProductToUI(n.productId, n.productName, n.actualQty, poId, n.lotCode, n.batchId, n.locationId, n.locationCode);
+                            renderProductToUI(n.productId, n.productName, n.actualQty, poId, n.lotCode, n.batchId, n.locationId, n.locationCode, n.price);
                         });
                     } else if (currentMode === "OUTBOUND") {
                         const response = await fetch(`${OP_CONFIG.OUTBOUND.suggestionApi}${text}`);
@@ -615,6 +622,7 @@
             newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
 
             const displayQty = item.requiredQty !== undefined ? item.requiredQty : (item.actualQty || 1);
+            const displayPrice = item.price || item.exportPrice || 0;
 
             newItem.setAttribute('data-product-id', item.productId);
             newItem.setAttribute('data-product-name', item.productName || 'SP ' + item.productId);
@@ -625,9 +633,20 @@
 
             newItem.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
-                    <div><h6 class="fw-bold mb-1 text-danger">${item.productName || 'SP ID: ' + item.productId}</h6><small class="text-muted">Kệ: ${bestLoc?.locationId || 'N/A'} | Lô: ${item.lotCode || 'Mặc định'} | Nguồn: ${soCode}</small></div>
+                    <div class="flex-grow-1">
+                        <h6 class="fw-bold mb-1 text-danger">${item.productName || 'SP ID: ' + item.productId}</h6>
+                        <small class="text-muted">Kệ: ${bestLoc?.locationId || 'N/A'} | Lô: ${item.lotCode || 'Mặc định'} | Nguồn: ${soCode}</small>
+                    </div>
                     <div class="d-flex align-items-center gap-3">
-                        <input type="number" class="form-control qty-input shadow-sm border-0 bg-light" value="${displayQty}" min="0">
+                        <div class="text-end">
+                            <label class="small text-muted d-block" style="font-size: 10px;">GIÁ XUẤT</label>
+                            <input type="number" class="form-control form-control-sm price-input shadow-sm border-0 bg-light"
+                                   value="${displayPrice}" style="width: 100px; font-weight: bold;">
+                        </div>
+                        <div class="text-end">
+                            <label class="small text-muted d-block" style="font-size: 10px;">SL</label>
+                            <input type="number" class="form-control form-control-sm qty-input shadow-sm border-0 bg-light" value="${displayQty}" min="0" style="width: 70px; font-weight: bold;">
+                        </div>
                         <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
                     </div>
                 </div>`;
@@ -701,7 +720,7 @@
             }
 
             if (targetLocContainer) {
-                targetLocContainer.style.display = 'none'; 
+                targetLocContainer.style.display = 'none';
                 const targetLocSelect = document.getElementById('targetLocationSelect');
                 if (targetLocSelect) {
                     targetLocSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
@@ -724,7 +743,6 @@
             const warehouseId = document.getElementById('warehouseSelect') ? document.getElementById('warehouseSelect').value : null;
             const targetWarehouseSelect = document.getElementById('targetWarehouseSelect');
             const targetWarehouseId = targetWarehouseSelect ? targetWarehouseSelect.value : null;
-
             const targetLocSelect = document.getElementById('targetLocationSelect');
             const selectedTargetLocId = targetLocSelect ? targetLocSelect.value : null;
 
@@ -737,44 +755,46 @@
                 if (warehouseId === targetWarehouseId) return alert("Kho đích không được trùng với kho nguồn!");
             }
 
-            const items = Array.from(scannedRows).map(row => ({
-                productId: parseInt(row.getAttribute('data-product-id')),
-                locationId: parseInt(row.getAttribute('data-location-id')) || 1,
-                batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
-                importPrice: row.querySelector('.price-input') ? (parseFloat(row.querySelector('.price-input').value) || 0) : 0,
-                actualQty: parseFloat(row.querySelector('.qty-input').value) || 1,
-                productName: row.getAttribute('data-product-name'),
-                lotCode: row.getAttribute('data-lot-code') || "Mặc định",
-                requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value) || 1,
-                toWarehouseId: currentMode === 'TRANSFER' ? parseInt(targetWarehouseId) : null,
-                targetLocationId: currentMode === 'TRANSFER' ? parseInt(selectedTargetLocId) : null
-            }));
+            // GÓI DỮ LIỆU ĐỂ GỬI LÊN JAVA
+            const items = Array.from(scannedRows).map(row => {
+                const priceInput = row.querySelector('.price-input');
+                const priceVal = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
+
+                return {
+                    productId: parseInt(row.getAttribute('data-product-id')),
+                    locationId: parseInt(row.getAttribute('data-location-id')) || 1,
+                    batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
+                    price: priceVal,
+                    exportPrice: priceVal,
+                    importPrice: priceVal,
+                    unitPrice: priceVal,
+                    sellingPrice: priceVal, // BẮT BUỘC PHẢI CÓ ĐỂ TRÁNH LỖI OUTBOUND
+                    actualQty: parseFloat(row.querySelector('.qty-input').value) || 1,
+                    productName: row.getAttribute('data-product-name'),
+                    lotCode: row.getAttribute('data-lot-code') || "Mặc định",
+                    requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value) || 1,
+                    toWarehouseId: currentMode === 'TRANSFER' ? parseInt(targetWarehouseId) : null,
+                    targetLocationId: currentMode === 'TRANSFER' ? parseInt(selectedTargetLocId) : null
+                };
+            });
+
+            // 👉 CẢNH BÁO QUÊN NHẬP GIÁ
+            const hasZeroPrice = items.some(item => item.price === 0);
+            if (currentMode !== 'TRANSFER' && hasZeroPrice) {
+                if (!confirm("⚠️ CẢNH BÁO:\nCó sản phẩm đang để Đơn giá = 0 đ.\nBạn có chắc chắn muốn tạo phiếu với giá 0 đ không?")) {
+                    return; // Dừng lại cho người dùng nhập giá
+                }
+            }
 
             let payload;
             if (currentMode === 'TRANSFER') {
-                payload = {
-                    fromWarehouseId: parseInt(warehouseId),
-                    toWarehouseId: parseInt(targetWarehouseId),
-                    items: items
-                };
+                payload = { fromWarehouseId: parseInt(warehouseId), toWarehouseId: parseInt(targetWarehouseId), items: items };
             } else if (currentMode === "OUTBOUND") {
                 const selectElement = document.getElementById('customerSelect');
                 const selectedCustomerId = selectElement ? selectElement.value : "";
-
-                payload = {
-                    salesOrderId: window.currentSalesOrderId || null,
-                    warehouseId: parseInt(warehouseId),
-                    customerId: selectedCustomerId ? parseInt(selectedCustomerId) : null,
-                    items: items
-                };
+                payload = { salesOrderId: window.currentSalesOrderId || null, warehouseId: parseInt(warehouseId), customerId: selectedCustomerId ? parseInt(selectedCustomerId) : null, items: items };
             } else {
-                payload = {
-                    inboundReceiptCode: "PN-" + Date.now(),
-                    purchaseOrderId: window.currentPurchaseOrderId || null,
-                    warehouseId: parseInt(warehouseId),
-                    supplierId: parseInt(supplierId),
-                    items: items
-                };
+                payload = { inboundReceiptCode: "PN-" + Date.now(), purchaseOrderId: window.currentPurchaseOrderId || null, warehouseId: parseInt(warehouseId), supplierId: parseInt(supplierId), items: items };
             }
 
             dom.btnSubmit.disabled = true; dom.btnSubmit.innerText = "ĐANG XỬ LÝ...";
@@ -786,8 +806,8 @@
                 });
                 if (!response.ok) throw new Error(await response.text());
 
-                alert(config.title);
-                location.reload();
+                renderReceiptModal(config, items);
+                document.getElementById('receiptModal').addEventListener('hidden.bs.modal', function () { location.reload(); });
             } catch (err) { alert("Lỗi: " + err.message); }
             finally { dom.btnSubmit.disabled = false; dom.btnSubmit.innerText = config.btnText; }
         }
@@ -797,10 +817,32 @@
             document.getElementById('receiptModalHeader').style.background = config.headerBg;
             document.getElementById('receiptTitle').innerText = config.title;
             document.getElementById('receiptDocName').innerText = config.docName;
-            document.getElementById('receiptTableBody').innerHTML = items.map((item, index) => `
-                <tr><td class="text-center">${index + 1}</td>
-                <td><div class="fw-bold">${item.productName}</div><small>Lô: ${item.lotCode}</small></td>
-                <td class="text-center"><span class="badge bg-dark">${item.actualQty}</span></td></tr>`).join('');
+
+            let totalAmount = 0;
+            document.getElementById('receiptTableBody').innerHTML = items.map((item, index) => {
+                const qty = item.actualQty || 1;
+                const price = item.price || item.exportPrice || item.importPrice || 0;
+                const lineTotal = qty * price;
+                totalAmount += lineTotal;
+
+                return `
+                <tr>
+                    <td class="text-center">${index + 1}</td>
+                    <td><div class="fw-bold">${item.productName}</div><small>Lô: ${item.lotCode}</small></td>
+                    <td class="text-end">${price.toLocaleString('vi-VN')} đ</td>
+                    <td class="text-center"><span class="badge bg-dark">${qty}</span></td>
+                    <td class="text-end fw-bold">${lineTotal.toLocaleString('vi-VN')} đ</td>
+                </tr>`;
+            }).join('');
+
+            const tfoot = document.getElementById('receiptTableFoot');
+            if(tfoot) {
+                tfoot.innerHTML = `
+                <tr class="table-light">
+                    <td colspan="4" class="text-end fw-bold">TỔNG CỘNG:</td>
+                    <td class="text-end fw-bold text-danger fs-5">${totalAmount.toLocaleString('vi-VN')} đ</td>
+                </tr>`;
+            }
             new bootstrap.Modal(document.getElementById('receiptModal')).show();
         }
 
@@ -817,16 +859,12 @@
                         select.appendChild(option);
                     });
                 }
-            } catch (error) {
-                console.warn("Chưa load được danh sách khách hàng:", error);
-            }
+            } catch (error) { console.warn("Chưa load được danh sách khách hàng:", error); }
         }
 
         function initLayout() {
             if (controls) stopCamera();
-
             const activeTab = document.querySelector('#opTab .nav-link.active');
-
             if (activeTab) {
                 const modeText = activeTab.innerText.toUpperCase();
                 let mode = 'INBOUND';
@@ -836,7 +874,6 @@
                 dom.scannedList.innerHTML = "";
                 switchMode(mode, activeTab);
             }
-
             initCSVImport();
             loadCustomers();
         }
@@ -845,15 +882,12 @@
             const warehouseId = this.value;
             const locationSelect = document.getElementById('targetLocationSelect');
             const locationContainer = document.getElementById('targetLocationContainer');
-
             if (!warehouseId) return;
 
             try {
                 const response = await fetch(`/scan-station/warehouses/${warehouseId}/locations`);
                 const locations = await response.json();
-
                 locationContainer.style.display = 'block';
-
                 locationSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
                 locations.forEach(loc => {
                     const option = document.createElement('option');
@@ -861,14 +895,11 @@
                     option.text = loc.locationCode;
                     locationSelect.appendChild(option);
                 });
-            } catch (err) {
-                console.error("Lỗi khi tải danh sách vị trí:", err);
-            }
+            } catch (err) { console.error("Lỗi:", err); }
         });
 
         document.addEventListener('DOMContentLoaded', initLayout);
     </script>
 </div>
-
 </body>
 </html>

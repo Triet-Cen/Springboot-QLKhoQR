@@ -16,4 +16,6 @@ public class OutboundItemDTO {
     private Double requestedQty;
     private Double actualQty;
     private Double sellingPrice;
+    private Double price;
+
 }

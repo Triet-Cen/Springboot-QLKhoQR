@@ -30,4 +30,10 @@ public class OutboundReceiptItem {
 
     @Column(name = "picked_location_id")
     private Long pickedLocationId;
+
+    // Thêm vào dưới các cột đã có (số lượng, mã sản phẩm...)
+    @Column(name = "price")
+    private Double price; // Hoặc dùng BigDecimal tùy bạn
+
+    // Nhớ tạo Getter/Setter cho nó (hoặc dùng @Data của Lombok)
 }
