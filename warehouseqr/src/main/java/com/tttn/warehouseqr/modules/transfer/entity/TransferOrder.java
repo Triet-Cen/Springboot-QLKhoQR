@@ -1,5 +1,6 @@
 package com.tttn.warehouseqr.modules.transfer.entity;
 
+import com.tttn.warehouseqr.modules.auth.entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -29,7 +30,9 @@ public class TransferOrder {
 
     private String status; // PENDING, COMPLETED
 
-    private Long createdBy;
+    @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User creator;
 
     private Long outboundReceiptId;
 

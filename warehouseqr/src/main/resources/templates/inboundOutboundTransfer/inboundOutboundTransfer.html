@@ -212,6 +212,13 @@
                             </select>
                         </div>
 
+                        <div class="mb-4" id="targetLocationContainer" style="display: none;">
+                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Vị trí đích (Kệ/Ô)</label>
+                            <select id="targetLocationSelect" class="form-select border-0 shadow-sm rounded-3 py-2 bg-light">
+                                <option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>
+                            </select>
+                        </div>
+
                         <div class="mb-4">
                             <label class="form-label small fw-bold text-muted text-uppercase mb-2">Nhập dữ liệu lô hàng lớn</label>
                             <div class="import-dropzone p-4 text-center border-2 border-dashed rounded-4 bg-light position-relative" id="dropzone">
@@ -645,6 +652,11 @@
                 if (targetWarehouseContainer) {
                     targetWarehouseContainer.style.display = (mode === 'TRANSFER') ? 'block' : 'none';
                 }
+                // Thêm dòng này:
+                const targetLocationContainer = document.getElementById('targetLocationContainer');
+                if (targetLocationContainer) {
+                    targetLocationContainer.style.display = (mode === 'TRANSFER') ? 'block' : 'none';
+                }
             }
 
             // Reset
@@ -664,6 +676,9 @@
             const targetWarehouseSelect = document.getElementById('targetWarehouseSelect');
             const targetWarehouseId = targetWarehouseSelect ? targetWarehouseSelect.value : null;
 
+            const targetLocSelect = document.getElementById('targetLocationSelect');
+            const selectedTargetLocId = targetLocSelect ? targetLocSelect.value : null;
+
             if (!warehouseId) return alert("Vui lòng chọn Kho xử lý!");
             if (currentMode === "INBOUND" && !supplierId) return alert("Vui lòng chọn Nhà cung cấp!");
 
@@ -680,7 +695,8 @@
                 productName: row.getAttribute('data-product-name'),
                 lotCode: row.getAttribute('data-lot-code') || "Mặc định",
                 requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value),
-                toWarehouseId: currentMode === 'TRANSFER' ? parseInt(targetWarehouseId) : null
+                toWarehouseId: currentMode === 'TRANSFER' ? parseInt(targetWarehouseId) : null,
+                targetLocationId: currentMode === 'TRANSFER' ? parseInt(selectedTargetLocId) : null
             }));
 
             let payload;
@@ -773,6 +789,35 @@
             initCSVImport();
             loadCustomers();
         }
+
+        // Thêm đoạn này vào cuối script để lắng nghe sự thay đổi của Kho đích
+        document.getElementById('targetWarehouseSelect').addEventListener('change', async function() {
+            const warehouseId = this.value;
+            const locationSelect = document.getElementById('targetLocationSelect');
+            const locationContainer = document.getElementById('targetLocationContainer');
+
+            if (!warehouseId) return;
+
+            try {
+                // Gọi API vừa tạo ở Bước 3
+                const response = await fetch(`/scan-station/warehouses/${warehouseId}/locations`);
+                const locations = await response.json();
+
+                // Hiện ô chọn vị trí
+                locationContainer.style.display = 'block';
+
+                // Xóa các option cũ và nạp option mới
+                locationSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
+                locations.forEach(loc => {
+                    const option = document.createElement('option');
+                    option.value = loc.locationId;
+                    option.text = loc.locationCode; // Tên hiển thị của kệ (VD: KE-A-01)
+                    locationSelect.appendChild(option);
+                });
+            } catch (err) {
+                console.error("Lỗi khi tải danh sách vị trí:", err);
+            }
+        });
 
         document.addEventListener('DOMContentLoaded', initLayout);
     </script>
