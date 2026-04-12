@@ -3,8 +3,7 @@ package com.tttn.warehouseqr.modules.Location.controller;
 import com.tttn.warehouseqr.modules.Location.entity.StorageLocation;
 import com.tttn.warehouseqr.modules.Location.repository.WarehouseZoneRepository;
 import com.tttn.warehouseqr.modules.Location.service.StorageLocationService;
-
-import com.tttn.warehouseqr.modules.masterdata.warehouse.services.imp.WarehouseServiceImpl;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.services.WarehouseService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -17,11 +16,11 @@ import java.util.Map;
 @RequestMapping("/warehouses/locations")
 public class StorageLocationPageController {
 
-    private final WarehouseServiceImpl warehouseService;
+    private final WarehouseService warehouseService;
     private final StorageLocationService storageLocationService;
     private final WarehouseZoneRepository warehouseZoneRepository;
 
-    public StorageLocationPageController(WarehouseServiceImpl warehouseService,
+    public StorageLocationPageController(WarehouseService warehouseService,
                                          StorageLocationService storageLocationService,
                                          WarehouseZoneRepository warehouseZoneRepository) {
         this.warehouseService = warehouseService;

@@ -27,21 +27,33 @@
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
             <div class="row gx-2">
-                <div class="col-md-9">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white border-end-0 text-muted">
-                            <i class="bi bi-search"></i>
-                        </span>
-                        <input type="text" class="form-control border-start-0 ps-0" placeholder="Tìm theo SKU, tên sản phẩm, Batch ID...">
+                <form th:action="@{/products}" method="get" id="searchForm">
+                    <div class="row gx-2">
+                        <div class="col-md-7">
+                            <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0 text-muted">
+                                <i class="bi bi-search"></i>
+                            </span>
+                                <input type="text" name="keyw" th:value="${keyword}" class="form-control border-start-0 ps-0" placeholder="Tìm theo SKU, tên sản phẩm, Lô hàng...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" name="categoryId" onchange="document.getElementById('searchForm').submit();">
+                                <option value="0">Tất cả danh mục</option>
+                                <option th:each="cat : ${categories}"
+                                        th:value="${cat.categoryId}"
+                                        th:text="${cat.categoryName}"
+                                        th:selected="${cat.categoryId == categoryId}">
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-search"></i> Tìm kiếm
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select">
-                        <option value="">Tất cả</option>
-                        <option value="created">Đã tạo QR</option>
-                        <option value="not_created">Chưa tạo QR</option>
-                    </select>
-                </div>
+                </form>
             </div>
         </div>
     </div>
@@ -117,13 +129,13 @@
                 <nav>
                     <ul class="pagination pagination-sm mb-0">
                         <li class="page-item" th:classappend="${productPage.currentPage == 1} ? 'disabled'">
-                            <a class="page-link" th:href="@{/products(page=${productPage.currentPage - 1}, keyw=${keyword})}" tabindex="-1">Trước</a>
+                            <a class="page-link" th:href="@{/products(page=${productPage.currentPage - 1}, keyw=${keyword}, categoryId=${categoryId})}" tabindex="-1">Trước</a>
                         </li>
                         <li class="page-item" th:each="i : ${#numbers.sequence(1, productPage.totalPage)}" th:classappend="${productPage.currentPage == i} ? 'active'">
-                            <a class="page-link" th:href="@{/products(page=${i}, keyw=${keyword})}" th:text="${i}">1</a>
+                            <a class="page-link" th:href="@{/products(page=${i}, keyw=${keyword}, categoryId=${categoryId})}" th:text="${i}">1</a>
                         </li>
                         <li class="page-item" th:classappend="${productPage.currentPage == productPage.totalPage} ? 'disabled'">
-                            <a class="page-link" th:href="@{/products(page=${productPage.currentPage + 1}, keyw=${keyword})}">Sau</a>
+                            <a class="page-link" th:href="@{/products(page=${productPage.currentPage + 1}, keyw=${keyword}, categoryId=${categoryId})}">Sau</a>
                         </li>
                     </ul>
                 </nav>

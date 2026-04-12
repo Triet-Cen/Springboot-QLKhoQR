@@ -73,6 +73,7 @@ public class ProductController {
         model.addAttribute("productPage", response);
         model.addAttribute("keyword", keyw);
         model.addAttribute("categoryId", categoryId);
+        model.addAttribute("categories",categoryService.getAllCategory());
 
         return "productAndQr/products/product-list/list";
     }
