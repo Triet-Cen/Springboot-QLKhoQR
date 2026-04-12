@@ -1,5 +1,7 @@
 package com.tttn.warehouseqr.modules.masterdata.product.service.impl;
 
+import com.tttn.warehouseqr.modules.inventory.entity.InventoryLocationBalance;
+import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
 import com.tttn.warehouseqr.modules.masterdata.category.entity.ProductCategory;
 import com.tttn.warehouseqr.modules.masterdata.category.repository.CategoryRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductDTO;
@@ -17,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ProductService {
@@ -24,13 +27,15 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final UnitRepository unitRepository;
     private final ProductBatchRepository productBatchRepository;
+    private final InventoryLocationBalanceRepository balanceRepo;
 
     public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository
-            , UnitRepository unitRepository, ProductBatchRepository productBatchRepository) {
+            , UnitRepository unitRepository, ProductBatchRepository productBatchRepository, InventoryLocationBalanceRepository balanceRepo) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.unitRepository = unitRepository;
         this.productBatchRepository = productBatchRepository;
+        this.balanceRepo = balanceRepo;
     }
     public ProductPageResponse getALlProductCustom(int page, int limit, String keyw, long categoryId){
         Pageable pageable = PageRequest.of(page -1,limit);
@@ -109,7 +114,7 @@ public class ProductService {
         return "Đã xóa sản phẩm";
     }
 
-    public ProductScanDTO getProductForScan(String sku, String lotCode) {
+    public ProductScanDTO getProductForScan(String sku, String lotCode, Long warehouseId) {
         // 1. Tìm Product
         Product product = productRepository.findBySku(sku);
         if (product == null) throw new RuntimeException("SKU " + sku + " không tồn tại!");
@@ -118,16 +123,32 @@ public class ProductService {
         ProductBatch batch = productBatchRepository.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id())
                 .orElseThrow(() -> new RuntimeException("Lô " + lotCode + " không thuộc sản phẩm này!"));
 
-        // 3. Đóng gói vào DTO
+        // 3. Tìm vị trí (location) cũ/gần nhất của lô hàng này trong kho
+        // Sử dụng phương thức findFirst... bạn đã định nghĩa trong Repo
+        Optional<InventoryLocationBalance> balanceOpt = balanceRepo.findFirstByWarehouseIdAndProductIdAndBatchId(
+                warehouseId, product.getProduct_id(), batch.getBatchId());
+
+        // 4. Thiết lập giá trị mặc định nếu chưa từng có tồn kho (balance == null)
+        Long locationId = 1L;
+        String locationCode = "Vị trí mặc định";
+
+        if (balanceOpt.isPresent()) {
+            InventoryLocationBalance balance = balanceOpt.get();
+            locationId = balance.getLocationId();
+            locationCode = "Kệ cũ: " + locationId; // Sau này bạn có thể join lấy locationCode xịn hơn
+        }
+
+        // 5. Đóng gói vào DTO (Đảm bảo truyền đủ 9 tham số)
         return new ProductScanDTO(
                 product.getProduct_id(),
                 product.getProductName(),
                 batch.getBatchId(),
                 batch.getLotCode(),
                 product.getSku(),
-                1.0,
-                1L,
-                "LOC-DEFAULT"
+                1.0,           // actualQty mặc định khi quét là 1
+                locationId,    // Lấy động từ balance
+                locationCode,  // Lấy động từ balance
+                batch.getCostPrice() != null ? batch.getCostPrice().doubleValue() : 0.0 // Giá nhập gợi ý
         );
     }
 
