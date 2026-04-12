@@ -15,5 +15,6 @@ public class InboundRequestDTO {
     private Long warehouseId;
     private String deliveryNoteCode;
 
+
     private List<InboundItemRequestDTO> items;
 }
