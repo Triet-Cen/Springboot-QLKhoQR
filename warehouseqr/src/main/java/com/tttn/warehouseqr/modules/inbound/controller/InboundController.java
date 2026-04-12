@@ -26,10 +26,10 @@ public class InboundController {
 
     @GetMapping("/scan-item")
     @ResponseBody
-    public ResponseEntity<?> scanItem(@RequestParam String sku, @RequestParam String lotCode) {
+    public ResponseEntity<?> scanItem(@RequestParam String sku, @RequestParam String lotCode, @RequestParam Long warehouseId) {
         try {
             // Gọi hàm xử lý logic từ ProductService mà bạn vừa viết
-            ProductScanDTO data = productService.getProductForScan(sku, lotCode);
+            ProductScanDTO data = productService.getProductForScan(sku, lotCode,warehouseId);
             return ResponseEntity.ok(data);
         } catch (Exception e) {
             // Trả về thông báo lỗi cụ thể để Frontend hiển thị Alert
