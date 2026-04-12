@@ -97,30 +97,38 @@
 
         async function loadHistory() {
             try {
-                // ĐÃ SỬA: Thêm /api/ vào đường dẫn
                 const res = await fetch('/api/outbound/history');
                 const data = await res.json();
                 const tbody = document.getElementById('historyTableBody');
 
-                if(data.length === 0) {
+                if (!data || data.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5">Chưa có phiếu xuất nào.</td></tr>';
                     return;
                 }
 
-                tbody.innerHTML = data.map((item, index) => `
-                    <tr>
-                        <td class="text-center text-muted small">${index + 1}</td>
-                        <td><span class="fw-bold text-primary">${item.receiptCode}</span></td>
-                        <td><span class="text-muted small">${new Date(item.createdAt).toLocaleString('vi-VN')}</span></td>
-                        <td><div class="fw-bold">${item.customer || 'Khách lẻ'}</div></td>
-                        <td><span class="status-badge bg-success bg-opacity-10 text-success">${item.status || 'SHIPPED'}</span></td>
-                        <td class="text-center">
-                            <button class="btn btn-view btn-sm px-3" onclick="showDetail(${item.id}, '${item.receiptCode}', '${item.customer}')">
-                                <i class="bi bi-eye"></i> Xem
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
+                tbody.innerHTML = data.map((item, index) => {
+                    // Kiểm tra kỹ tên trường trả về từ API (nhìn vào ảnh JSON bạn thấy)
+                    // Nếu API trả về 'receiptCode' thì dùng item.receiptCode
+                    const code = item.receiptCode || 'N/A';
+                    const customer = item.customer || 'Khách lẻ';
+                    const date = item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : '---';
+                    const status = item.status || 'SHIPPED';
+
+                    return `
+                <tr>
+                    <td class="text-center text-muted small">${index + 1}</td>
+                    <td><span class="fw-bold text-primary">${code}</span></td>
+                    <td><span class="text-muted small">${date}</span></td>
+                    <td><div class="fw-bold">${customer}</div></td>
+                    <td><span class="status-badge bg-success bg-opacity-10 text-success">${status}</span></td>
+                    <td class="text-center">
+                        <button class="btn btn-view btn-sm px-3" onclick="showDetail(${item.id}, '${code}', '${customer}')">
+                            <i class="bi bi-eye"></i> Xem
+                        </button>
+                    </td>
+                </tr>
+            `;
+                }).join('');
             } catch (err) {
                 console.error("Lỗi tải lịch sử:", err);
                 document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="6" class="text-center py-5 text-danger">Lỗi kết nối đến máy chủ!</td></tr>';

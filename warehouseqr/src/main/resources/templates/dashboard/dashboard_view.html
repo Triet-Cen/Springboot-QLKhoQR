@@ -1,0 +1,190 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Bảng Điều Khiển Hệ Thống | WarehouseQR</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div id="mainContent" class="container-fluid p-4">
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-primary text-white">
+                <h6>Tổng sản phẩm</h6>
+                <h3 th:text="${stats.totalProducts}">0</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-success text-white">
+                <h6>Tổng số lượng tồn</h6>
+                <h3 th:text="${stats.totalQuantity}">0</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-warning text-dark">
+                <h6>Cảnh báo sắp hết</h6>
+                <h3 th:text="${stats.lowStockWarnings}">0</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-info text-white">
+                <h6>Giá trị kho sản phẩm</h6>
+                <h3 th:text="${#numbers.formatDecimal(stats.totalInventoryValue, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</h3>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <h6 class="fw-bold mb-3">Thống kê tổng quát</h6>
+                <div style="height: 300px;">
+                    <canvas id="inventoryBarChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <h6 class="fw-bold mb-3">Tỉ lệ hàng tồn</h6>
+                <div style="height: 300px;">
+                    <canvas id="inventoryPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm p-3">
+                <h6 class="fw-bold mb-3">Xu hướng nhập xuất 7 ngày qua</h6>
+                <div style="height: 350px;">
+                    <canvas id="trendLineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // 1. Lấy dữ liệu an toàn từ Model Java thông qua Thymeleaf
+        // Cú pháp /*[[...]]*/ giúp JS nhận giá trị trực tiếp từ server
+        const totalProducts = /*[[${stats.totalProducts}]]*/ 0;
+        const totalQuantity = /*[[${stats.totalQuantity}]]*/ 0;
+        const lowStock = /*[[${stats.lowStockWarnings}]]*/ 0;
+
+        // Kiểm tra dữ liệu trong Console của trình duyệt (Nhấn F12 để xem)
+        console.log("Dữ liệu nhận được:", {totalProducts, totalQuantity, lowStock});
+
+        // Hàm vẽ biểu đồ sẽ chạy sau khi trang web load xong
+        document.addEventListener("DOMContentLoaded", function() {
+
+            // 2. Biểu đồ Cột (Inventory Bar Chart)
+            const ctxBar = document.getElementById('inventoryBarChart');
+            if (ctxBar) {
+                new Chart(ctxBar.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Mặt hàng', 'Số lượng tồn', 'Cảnh báo'],
+                        datasets: [{
+                            label: 'Số lượng',
+                            data: [totalProducts, totalQuantity, lowStock],
+                            backgroundColor: [
+                                'rgba(13, 110, 253, 0.7)',
+                                'rgba(25, 135, 84, 0.7)',
+                                'rgba(255, 193, 7, 0.7)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            // 3. Biểu đồ Tròn (Pie Chart)
+            const ctxPie = document.getElementById('inventoryPieChart');
+            if (ctxPie) {
+                new Chart(ctxPie.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Bình thường', 'Sắp hết hàng'],
+                        datasets: [{
+                            data: [totalProducts - lowStock, lowStock],
+                            backgroundColor: ['#0d6efd', '#ffc107'],
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        });
+        fetch('/api/dashboard/trends')
+            .then(response => response.json())
+            .then(data => {
+                const ctxLine = document.getElementById('trendLineChart').getContext('2d');
+                new Chart(ctxLine, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [
+                            {
+                                label: 'Nhập kho',
+                                data: data.inboundData,
+                                borderColor: '#198754',
+                                backgroundColor: 'rgba(25, 135, 84, 0.1)', // Đổ màu nhạt hơn
+                                borderWidth: 3,
+                                pointBackgroundColor: '#198754',
+                                pointRadius: 5, // Làm nốt chấm to lên cho dễ nhìn
+                                fill: true,
+                                tension: 0.4 // Bo tròn đường kẻ (làm mượt đường cong)
+                            },
+                            {
+                                label: 'Xuất kho',
+                                data: data.outboundData,
+                                borderColor: '#dc3545',
+                                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                                borderWidth: 3,
+                                pointBackgroundColor: '#dc3545',
+                                pointRadius: 5,
+                                fill: true,
+                                tension: 0.4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            intersect: false,
+                            mode: 'index', // Khi rà chuột vào sẽ hiện cả nhập và xuất cùng lúc
+                        },
+                        plugins: {
+                            legend: { position: 'top', align: 'end' } // Đẩy chú thích sang góc phải
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { display: true, drawBorder: false } // Hiện lưới ngang cho dễ dóng hàng
+                            },
+                            x: {
+                                grid: { display: false } // Ẩn lưới dọc cho đỡ rối
+                            }
+                        }
+                    }
+                });
+            })
+        /*]]>*/
+    </script>
+</div>
+</body>
+</html>
