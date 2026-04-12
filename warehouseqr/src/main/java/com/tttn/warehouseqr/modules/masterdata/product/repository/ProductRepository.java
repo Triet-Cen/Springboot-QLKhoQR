@@ -26,9 +26,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "p.sku, " +
             "p.productName, " +
             "c.categoryName, " +
-            "CAST(SUM(COALESCE(ilb.qty, 0)) AS double), " +
-            "CAST(SUM(COALESCE(ilb.qty, 0) * COALESCE(pb.costPrice, 0)) AS double), " +
-            "(CASE WHEN SUM(COALESCE(ilb.qty, 0)) <= COALESCE(p.minStock, 0) THEN true ELSE false END)) " +
+            "COALESCE(SUM(ilb.qty), 0), " +
+            "COALESCE(SUM(ilb.qty * COALESCE(pb.costPrice, 0)), 0), " +
+            "CASE WHEN COALESCE(SUM(ilb.qty), 0) <= COALESCE(p.minStock, 0) THEN true ELSE false END) " +
             "FROM Product p " +
             "LEFT JOIN p.category c " +
             "LEFT JOIN InventoryLocationBalance ilb ON p.product_id = ilb.productId " +
@@ -36,6 +36,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "LEFT JOIN ProductBatch pb ON ilb.batchId = pb.batchId " +
             "WHERE (:keyword IS NULL OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
             "OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-            "GROUP BY p.product_id, p.sku, p.productName, c.categoryName, p.minStock")
+            "GROUP BY p.product_id, p.sku, p.productName, c.categoryName, p.minStock " +
+            "HAVING COUNT(ilb.id) > 0")   // Chỉ lấy sản phẩm có ít nhất một bản ghi trong kho được lọc
     List<InventoryItemDto> getInventoryReport(@Param("keyword") String keyword, @Param("warehouseId") Long warehouseId);
 }
