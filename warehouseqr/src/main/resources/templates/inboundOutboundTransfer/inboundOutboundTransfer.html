@@ -127,6 +127,20 @@
             transition: background-color 0.5s ease;
         }
 
+        /* Thêm vào thẻ <style> */
+        .price-input {
+            border: 1px solid #e2e8f0 !important;
+            background-color: #f8fafc !important;
+            color: #475569 !important;
+            text-align: right;
+        }
+
+        .price-input:focus {
+            background-color: #fff !important;
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1) !important;
+        }
+
         @media print {
             body * { visibility: hidden; }
             #receiptModal .modal-content, #receiptModal .modal-content * { visibility: visible; }
@@ -135,6 +149,8 @@
             }
             .modal-header, .modal-footer { display: none !important; }
         }
+
+
     </style>
 </head>
 <body>
@@ -439,7 +455,8 @@
                         data.lotCode,
                         data.batchId,
                         data.locationId,
-                        data.locationCode
+                        data.locationCode,
+                        data.importPrice || 0 // Thêm tham số giá nhập
                     );
                 }
             }
@@ -455,7 +472,7 @@
             try {
                 if (text.includes('|')) {
                     const [sku, lotCode] = text.split('|');
-                    const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}`);
+                    const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}&warehouseId=${warehouseId}`);
                     if (!response.ok) throw new Error(await response.text());
                     const data = await response.json();
 
@@ -534,7 +551,7 @@
             }
         }
 
-        function renderProductToUI(productId, productName, qty, poId, lotCode, batchId, locationId, locationCode) {
+        function renderProductToUI(productId, productName, qty, poId, lotCode, batchId, locationId, locationCode, importPrice = 0) {
             if (dom.noData) dom.noData.style.display = "none";
             const newItem = document.createElement("div");
             newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
@@ -543,20 +560,31 @@
             newItem.setAttribute('data-product-name', productName || 'SP ' + productId);
             newItem.setAttribute('data-lot-code', lotCode || 'Mặc định');
             newItem.setAttribute('data-batch-id', batchId || 1);
-            newItem.setAttribute('data-location-id', locationId || 1); 
+            newItem.setAttribute('data-location-id', locationId || 1);
 
             newItem.innerHTML = `
         <div class="d-flex justify-content-between align-items-center">
-            <div>
+            <div class="flex-grow-1">
                 <h6 class="fw-bold mb-0 text-primary">${productName || 'Sản phẩm ' + productId}</h6>
-                <small class="text-muted">
-                    ID: ${productId} | Lô: ${lotCode} |
+                <small class="text-muted">ID: ${productId} | Lô: ${lotCode}</small>
+                <div class="mt-1">
                     <span class="badge bg-info text-dark">Kệ: ${locationCode || 'Mặc định'}</span>
-                </small>
+                </div>
             </div>
             <div class="d-flex align-items-center gap-3">
-                <input type="number" class="form-control qty-input shadow-sm border-0 bg-light" value="${qty}" min="1">
-                <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
+                <div class="text-end">
+                    <label class="small text-muted d-block" style="font-size: 10px;">GIÁ NHẬP</label>
+                    <input type="number" class="form-control form-control-sm price-input shadow-sm border-0 bg-light"
+                           value="${importPrice}" style="width: 100px; font-weight: bold;">
+                </div>
+                <div class="text-end">
+                    <label class="small text-muted d-block" style="font-size: 10px;">SL</label>
+                    <input type="number" class="form-control form-control-sm qty-input shadow-sm border-0 bg-light"
+                           value="${qty}" style="width: 70px; font-weight: bold;">
+                </div>
+                <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
             </div>
         </div>`;
             dom.scannedList.prepend(newItem);
@@ -611,55 +639,59 @@
             currentMode = mode;
             const config = OP_CONFIG[mode];
 
-            // Ẩn/Hiện ô chọn Khách hàng
-            const customerBlock = document.getElementById('customerSelectionBlock');
-            if (mode === 'OUTBOUND') {
-                customerBlock.style.display = 'block';
-            } else {
-                customerBlock.style.display = 'none';
-                if (document.getElementById('customerSelect')) {
-                    document.getElementById('customerSelect').value = ""; 
-                }
-            }
-
+            // Cập nhật giao diện tab
             document.querySelectorAll("#opTab .nav-link").forEach(btn => btn.classList.remove("active"));
             element.classList.add("active");
 
+            // Cập nhật Theme và Button
             document.documentElement.style.setProperty("--primary-gradient", config.headerBg);
             dom.btnSubmit.className = `btn btn-lg text-white shadow-sm ${config.btnClass}`;
             dom.btnSubmit.innerText = config.btnText;
 
+            // Reset danh sách quét
             dom.scannedList.innerHTML = `
-                <div class="text-center py-5 opacity-25" id="noData">
-                    <i class="bi bi-box-seam display-1"></i>
-                    <p class="mt-2">Chưa có dữ liệu cho chế độ ${config.docName}</p>
-                </div>`;
+        <div class="text-center py-5 opacity-25" id="noData">
+            <i class="bi bi-box-seam display-1"></i>
+            <p class="mt-2">Chưa có dữ liệu cho chế độ ${config.docName}</p>
+        </div>`;
             dom.noData = document.getElementById("noData");
 
-            // Ẩn/Hiện chọn Nhà cung cấp
+            // --- LOGIC HIỂN THỊ CÁC KHỐI CHỌN ---
+
+            // Khách hàng (Chỉ hiện khi Xuất)
+            const customerBlock = document.getElementById('customerSelectionBlock');
+            if (customerBlock) {
+                customerBlock.style.display = (mode === 'OUTBOUND') ? 'block' : 'none';
+                document.getElementById('customerSelect').value = "";
+            }
+
+            // Nhà cung cấp (Chỉ hiện khi Nhập)
             const supplierSelect = document.getElementById('supplierSelect');
             if (supplierSelect) {
                 supplierSelect.parentElement.style.display = (mode === 'INBOUND') ? 'block' : 'none';
-                if (mode !== 'INBOUND') supplierSelect.value = "";
+                supplierSelect.value = "";
             }
 
-            // Ẩn/Hiện chọn Kho
+            // Kho xử lý và Kho đích
             const warehouseSelect = document.getElementById('warehouseSelect');
-            const targetWarehouseContainer = document.getElementById('targetWarehouseContainer');
+            const targetWhContainer = document.getElementById('targetWarehouseContainer');
+            const targetLocContainer = document.getElementById('targetLocationContainer');
 
-            if (warehouseSelect) {
-                warehouseSelect.parentElement.style.display = 'block';
-                if (targetWarehouseContainer) {
-                    targetWarehouseContainer.style.display = (mode === 'TRANSFER') ? 'block' : 'none';
-                }
-                // Thêm dòng này:
-                const targetLocationContainer = document.getElementById('targetLocationContainer');
-                if (targetLocationContainer) {
-                    targetLocationContainer.style.display = (mode === 'TRANSFER') ? 'block' : 'none';
-                }
+            if (warehouseSelect) warehouseSelect.value = "";
+
+            if (targetWhContainer) {
+                targetWhContainer.style.display = (mode === 'TRANSFER') ? 'block' : 'none';
+                document.getElementById('targetWarehouseSelect').value = "";
             }
 
-            // Reset
+            if (targetLocContainer) {
+                targetLocContainer.style.display = 'none'; // Luôn ẩn ban đầu
+                const targetLocSelect = document.getElementById('targetLocationSelect');
+                targetLocSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
+                targetLocSelect.value = "";
+            }
+
+            // Reset các biến tạm
             window.currentPurchaseOrderId = null;
             window.currentSalesOrderId = null;
             lastScan = "";
@@ -691,6 +723,7 @@
                 productId: parseInt(row.getAttribute('data-product-id')),
                 locationId: parseInt(row.getAttribute('data-location-id')) || 1,
                 batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
+                importPrice: parseFloat(row.querySelector('.price-input').value) || 0,
                 actualQty: parseFloat(row.querySelector('.qty-input').value),
                 productName: row.getAttribute('data-product-name'),
                 lotCode: row.getAttribute('data-lot-code') || "Mặc định",

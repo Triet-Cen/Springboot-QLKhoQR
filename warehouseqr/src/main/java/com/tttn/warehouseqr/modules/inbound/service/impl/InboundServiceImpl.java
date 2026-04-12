@@ -85,6 +85,12 @@ public class InboundServiceImpl implements InboundService {
             InboundReceiptItem item = new InboundReceiptItem();
             item.setInboundReceipt(savedReceipt);
 
+            if (itemDto.getImportPrice() != null) {
+                item.setImportPrice(BigDecimal.valueOf(itemDto.getImportPrice()));
+            } else {
+                item.setImportPrice(BigDecimal.ZERO);
+            }
+
             var product = productRepo.findById(itemDto.getProductId())
                     .orElseThrow(() -> new RuntimeException("Không thấy SP: " + itemDto.getProductId()));
             item.setProduct(product);
@@ -173,6 +179,8 @@ public class InboundServiceImpl implements InboundService {
                 String lotCode = record.get("Mã Lô Hàng");
                 String qtyStr = record.get("Số Lượng");
 
+                String priceStr = record.isMapped("Giá Nhập") ? record.get("Giá Nhập") : "0";
+
                 // 🛠 ĐÃ FIX LỖI: Gán giá trị 1 lần duy nhất để biến trở thành "effectively final"
                 String locationCode = (record.isMapped("Mã Vị Trí") && record.get("Mã Vị Trí") != null && !record.get("Mã Vị Trí").trim().isEmpty())
                         ? record.get("Mã Vị Trí")
@@ -194,6 +202,7 @@ public class InboundServiceImpl implements InboundService {
                 dto.setActualQty(Double.parseDouble(qtyStr));
                 dto.setLocationId(location.getLocationId());
                 dto.setLocationCode(locationCode);
+                dto.setImportPrice(Double.parseDouble(priceStr));
 
                 dtos.add(dto);
             }

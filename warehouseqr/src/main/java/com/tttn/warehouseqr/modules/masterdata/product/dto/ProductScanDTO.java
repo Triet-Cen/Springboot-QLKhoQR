@@ -33,5 +33,6 @@ public class ProductScanDTO {
     // 7. Mã vị trí (ví dụ: KE-A-01)
     private String locationCode;
 
+    private Double importPrice;
 
 }
