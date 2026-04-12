@@ -5,7 +5,6 @@ import com.tttn.warehouseqr.modules.inventory.dto.InventoryItemDto;
 import com.tttn.warehouseqr.modules.inventory.service.InventoryService;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseRepository;
-import com.tttn.warehouseqr.modules.masterdata.warehouse.service.WarehouseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;

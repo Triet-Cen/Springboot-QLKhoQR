@@ -1,11 +1,10 @@
 package com.tttn.warehouseqr.modules.scan.controller;
 
 import com.tttn.warehouseqr.modules.masterdata.supplier.entity.Supplier;
-import com.tttn.warehouseqr.modules.masterdata.supplier.service.SupplierService;
 import com.tttn.warehouseqr.modules.masterdata.supplier.service.implement.SupplierServiceImpl;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.dto.WarehouseLocationDTO;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse;
-import com.tttn.warehouseqr.modules.masterdata.warehouse.services.WarehouseService;
-import com.tttn.warehouseqr.modules.masterdata.warehouse.services.imp.WarehouseServicesImp;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.services.imp.WarehouseServiceImpl;
 import com.tttn.warehouseqr.modules.outbound.service.OutboundService;
 import com.tttn.warehouseqr.modules.scan.dto.ScanSubmitDTO;
 import com.tttn.warehouseqr.modules.transfer.dto.TransferRequestDTO;
@@ -25,11 +24,11 @@ public class ScanController {
 
     private final SupplierServiceImpl supplierService;
 
-    private final WarehouseServicesImp warehouseServicesImp;
+    private final WarehouseServiceImpl warehouseServicesImp;
 
     private final TransferOrderServices transferOrderServices;
 
-    public ScanController(OutboundService outboundService, SupplierServiceImpl supplierService, WarehouseServicesImp warehouseServicesImp, TransferOrderServices transferOrderServices) {
+    public ScanController(OutboundService outboundService, SupplierServiceImpl supplierService, WarehouseServiceImpl warehouseServicesImp, TransferOrderServices transferOrderServices) {
         this.outboundService = outboundService;
         this.supplierService = supplierService;
         this.warehouseServicesImp = warehouseServicesImp;
@@ -72,6 +71,17 @@ public class ScanController {
             return ResponseEntity.ok("Xác nhận điều chuyển hàng hóa thành công!");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/warehouses/{warehouseId}/locations")
+    @ResponseBody
+    public ResponseEntity<List<WarehouseLocationDTO>> getLocationsByWarehouse(@PathVariable Long warehouseId) {
+        try {
+            List<WarehouseLocationDTO> locations = warehouseServicesImp.getLocationsByWarehouseId(warehouseId);
+            return ResponseEntity.ok(locations);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
         }
     }
 
