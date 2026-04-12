@@ -172,14 +172,19 @@ public class InboundServiceImpl implements InboundService {
                 String sku = record.get("SKU");
                 String lotCode = record.get("Mã Lô Hàng");
                 String qtyStr = record.get("Số Lượng");
-                String locationCode = record.get("Mã Vị Trí");
+
+                // 🛠 ĐÃ FIX LỖI: Gán giá trị 1 lần duy nhất để biến trở thành "effectively final"
+                String locationCode = (record.isMapped("Mã Vị Trí") && record.get("Mã Vị Trí") != null && !record.get("Mã Vị Trí").trim().isEmpty())
+                        ? record.get("Mã Vị Trí")
+                        : "LOC-DEFAULT-01";
 
                 Product product = productRepo.findBySku(sku);
 
                 var batch = batchRepo.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id()).orElse(null);
 
-                var location = warehouseLocationRepository.findByLocationCode(locationCode).orElseThrow(() -> new RuntimeException("Vị trí đặt không tồn : " + locationCode));
-
+                // Bây giờ locationCode có thể thoải mái dùng trong lambda (->) mà không bị lỗi
+                var location = warehouseLocationRepository.findByLocationCode(locationCode)
+                        .orElseThrow(() -> new RuntimeException("Vị trí đặt không tồn tại: " + locationCode));
                 ProductScanDTO dto = new ProductScanDTO();
                 dto.setProductId(product.getProduct_id());
                 dto.setProductName(product.getProductName());
