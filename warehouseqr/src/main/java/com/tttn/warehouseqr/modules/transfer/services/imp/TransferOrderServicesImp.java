@@ -1,6 +1,9 @@
 package com.tttn.warehouseqr.modules.transfer.services.imp;
 
-import com.tttn.warehouseqr.modules.inventory.services.imp.InventoryServicesImp;
+import com.tttn.warehouseqr.modules.auth.entity.User;
+import com.tttn.warehouseqr.modules.auth.repository.UserRepository;
+import com.tttn.warehouseqr.modules.inventory.service.InventoryServiceImpl;
+
 import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
@@ -33,7 +36,7 @@ public class TransferOrderServicesImp  implements TransferOrderServices {
 
     private final TransferOrderItemReposiroty itemReposiroty;
 
-    private final InventoryServicesImp inventoryService;
+    private final InventoryServiceImpl inventoryService;
 
     private final ProductRepository productRepository;
 
@@ -41,24 +44,31 @@ public class TransferOrderServicesImp  implements TransferOrderServices {
 
     private final WarehouseLocationRepository  warehouseLocationRepository;
 
-    public TransferOrderServicesImp(TransferOrderRepository transferOrderRepository, TransferOrderItemReposiroty itemReposiroty, InventoryServicesImp inventoryService, ProductRepository productRepository, ProductBatchRepository productBatchRepository, WarehouseLocationRepository warehouseLocationRepository) {
+    private final UserRepository userRepository;
+
+    public TransferOrderServicesImp(TransferOrderRepository transferOrderRepository, TransferOrderItemReposiroty itemReposiroty, InventoryServiceImpl inventoryService, ProductRepository productRepository, ProductBatchRepository productBatchRepository, WarehouseLocationRepository warehouseLocationRepository, UserRepository userRepository) {
         this.transferOrderRepository = transferOrderRepository;
         this.itemReposiroty = itemReposiroty;
         this.inventoryService = inventoryService;
         this.productRepository = productRepository;
         this.productBatchRepository = productBatchRepository;
         this.warehouseLocationRepository = warehouseLocationRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
     @Transactional
     public void processTransfer(TransferRequestDTO request, Long userId) {
+
         // 1. Lưu thông tin Header (transfer_orders)
+
+        User users = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("Người dùng không tồn tại"));
+
         TransferOrder transfer = new TransferOrder();
         transfer.setFromWarehouseId(request.getFromWarehouseId());
         transfer.setToWarehouseId(request.getToWarehouseId());
         transfer.setOutboundReceiptId(request.getOutboundReceiptId());
-        transfer.setCreatedBy(userId);
+        transfer.setCreator(users);
 
         transfer.setTransferDate(java.time.LocalDateTime.now());
         transfer.setStatus("COMPLETED"); // Hoặc trạng thái bạn quy định
@@ -75,10 +85,22 @@ public class TransferOrderServicesImp  implements TransferOrderServices {
             item.setQty(itemDto.getActualQty());
             item.setFromLocationId(itemDto.getLocationId());
 
-            // Xác định vị trí đích (mặc định là 1 nếu null)
-            Long targetLocId = itemDto.getTargetLocationId() != null ? itemDto.getTargetLocationId() : 1L;
-            item.setToLocationId(targetLocId);
-            item.setToWarehouseId(itemDto.getToWarehouseId());
+            if (itemDto.getTargetLocationId() == null) {
+                throw new RuntimeException("Vị trí đích (Target Location) cho sản phẩm " + itemDto.getProductId() + " không được để trống");
+            }
+
+            item.setToLocationId(itemDto.getTargetLocationId());
+
+            // FIX: Lấy kho đích từ item hoặc fallback về kho đích chung của đơn hàng
+            Long finalToWarehouseId = (itemDto.getToWarehouseId() != null)
+                    ? itemDto.getToWarehouseId()
+                    : request.getToWarehouseId();
+
+            if (finalToWarehouseId == null) {
+                throw new RuntimeException("Kho đích không được xác định");
+            }
+
+            item.setToWarehouseId(finalToWarehouseId);
 
             itemReposiroty.save(item);
 
@@ -88,16 +110,16 @@ public class TransferOrderServicesImp  implements TransferOrderServices {
             inventoryService.reduceStock(
                     request.getFromWarehouseId(),
                     itemDto.getLocationId(),
-                    itemDto.getProductId(), // Tham số thứ 3
+                    itemDto.getProductId(),
                     itemDto.getBatchId(),
                     itemDto.getActualQty()
             );
 
             // Cộng đích: truyền đủ 5 tham số
             inventoryService.addStock(
-                    itemDto.getToWarehouseId(),
-                    targetLocId,
-                    itemDto.getProductId(), // Tham số thứ 3
+                    finalToWarehouseId,
+                    item.getToLocationId(),
+                    itemDto.getProductId(),
                     itemDto.getBatchId(),
                     itemDto.getActualQty()
             );

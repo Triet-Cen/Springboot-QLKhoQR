@@ -21,7 +21,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/outbound")
-public class OutboundController {
+public class    OutboundController {
     private final OutboundServiceImpl outboundServiceImpl;
 
     @Autowired private OutboundReceiptRepository receiptRepo;
