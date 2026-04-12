@@ -494,6 +494,13 @@
                     const warehouseId = document.getElementById('warehouseSelect') ? document.getElementById('warehouseSelect').value : "";
                     const [sku, lotCode] = text.split('|');
                     const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}&warehouseId=${warehouseId}`);
+
+                    if (response.redirected) {
+                        alert("Phiên đăng nhập đã hết hạn hoặc bạn không có quyền. Hệ thống sẽ chuyển về trang đăng nhập.");
+                        window.location.href = response.url;
+                        return;
+                    }
+
                     if (!response.ok) throw new Error(await response.text());
                     const data = await response.json();
 
@@ -526,7 +533,13 @@
                     }
                 }
                 updateCounter();
-            } catch (err) { alert(err.message); lastScan = ""; }
+            } catch (err) { // Nếu lỗi parse JSON (do nhận về HTML), thông báo rõ hơn
+                if (err.message.includes("is not valid JSON")) {
+                    alert("Lỗi: Hệ thống trả về dữ liệu không hợp lệ (có thể do lỗi Security hoặc URL sai).");
+                } else {
+                    alert(err.message);
+                }
+                lastScan = ""; }
         }
 
         function initCSVImport() {

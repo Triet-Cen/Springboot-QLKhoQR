@@ -59,7 +59,7 @@ public class InboundServiceImpl implements InboundService {
 
     @Override
     @Transactional(rollbackFor = Exception.class) // Đã thêm rollback an toàn
-    public InboundReceipt createInboundReceipt(InboundRequestDTO dto) {
+    public InboundReceipt createInboundReceipt(InboundRequestDTO dto, Long userId) {
         // 1. Kiểm tra Header cơ bản
         if (dto.getWarehouseId() == null) throw new RuntimeException("Lỗi: warehouseId bị null");
 
@@ -74,6 +74,7 @@ public class InboundServiceImpl implements InboundService {
         receipt.setStatus("COMPLETED");
         receipt.setCreatedAt(LocalDateTime.now());
         receipt.setReceivedAt(LocalDateTime.now());
+        receipt.setCreatedBy(userId);
 
         InboundReceipt savedReceipt = receiptRepo.save(receipt);
 
