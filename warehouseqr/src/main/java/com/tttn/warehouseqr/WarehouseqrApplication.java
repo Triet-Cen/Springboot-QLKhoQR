@@ -11,5 +11,4 @@ public class WarehouseqrApplication {
         System.out.println("HASH: " + new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("123456"));
         SpringApplication.run(WarehouseqrApplication.class, args);
 	}
-
 }
