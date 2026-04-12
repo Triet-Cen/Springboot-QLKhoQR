@@ -127,7 +127,6 @@
             transition: background-color 0.5s ease;
         }
 
-        /* Thêm vào thẻ <style> */
         .price-input {
             border: 1px solid #e2e8f0 !important;
             background-color: #f8fafc !important;
@@ -149,8 +148,6 @@
             }
             .modal-header, .modal-footer { display: none !important; }
         }
-
-
     </style>
 </head>
 <body>
@@ -404,7 +401,7 @@
                 });
             } catch (err) { alert("Lỗi: " + err.message); dom.cameraSwitch.checked = false; stopCamera(); }
         }
-        
+
         function stopCamera() {
             if (controls) {
                 controls.stop();
@@ -420,8 +417,24 @@
         }
         dom.cameraSwitch.addEventListener("change", e => e.target.checked ? startCamera() : stopCamera());
 
-        function checkAndAddRow(data, source) {
+        function normalizeItemData(rawData) {
+            return {
+                ...rawData,
+                productId: rawData.productId || rawData.product_id || rawData.id,
+                productName: rawData.productName || rawData.product_name || rawData.name || 'Sản phẩm mới',
+                actualQty: rawData.actualQty !== undefined ? rawData.actualQty : (rawData.actual_qty !== undefined ? rawData.actual_qty : (rawData.qty !== undefined ? rawData.qty : 1)),
+                lotCode: rawData.lotCode || rawData.lot_code || "Mặc định",
+                locationId: rawData.locationId || rawData.location_id || 1,
+                locationCode: rawData.locationCode || rawData.location_code || "LOC-DEFAULT-01",
+                batchId: rawData.batchId || rawData.batch_id || 1,
+                requiredQty: rawData.requiredQty || rawData.required_qty || rawData.requestedQty || rawData.requested_qty
+            };
+        }
+
+        function checkAndAddRow(rawData, source) {
             if (dom.noData) dom.noData.style.display = "none";
+            const data = normalizeItemData(rawData);
+
             const scannedRows = document.querySelectorAll('.scanned-item');
             let existingRow = null;
 
@@ -456,7 +469,7 @@
                         data.batchId,
                         data.locationId,
                         data.locationCode,
-                        data.importPrice || 0 // Thêm tham số giá nhập
+                        data.importPrice || 0
                     );
                 }
             }
@@ -471,6 +484,7 @@
 
             try {
                 if (text.includes('|')) {
+                    const warehouseId = document.getElementById('warehouseSelect') ? document.getElementById('warehouseSelect').value : "";
                     const [sku, lotCode] = text.split('|');
                     const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}&warehouseId=${warehouseId}`);
                     if (!response.ok) throw new Error(await response.text());
@@ -488,15 +502,20 @@
                         const resp = await fetch(`/api/purchase-orders/${poId}/items`);
                         const items = await resp.json();
                         dom.scannedList.innerHTML = "";
-                        items.forEach(item => renderProductToUI(
-                            item.productId, item.productName, item.actualQty, poId, item.lotCode, item.batchId, item.locationId, item.locationCode));
+                        items.forEach(item => {
+                            const n = normalizeItemData(item);
+                            renderProductToUI(n.productId, n.productName, n.actualQty, poId, n.lotCode, n.batchId, n.locationId, n.locationCode);
+                        });
                     } else if (currentMode === "OUTBOUND") {
                         const response = await fetch(`${OP_CONFIG.OUTBOUND.suggestionApi}${text}`);
                         if (!response.ok) throw new Error("Không tìm thấy đơn hàng!");
                         const suggestions = await response.json();
                         dom.scannedList.innerHTML = "";
                         if (suggestions.length > 0) window.currentSalesOrderId = suggestions[0].salesOrderId;
-                        suggestions.forEach(item => renderOutboundItemToUI(item, item.suggestedLocations[0], text));
+                        suggestions.forEach(item => {
+                            const n = normalizeItemData(item);
+                            renderOutboundItemToUI(n, n.suggestedLocations ? n.suggestedLocations[0] : {locationId: n.locationId, batchId: n.batchId}, text);
+                        });
                     }
                 }
                 updateCounter();
@@ -594,18 +613,21 @@
             if (dom.noData) dom.noData.style.display = "none";
             const newItem = document.createElement("div");
             newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
+
+            const displayQty = item.requiredQty !== undefined ? item.requiredQty : (item.actualQty || 1);
+
             newItem.setAttribute('data-product-id', item.productId);
             newItem.setAttribute('data-product-name', item.productName || 'SP ' + item.productId);
             newItem.setAttribute('data-lot-code', item.lotCode || 'Mặc định');
             newItem.setAttribute('data-location-id', bestLoc?.locationId || 1);
             newItem.setAttribute('data-batch-id', bestLoc?.batchId || 1);
-            newItem.setAttribute('data-req-qty', item.requiredQty);
+            newItem.setAttribute('data-req-qty', displayQty);
 
             newItem.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
-                    <div><h6 class="fw-bold mb-1 text-danger">SP ID: ${item.productId}</h6><small class="text-muted">Kệ: ${bestLoc?.locationId || 'N/A'} | Nguồn: ${soCode}</small></div>
+                    <div><h6 class="fw-bold mb-1 text-danger">${item.productName || 'SP ID: ' + item.productId}</h6><small class="text-muted">Kệ: ${bestLoc?.locationId || 'N/A'} | Lô: ${item.lotCode || 'Mặc định'} | Nguồn: ${soCode}</small></div>
                     <div class="d-flex align-items-center gap-3">
-                        <input type="number" class="form-control qty-input shadow-sm border-0 bg-light" value="${item.requiredQty}" min="0">
+                        <input type="number" class="form-control qty-input shadow-sm border-0 bg-light" value="${displayQty}" min="0">
                         <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
                     </div>
                 </div>`;
@@ -639,40 +661,34 @@
             currentMode = mode;
             const config = OP_CONFIG[mode];
 
-            // Cập nhật giao diện tab
             document.querySelectorAll("#opTab .nav-link").forEach(btn => btn.classList.remove("active"));
             element.classList.add("active");
 
-            // Cập nhật Theme và Button
             document.documentElement.style.setProperty("--primary-gradient", config.headerBg);
             dom.btnSubmit.className = `btn btn-lg text-white shadow-sm ${config.btnClass}`;
             dom.btnSubmit.innerText = config.btnText;
 
-            // Reset danh sách quét
             dom.scannedList.innerHTML = `
-        <div class="text-center py-5 opacity-25" id="noData">
-            <i class="bi bi-box-seam display-1"></i>
-            <p class="mt-2">Chưa có dữ liệu cho chế độ ${config.docName}</p>
-        </div>`;
+                <div class="text-center py-5 opacity-25" id="noData">
+                    <i class="bi bi-box-seam display-1"></i>
+                    <p class="mt-2">Chưa có dữ liệu cho chế độ ${config.docName}</p>
+                </div>`;
             dom.noData = document.getElementById("noData");
 
-            // --- LOGIC HIỂN THỊ CÁC KHỐI CHỌN ---
-
-            // Khách hàng (Chỉ hiện khi Xuất)
             const customerBlock = document.getElementById('customerSelectionBlock');
             if (customerBlock) {
                 customerBlock.style.display = (mode === 'OUTBOUND') ? 'block' : 'none';
-                document.getElementById('customerSelect').value = "";
+                if (mode !== 'OUTBOUND' && document.getElementById('customerSelect')) {
+                    document.getElementById('customerSelect').value = "";
+                }
             }
 
-            // Nhà cung cấp (Chỉ hiện khi Nhập)
             const supplierSelect = document.getElementById('supplierSelect');
             if (supplierSelect) {
                 supplierSelect.parentElement.style.display = (mode === 'INBOUND') ? 'block' : 'none';
                 supplierSelect.value = "";
             }
 
-            // Kho xử lý và Kho đích
             const warehouseSelect = document.getElementById('warehouseSelect');
             const targetWhContainer = document.getElementById('targetWarehouseContainer');
             const targetLocContainer = document.getElementById('targetLocationContainer');
@@ -685,13 +701,14 @@
             }
 
             if (targetLocContainer) {
-                targetLocContainer.style.display = 'none'; // Luôn ẩn ban đầu
+                targetLocContainer.style.display = 'none'; 
                 const targetLocSelect = document.getElementById('targetLocationSelect');
-                targetLocSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
-                targetLocSelect.value = "";
+                if (targetLocSelect) {
+                    targetLocSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
+                    targetLocSelect.value = "";
+                }
             }
 
-            // Reset các biến tạm
             window.currentPurchaseOrderId = null;
             window.currentSalesOrderId = null;
             lastScan = "";
@@ -716,6 +733,7 @@
 
             if (currentMode === 'TRANSFER') {
                 if (!targetWarehouseId) return alert("Vui lòng chọn Kho đích!");
+                if (!selectedTargetLocId) return alert("Vui lòng chọn Vị trí đích!");
                 if (warehouseId === targetWarehouseId) return alert("Kho đích không được trùng với kho nguồn!");
             }
 
@@ -723,11 +741,11 @@
                 productId: parseInt(row.getAttribute('data-product-id')),
                 locationId: parseInt(row.getAttribute('data-location-id')) || 1,
                 batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
-                importPrice: parseFloat(row.querySelector('.price-input').value) || 0,
-                actualQty: parseFloat(row.querySelector('.qty-input').value),
+                importPrice: row.querySelector('.price-input') ? (parseFloat(row.querySelector('.price-input').value) || 0) : 0,
+                actualQty: parseFloat(row.querySelector('.qty-input').value) || 1,
                 productName: row.getAttribute('data-product-name'),
                 lotCode: row.getAttribute('data-lot-code') || "Mặc định",
-                requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value),
+                requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value) || 1,
                 toWarehouseId: currentMode === 'TRANSFER' ? parseInt(targetWarehouseId) : null,
                 targetLocationId: currentMode === 'TRANSFER' ? parseInt(selectedTargetLocId) : null
             }));
@@ -742,7 +760,7 @@
             } else if (currentMode === "OUTBOUND") {
                 const selectElement = document.getElementById('customerSelect');
                 const selectedCustomerId = selectElement ? selectElement.value : "";
-                
+
                 payload = {
                     salesOrderId: window.currentSalesOrderId || null,
                     warehouseId: parseInt(warehouseId),
@@ -769,7 +787,7 @@
                 if (!response.ok) throw new Error(await response.text());
 
                 alert(config.title);
-                location.reload(); 
+                location.reload();
             } catch (err) { alert("Lỗi: " + err.message); }
             finally { dom.btnSubmit.disabled = false; dom.btnSubmit.innerText = config.btnText; }
         }
@@ -823,7 +841,6 @@
             loadCustomers();
         }
 
-        // Thêm đoạn này vào cuối script để lắng nghe sự thay đổi của Kho đích
         document.getElementById('targetWarehouseSelect').addEventListener('change', async function() {
             const warehouseId = this.value;
             const locationSelect = document.getElementById('targetLocationSelect');
@@ -832,19 +849,16 @@
             if (!warehouseId) return;
 
             try {
-                // Gọi API vừa tạo ở Bước 3
                 const response = await fetch(`/scan-station/warehouses/${warehouseId}/locations`);
                 const locations = await response.json();
 
-                // Hiện ô chọn vị trí
                 locationContainer.style.display = 'block';
 
-                // Xóa các option cũ và nạp option mới
                 locationSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
                 locations.forEach(loc => {
                     const option = document.createElement('option');
                     option.value = loc.locationId;
-                    option.text = loc.locationCode; // Tên hiển thị của kệ (VD: KE-A-01)
+                    option.text = loc.locationCode;
                     locationSelect.appendChild(option);
                 });
             } catch (err) {
