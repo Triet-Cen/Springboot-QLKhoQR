@@ -7,11 +7,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+
 @Repository
 public interface InboundReceiptItemRepository extends JpaRepository<InboundReceiptItem,Long> {
     List<InboundReceiptItem> findByInboundReceiptId (Long receiptId);
 
-    @Query("SELECT i.product.product_id, i.product.productName, i.actualQty, i.batch.lotCode " +
+    // ĐÃ FIX: Thêm i.importPrice (giá trị thứ 5) vào câu lệnh SELECT
+    @Query("SELECT i.product.product_id, i.product.productName, i.actualQty, i.batch.lotCode, i.importPrice " +
             "FROM InboundReceiptItem i " +
             "WHERE i.inboundReceipt.id = :receiptId")
     List<Object[]> findItemsWithProductName(@Param("receiptId") Long receiptId);

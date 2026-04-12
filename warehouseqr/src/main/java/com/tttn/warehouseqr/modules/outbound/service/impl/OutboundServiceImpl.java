@@ -91,7 +91,6 @@ public class OutboundServiceImpl implements OutboundService {
                 throw new RuntimeException("Lỗi: Số lượng trên kệ không đủ!");
             }
 
-            // SỬ DỤNG HÀM CHUẨN CỦA JAVA ĐỂ TRỪ KHO CHÍNH XÁC (Giống Inbound)
             balance.setQty(balance.getQty().subtract(scanQty));
             balanceRepository.save(balance);
 
@@ -102,7 +101,7 @@ public class OutboundServiceImpl implements OutboundService {
             InventoryHistory history = new InventoryHistory();
             history.setTransactionType("OUTBOUND");
             history.setFromLocationId(balance.getLocationId());
-            history.setQtyChange(scanQty.negate()); // Lưu số âm
+            history.setQtyChange(scanQty.negate());
             history.setQrCodeId(qrCode.getQrCodeId());
             history.setBatchId(batchId);
             history.setProductId(productId);
@@ -152,25 +151,21 @@ public class OutboundServiceImpl implements OutboundService {
         OutboundReceipt savedReceipt = outboundReceiptRepository.save(receipt);
 
         for (OutboundItemDTO itemDto : request.getItems()) {
-            BigDecimal qty = BigDecimal.valueOf(itemDto.getActualQty());
+            BigDecimal qty = BigDecimal.valueOf(itemDto.getActualQty() != null ? itemDto.getActualQty() : 1.0);
 
-            // Bỏ qua nếu số lượng quét là 0
             if (qty.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-            // 1. TÌM ĐÚNG 1 DÒNG TỒN KHO DUY NHẤT
             InventoryLocationBalance balance = balanceRepository.findFirstByWarehouseIdAndProductIdAndBatchId(
                     request.getWarehouseId(),
                     itemDto.getProductId(),
                     itemDto.getBatchId()
             ).orElseThrow(() -> new RuntimeException("Từ chối: Sản phẩm ID " + itemDto.getProductId() + " hoàn toàn KHÔNG CÓ trên kệ!"));
 
-            // 2. KIỂM TRA ĐỦ HÀNG KHÔNG
             if (balance.getQty().compareTo(qty) < 0) {
                 throw new RuntimeException("TỪ CHỐI XUẤT KHO: Sản phẩm ID " + itemDto.getProductId() +
                         " chỉ còn " + balance.getQty() + " cái trên kệ. Không đủ để xuất " + qty + " cái!");
             }
 
-            // 3. SỬ DỤNG HÀM CHUẨN CỦA JAVA ĐỂ CẬP NHẬT CHÍNH XÁC (Giống Inbound)
             balance.setQty(balance.getQty().subtract(qty));
             balanceRepository.save(balance);
 
@@ -184,9 +179,11 @@ public class OutboundServiceImpl implements OutboundService {
             receiptItem.setBatchId(itemDto.getBatchId());
             receiptItem.setPickedLocationId(balance.getLocationId());
 
-            // ========================================================
-            // FIX: Bắt lỗi Null khi requestedQty không được gửi xuống
-            // ========================================================
+            // 🛠 SỬA LỖI TẠI ĐÂY: Ưu tiên lấy sellingPrice từ Web gửi xuống
+            Double finalPrice = itemDto.getSellingPrice() != null ? itemDto.getSellingPrice() :
+                    (itemDto.getPrice() != null ? itemDto.getPrice() : 0.0);
+            receiptItem.setPrice(finalPrice);
+
             Double reqQty = itemDto.getRequestedQty();
             receiptItem.setRequestedQty(reqQty != null ? BigDecimal.valueOf(reqQty) : qty);
 
@@ -196,7 +193,7 @@ public class OutboundServiceImpl implements OutboundService {
 
             InventoryHistory history = new InventoryHistory();
             history.setTransactionType("OUTBOUND");
-            history.setQtyChange(qty.negate()); // Lưu số âm
+            history.setQtyChange(qty.negate());
             history.setWarehouseId(request.getWarehouseId());
             history.setFromLocationId(balance.getLocationId());
             history.setBatchId(itemDto.getBatchId());

@@ -85,10 +85,13 @@ public class    OutboundController {
         for(OutboundReceiptItem item : items) {
             Map<String, Object> map = new HashMap<>();
             map.put("actualQty", item.getActualQty());
+            // 👉 Dòng ma thuật giúp hiển thị giá tiền trên Web:
+            map.put("price", item.getPrice() != null ? item.getPrice() : 0.0);
             String pName = productRepo.findById(item.getProductId()).map(p -> p.getProductName()).orElse("SP " + item.getProductId());
             String lCode = batchRepo.findById(item.getBatchId()).map(b -> b.getLotCode()).orElse("Mặc định");
             map.put("productName", pName);
             map.put("lotCode", lCode);
+            map.put("productId", item.getProductId());
             result.add(map);
         }
         return ResponseEntity.ok(result);
