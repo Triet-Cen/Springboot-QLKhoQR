@@ -127,6 +127,19 @@
             transition: background-color 0.5s ease;
         }
 
+        .price-input {
+            border: 1px solid #e2e8f0 !important;
+            background-color: #f8fafc !important;
+            color: #475569 !important;
+            text-align: right;
+        }
+
+        .price-input:focus {
+            background-color: #fff !important;
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1) !important;
+        }
+
         @media print {
             body * { visibility: hidden; }
             #receiptModal .modal-content, #receiptModal .modal-content * { visibility: visible; }
@@ -404,7 +417,6 @@
         }
         dom.cameraSwitch.addEventListener("change", e => e.target.checked ? startCamera() : stopCamera());
 
-        // ĐÃ THÊM MỚI: Hàm chuẩn hóa dữ liệu thông minh
         function normalizeItemData(rawData) {
             return {
                 ...rawData,
@@ -421,7 +433,7 @@
 
         function checkAndAddRow(rawData, source) {
             if (dom.noData) dom.noData.style.display = "none";
-            const data = normalizeItemData(rawData); // Sử dụng dữ liệu đã được chuẩn hóa
+            const data = normalizeItemData(rawData);
 
             const scannedRows = document.querySelectorAll('.scanned-item');
             let existingRow = null;
@@ -456,7 +468,8 @@
                         data.lotCode,
                         data.batchId,
                         data.locationId,
-                        data.locationCode
+                        data.locationCode,
+                        data.importPrice || 0
                     );
                 }
             }
@@ -471,8 +484,9 @@
 
             try {
                 if (text.includes('|')) {
+                    const warehouseId = document.getElementById('warehouseSelect') ? document.getElementById('warehouseSelect').value : "";
                     const [sku, lotCode] = text.split('|');
-                    const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}`);
+                    const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}&warehouseId=${warehouseId}`);
                     if (!response.ok) throw new Error(await response.text());
                     const data = await response.json();
 
@@ -556,7 +570,7 @@
             }
         }
 
-        function renderProductToUI(productId, productName, qty, poId, lotCode, batchId, locationId, locationCode) {
+        function renderProductToUI(productId, productName, qty, poId, lotCode, batchId, locationId, locationCode, importPrice = 0) {
             if (dom.noData) dom.noData.style.display = "none";
             const newItem = document.createElement("div");
             newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
@@ -569,16 +583,27 @@
 
             newItem.innerHTML = `
         <div class="d-flex justify-content-between align-items-center">
-            <div>
+            <div class="flex-grow-1">
                 <h6 class="fw-bold mb-0 text-primary">${productName || 'Sản phẩm ' + productId}</h6>
-                <small class="text-muted">
-                    ID: ${productId} | Lô: ${lotCode} |
+                <small class="text-muted">ID: ${productId} | Lô: ${lotCode}</small>
+                <div class="mt-1">
                     <span class="badge bg-info text-dark">Kệ: ${locationCode || 'Mặc định'}</span>
-                </small>
+                </div>
             </div>
             <div class="d-flex align-items-center gap-3">
-                <input type="number" class="form-control qty-input shadow-sm border-0 bg-light" value="${qty}" min="1">
-                <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
+                <div class="text-end">
+                    <label class="small text-muted d-block" style="font-size: 10px;">GIÁ NHẬP</label>
+                    <input type="number" class="form-control form-control-sm price-input shadow-sm border-0 bg-light"
+                           value="${importPrice}" style="width: 100px; font-weight: bold;">
+                </div>
+                <div class="text-end">
+                    <label class="small text-muted d-block" style="font-size: 10px;">SL</label>
+                    <input type="number" class="form-control form-control-sm qty-input shadow-sm border-0 bg-light"
+                           value="${qty}" style="width: 70px; font-weight: bold;">
+                </div>
+                <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)">
+                    <i class="bi bi-trash"></i>
+                </button>
             </div>
         </div>`;
             dom.scannedList.prepend(newItem);
@@ -589,7 +614,6 @@
             const newItem = document.createElement("div");
             newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
 
-            // ĐÃ SỬA MỚI: Tìm số lượng phù hợp cho cả Xuất kho bằng CSV
             const displayQty = item.requiredQty !== undefined ? item.requiredQty : (item.actualQty || 1);
 
             newItem.setAttribute('data-product-id', item.productId);
@@ -637,16 +661,6 @@
             currentMode = mode;
             const config = OP_CONFIG[mode];
 
-            const customerBlock = document.getElementById('customerSelectionBlock');
-            if (mode === 'OUTBOUND') {
-                customerBlock.style.display = 'block';
-            } else {
-                customerBlock.style.display = 'none';
-                if (document.getElementById('customerSelect')) {
-                    document.getElementById('customerSelect').value = "";
-                }
-            }
-
             document.querySelectorAll("#opTab .nav-link").forEach(btn => btn.classList.remove("active"));
             element.classList.add("active");
 
@@ -661,23 +675,37 @@
                 </div>`;
             dom.noData = document.getElementById("noData");
 
+            const customerBlock = document.getElementById('customerSelectionBlock');
+            if (customerBlock) {
+                customerBlock.style.display = (mode === 'OUTBOUND') ? 'block' : 'none';
+                if (mode !== 'OUTBOUND' && document.getElementById('customerSelect')) {
+                    document.getElementById('customerSelect').value = "";
+                }
+            }
+
             const supplierSelect = document.getElementById('supplierSelect');
             if (supplierSelect) {
                 supplierSelect.parentElement.style.display = (mode === 'INBOUND') ? 'block' : 'none';
-                if (mode !== 'INBOUND') supplierSelect.value = "";
+                supplierSelect.value = "";
             }
 
             const warehouseSelect = document.getElementById('warehouseSelect');
-            const targetWarehouseContainer = document.getElementById('targetWarehouseContainer');
+            const targetWhContainer = document.getElementById('targetWarehouseContainer');
+            const targetLocContainer = document.getElementById('targetLocationContainer');
 
-            if (warehouseSelect) {
-                warehouseSelect.parentElement.style.display = 'block';
-                if (targetWarehouseContainer) {
-                    targetWarehouseContainer.style.display = (mode === 'TRANSFER') ? 'block' : 'none';
-                }
-                const targetLocationContainer = document.getElementById('targetLocationContainer');
-                if (targetLocationContainer) {
-                    targetLocationContainer.style.display = 'none';
+            if (warehouseSelect) warehouseSelect.value = "";
+
+            if (targetWhContainer) {
+                targetWhContainer.style.display = (mode === 'TRANSFER') ? 'block' : 'none';
+                document.getElementById('targetWarehouseSelect').value = "";
+            }
+
+            if (targetLocContainer) {
+                targetLocContainer.style.display = 'none';
+                const targetLocSelect = document.getElementById('targetLocationSelect');
+                if (targetLocSelect) {
+                    targetLocSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
+                    targetLocSelect.value = "";
                 }
             }
 
@@ -713,11 +741,10 @@
                 productId: parseInt(row.getAttribute('data-product-id')),
                 locationId: parseInt(row.getAttribute('data-location-id')) || 1,
                 batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
-                // ĐÃ SỬA MỚI: Thêm || 1 để chống lỗi null nếu ô input bị trống
+                importPrice: row.querySelector('.price-input') ? (parseFloat(row.querySelector('.price-input').value) || 0) : 0,
                 actualQty: parseFloat(row.querySelector('.qty-input').value) || 1,
                 productName: row.getAttribute('data-product-name'),
                 lotCode: row.getAttribute('data-lot-code') || "Mặc định",
-                // ĐÃ SỬA MỚI: Thêm || 1 để chống lỗi null
                 requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value) || 1,
                 toWarehouseId: currentMode === 'TRANSFER' ? parseInt(targetWarehouseId) : null,
                 targetLocationId: currentMode === 'TRANSFER' ? parseInt(selectedTargetLocId) : null
