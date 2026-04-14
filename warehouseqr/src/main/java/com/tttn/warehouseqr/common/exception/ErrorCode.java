@@ -20,7 +20,10 @@ public enum ErrorCode {
     ID_REQUIRED("VAL005", "ID không được để trống", HttpStatus.BAD_REQUEST),
     PHONE_REQUIRED("USR003", "Số điện thoại không được để trống", HttpStatus.BAD_REQUEST),
     PHONE_INVALID("USR004", "Số điện thoại không đúng định dạng (10 số)", HttpStatus.BAD_REQUEST),
-    ;
+
+    // stocktake
+    STOCKTAKE_ITEM_NOT_FOUND("STK001", "Không tìm thấy mặt hàng kiểm kê", HttpStatus.NOT_FOUND),
+    PRODUCT_NOT_FOUND("PRD001", "Sản phẩm không tồn tại", HttpStatus.NOT_FOUND);
 
     private final String code;
     private final String message;

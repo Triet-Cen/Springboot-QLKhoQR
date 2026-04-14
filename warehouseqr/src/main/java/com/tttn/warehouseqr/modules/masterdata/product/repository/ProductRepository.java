@@ -2,18 +2,26 @@ package com.tttn.warehouseqr.modules.masterdata.product.repository;
 
 import com.tttn.warehouseqr.modules.inventory.dto.InventoryItemDto;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
+import com.tttn.warehouseqr.modules.stocktake.dto.ExpiryWarningDto;
+import com.tttn.warehouseqr.modules.stocktake.dto.LowStockDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Product findBySku(String sku);
+
+    @Query("SELECT p FROM Product p WHERE p.sku = :sku")
+    Optional<Product> findProductBySku(@Param("sku") String sku);
 
     
     @Query(value = "SELECT p FROM Product p " +
@@ -22,6 +30,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> getProducPageCustom(@Param("keyw") String keyw, @Param("categoryId") long categoryId, Pageable page);
 
 
+    //Báo cáo tồn kho
     @Query("SELECT new com.tttn.warehouseqr.modules.inventory.dto.InventoryItemDto(" +
             "p.sku, " +
             "p.productName, " +
@@ -39,4 +48,16 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "GROUP BY p.product_id, p.sku, p.productName, c.categoryName, p.minStock " +
             "HAVING COUNT(ilb.id) > 0")   // Chỉ lấy sản phẩm có ít nhất một bản ghi trong kho được lọc
     List<InventoryItemDto> getInventoryReport(@Param("keyword") String keyword, @Param("warehouseId") Long warehouseId);
+
+
+    // cảnh báo tồn kho thấp
+    @Query("SELECT new com.tttn.warehouseqr.modules.stocktake.dto.LowStockDto(" +
+            "p.sku, p.productName, COALESCE(SUM(ilb.qty), 0), p.minStock) " +
+            "FROM Product p " +
+            "LEFT JOIN InventoryLocationBalance ilb ON p.product_id = ilb.productId AND ilb.warehouseId = :warehouseId " +
+            "GROUP BY p.product_id, p.sku, p.productName, p.minStock " +
+            "HAVING COALESCE(SUM(ilb.qty), 0) <= p.minStock")
+    List<LowStockDto> findLowStockByWarehouse(@Param("warehouseId") Long warehouseId);
+
+
 }
