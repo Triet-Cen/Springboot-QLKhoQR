@@ -10,4 +10,5 @@ public interface StocktakeService {
     List<StocktakeCompareDto> getCompareData(Long sessionId);
     List<LowStockDto> getLowStockItems(Long warehouseId);
     List<ExpiryWarningDto> getExpiryWarningItems(Long warehouseId);
+    public void processScan(ScanRequest request);
 }

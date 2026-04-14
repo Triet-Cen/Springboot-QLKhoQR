@@ -13,11 +13,15 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Product findBySku(String sku);
+
+    @Query("SELECT p FROM Product p WHERE p.sku = :sku")
+    Optional<Product> findProductBySku(@Param("sku") String sku);
 
     
     @Query(value = "SELECT p FROM Product p " +
@@ -54,5 +58,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "GROUP BY p.product_id, p.sku, p.productName, p.minStock " +
             "HAVING COALESCE(SUM(ilb.qty), 0) <= p.minStock")
     List<LowStockDto> findLowStockByWarehouse(@Param("warehouseId") Long warehouseId);
+
 
 }

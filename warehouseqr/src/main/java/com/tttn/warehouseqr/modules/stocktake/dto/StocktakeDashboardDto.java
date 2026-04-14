@@ -5,9 +5,8 @@ import lombok.Data;
 
 @Data
 public class StocktakeDashboardDto {
-    private long totalScanned;        // Đã quét
+    private long totalProducts;       // Tổng sản phẩm cần kiểm trong phiên
+    private long totalScanned;        // Đã quét (số sản phẩm đã có actual_qty)
     private double completionPercent; // % hoàn thành
-    private long varianceCount;       // Chênh lệch
-    private double accuracy;          // Độ chính xác
-    private double accuracyChange;    // Thay đổi so với kỳ trước (giả định +2.3%)
+    private long varianceCount;       // Số sản phẩm có chênh lệch
 }

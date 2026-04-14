@@ -1,13 +1,19 @@
-// StocktakeServiceImpl.java
 package com.tttn.warehouseqr.modules.stocktake.service.impl;
 
+import com.tttn.warehouseqr.common.exception.AppException;
+import com.tttn.warehouseqr.common.exception.ErrorCode;
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.ProductBatch;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseLocationRepository;
 import com.tttn.warehouseqr.modules.stocktake.dto.*;
+import com.tttn.warehouseqr.modules.stocktake.entity.StocktakeItem;
 import com.tttn.warehouseqr.modules.stocktake.repository.StocktakeItemRepository;
 import com.tttn.warehouseqr.modules.stocktake.service.StocktakeService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -17,30 +23,26 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StocktakeServiceImpl implements StocktakeService {
-
     private final StocktakeItemRepository stocktakeItemRepository;
-    private final ProductRepository productRepository;      // cần thêm
-    private final InventoryLocationBalanceRepository balanceRepository; // cần thêm
-    private final ProductBatchRepository batchRepository;   // cần thêm
+    private final ProductRepository productRepository;
+    private final WarehouseLocationRepository locationRepository;
+    private final ProductBatchRepository batchRepository;
+    private final InventoryLocationBalanceRepository balanceRepository;
 
     @Override
     public StocktakeDashboardDto getDashboardStats(Long sessionId) {
-        List<StocktakeCompareDto> compares = stocktakeItemRepository.getCompareData(sessionId);
-        long totalScanned = compares.size();
-        long varianceCount = compares.stream()
-                .filter(c -> c.getVarianceQty() != null && c.getVarianceQty().compareTo(BigDecimal.ZERO) != 0)
-                .count();
-        double accuracy = totalScanned == 0 ? 100.0 :
-                (double)(totalScanned - varianceCount) / totalScanned * 100;
-        double completionPercent = 100.0; // giả định hoàn thành 100% vì đã có dữ liệu quét
-
+        List<StocktakeItem> items = stocktakeItemRepository.findBySessionId(sessionId);
+        long total = items.size();
+        long scanned = items.stream().filter(i -> i.getActualQty() != null && i.getActualQty().compareTo(BigDecimal.ZERO) > 0).count();
+        long variance = items.stream().filter(i -> i.getVarianceQty() != null && i.getVarianceQty().compareTo(BigDecimal.ZERO) != 0).count();
+        double percent = total == 0 ? 0 : (double) scanned / total * 100;
         StocktakeDashboardDto dto = new StocktakeDashboardDto();
-        dto.setTotalScanned(totalScanned);
-        dto.setCompletionPercent(completionPercent);
-        dto.setVarianceCount(varianceCount);
-        dto.setAccuracy(Math.round(accuracy * 10) / 10.0);
-        dto.setAccuracyChange(2.3); // demo
+        dto.setTotalProducts(total);
+        dto.setTotalScanned(scanned);
+        dto.setCompletionPercent(Math.round(percent * 10) / 10.0);
+        dto.setVarianceCount(variance);
         return dto;
     }
 
@@ -50,17 +52,56 @@ public class StocktakeServiceImpl implements StocktakeService {
     }
 
     @Override
+    public void processScan(ScanRequest request) {
+        String qr = request.getQrContent();
+        String[] parts = qr.split("\\|");
+        String sku = parts[0];
+        String lotCode = parts.length > 1 ? parts[1] : null;
+
+        // 1. Tìm Product
+        Product product = productRepository.findProductBySku(sku)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        // 2. Tìm Batch (Fix lỗi ở đây)
+        ProductBatch batch = null;
+        if (lotCode != null && !lotCode.trim().isEmpty()) {
+            // Thay vì findByLotCode, dùng findByLotCodeAndProduct
+            batch = batchRepository.findByLotCodeAndProduct(lotCode, product).orElse(null);
+        }
+
+        // 3. Gán vị trí (Tạm thời hardcode, xem lưu ý bên dưới)
+        Long locationId = 1L;
+
+        // Lúc này log sẽ in ra bình thường vì không còn bị crash ở bước tìm Batch nữa
+        log.info("Searching stocktake item with sessionId={}, productId={}, batchId={}, locationId={}",
+                request.getSessionId(), product.getProduct_id(),
+                batch != null ? batch.getBatchId() : null, locationId);
+
+        // 4. Tìm StocktakeItem
+        StocktakeItem item = stocktakeItemRepository.findStocktakeItemWithoutLocation(
+                        request.getSessionId(),
+                        product.getProduct_id(),
+                        batch != null ? batch.getBatchId() : null)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy mặt hàng này trong danh sách kiểm kê!"));
+
+        // Cập nhật số lượng
+        BigDecimal newActual = (item.getActualQty() == null ? BigDecimal.ZERO : item.getActualQty()).add(BigDecimal.ONE);
+        item.setActualQty(newActual);
+        item.setVarianceQty(newActual.subtract(item.getSystemQty()));
+        stocktakeItemRepository.save(item);
+    }
+
+    @Override
     public List<LowStockDto> getLowStockItems(Long warehouseId) {
-        // Giả sử có bảng inventory_location_balances, tính tổng qty theo product, warehouse
-        // Lấy các sản phẩm có tổng tồn <= min_stock
         return productRepository.findLowStockByWarehouse(warehouseId);
     }
 
     @Override
     public List<ExpiryWarningDto> getExpiryWarningItems(Long warehouseId) {
-        // Lấy các batch có expiry_date trong vòng 30 ngày tới
         LocalDate now = LocalDate.now();
         LocalDate threshold = now.plusDays(30);
-        return batchRepository.findExpiringBatches(warehouseId, now, threshold);
+        List<ExpiryWarningDto> dtos = batchRepository.findExpiringBatches(warehouseId, now, threshold);
+        dtos.forEach(dto -> dto.setDaysRemaining(ChronoUnit.DAYS.between(now, dto.getExpiryDate())));
+        return dtos;
     }
 }

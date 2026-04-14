@@ -1,6 +1,7 @@
 package com.tttn.warehouseqr.modules.masterdata.product.repository;
 
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductQrDTO;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.ProductBatch;
 import com.tttn.warehouseqr.modules.stocktake.dto.ExpiryWarningDto;
 import org.hibernate.engine.jdbc.batch.spi.Batch;
@@ -44,4 +45,7 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
     List<ExpiryWarningDto> findExpiringBatches(@Param("warehouseId") Long warehouseId,
                                                @Param("start") LocalDate start,
                                                @Param("end") LocalDate end);
+
+
+    Optional<ProductBatch> findByLotCodeAndProduct(String lotCode, Product product);
 }
