@@ -71,16 +71,31 @@
                         <p class="text-muted mb-0">Người nhận: <span id="mCustomer" class="fw-bold text-dark"></span></p>
                     </div>
                     <hr class="my-4 opacity-50">
+
                     <table class="table table-sm border-0">
                         <thead class="table-light">
                         <tr>
-                            <th class="py-2 text-center">STT</th>
+                            <th class="py-2 text-center" width="5%">STT</th>
                             <th class="py-2">Sản phẩm / Lô hàng</th>
-                            <th class="py-2 text-center">Số lượng</th>
+                            <th class="py-2 text-end" width="20%">Đơn giá</th>
+                            <th class="py-2 text-center" width="10%">SL</th>
+                            <th class="py-2 text-end" width="25%">Thành tiền</th>
                         </tr>
                         </thead>
                         <tbody id="mItemsBody"></tbody>
+                        <tfoot id="mItemsFoot"></tfoot>
                     </table>
+
+                    <div class="row mt-5 text-center d-none d-print-flex">
+                        <div class="col-6">
+                            <p class="fw-bold mb-5">Người giao</p>
+                            <p class="text-muted">(Ký, họ tên)</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="fw-bold mb-5">Người nhận</p>
+                            <p class="text-muted">(Ký, họ tên)</p>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer border-0 bg-light py-3">
                     <button class="btn btn-primary rounded-pill px-5 fw-bold" onclick="window.print()">
@@ -101,57 +116,67 @@
                 const data = await res.json();
                 const tbody = document.getElementById('historyTableBody');
 
-                if (!data || data.length === 0) {
+                if(data.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5">Chưa có phiếu xuất nào.</td></tr>';
                     return;
                 }
 
-                tbody.innerHTML = data.map((item, index) => {
-                    // Kiểm tra kỹ tên trường trả về từ API (nhìn vào ảnh JSON bạn thấy)
-                    // Nếu API trả về 'receiptCode' thì dùng item.receiptCode
-                    const code = item.receiptCode || 'N/A';
-                    const customer = item.customer || 'Khách lẻ';
-                    const date = item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : '---';
-                    const status = item.status || 'SHIPPED';
-
-                    return `
-                <tr>
-                    <td class="text-center text-muted small">${index + 1}</td>
-                    <td><span class="fw-bold text-primary">${code}</span></td>
-                    <td><span class="text-muted small">${date}</span></td>
-                    <td><div class="fw-bold">${customer}</div></td>
-                    <td><span class="status-badge bg-success bg-opacity-10 text-success">${status}</span></td>
-                    <td class="text-center">
-                        <button class="btn btn-view btn-sm px-3" onclick="showDetail(${item.id}, '${code}', '${customer}')">
-                            <i class="bi bi-eye"></i> Xem
-                        </button>
-                    </td>
-                </tr>
-            `;
-                }).join('');
+                tbody.innerHTML = data.map((item, index) => `
+                    <tr>
+                        <td class="text-center text-muted small">${index + 1}</td>
+                        <td><span class="fw-bold text-primary">${item.receiptCode}</span></td>
+                        <td><span class="text-muted small">${new Date(item.createdAt).toLocaleString('vi-VN')}</span></td>
+                        <td><div class="fw-bold">${item.customer || 'Khách lẻ'}</div></td>
+                        <td><span class="status-badge bg-success bg-opacity-10 text-success">${item.status || 'SHIPPED'}</span></td>
+                        <td class="text-center">
+                            <button class="btn btn-view btn-sm px-3" onclick="showDetail(${item.id}, '${item.receiptCode}', '${item.customer}')">
+                                <i class="bi bi-eye"></i> Xem
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
             } catch (err) {
                 console.error("Lỗi tải lịch sử:", err);
                 document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="6" class="text-center py-5 text-danger">Lỗi kết nối đến máy chủ!</td></tr>';
             }
         }
 
+        // ĐÃ CẬP NHẬT: Hàm showDetail tự động tính toán tổng tiền
         async function showDetail(id, code, customer) {
             try {
-                // ĐÃ SỬA: Thêm /api/ vào đường dẫn
                 const res = await fetch(`/api/outbound/history/${id}/items`);
                 const items = await res.json();
 
                 document.getElementById('mCode').innerText = code;
                 document.getElementById('mCustomer').innerText = customer || 'Khách lẻ';
 
-                // ĐÃ SỬA: Bổ sung dấu > còn thiếu ở thẻ <tr>
-                document.getElementById('mItemsBody').innerHTML = items.map((item, i) => `
-                <tr>
-                    <td class="text-center text-muted">${i+1}</td>
-                    <td><div class="fw-bold text-dark">${item.productName}</div><small class="text-muted">Lô: ${item.lotCode}</small></td>
-                    <td class="text-center"><span class="badge bg-dark rounded-pill">${item.actualQty}</span></td>
-                </tr>
-                `).join('');
+                let totalAmount = 0;
+
+                document.getElementById('mItemsBody').innerHTML = items.map((item, i) => {
+                    const qty = item.actualQty || 1;
+                    // Bắt mọi loại biến giá có thể trả về từ Backend
+                    const price = item.price || item.exportPrice || item.unitPrice || 0;
+                    const lineTotal = qty * price;
+                    totalAmount += lineTotal;
+
+                    return `
+                    <tr>
+                        <td class="text-center text-muted">${i+1}</td>
+                        <td><div class="fw-bold text-dark">${item.productName}</div><small class="text-muted">Lô: ${item.lotCode}</small></td>
+                        <td class="text-end">${price.toLocaleString('vi-VN')} đ</td>
+                        <td class="text-center"><span class="badge bg-dark rounded-pill">${qty}</span></td>
+                        <td class="text-end fw-bold">${lineTotal.toLocaleString('vi-VN')} đ</td>
+                    </tr>
+                    `;
+                }).join('');
+
+                // Gắn dòng tính tổng vào cuối bảng
+                document.getElementById('mItemsFoot').innerHTML = `
+                    <tr class="table-light">
+                        <td colspan="4" class="text-end fw-bold py-3">TỔNG CỘNG:</td>
+                        <td class="text-end fw-bold text-danger fs-5 py-3">${totalAmount.toLocaleString('vi-VN')} đ</td>
+                    </tr>
+                `;
 
                 new bootstrap.Modal(document.getElementById('detailModal')).show();
             } catch (err) { alert("Lỗi tải chi tiết phiếu xuất!"); }

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Quản lý vị trí kho</title>
+</head>
+<body>
+<div id="mainContent">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                Quản lý vị trí kho
+            </h2>
+            <p class="text-muted mb-0">Danh sách vị trí lưu trữ hàng hóa trong hệ thống kho</p>
+        </div>
+        <a th:href="@{/warehouses/locations/create}" class="btn btn-primary d-flex align-items-center gap-2">
+            <i class="bi bi-plus-circle"></i> Thêm mới
+        </a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-2">Tổng vị trí</div>
+                    <h3 class="fw-bold mb-0" th:text="${summary.totalLocations}">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-2">Đang sử dụng</div>
+                    <h3 class="fw-bold mb-0 text-success" th:text="${summary.usedLocations}">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-2">Đã đầy</div>
+                    <h3 class="fw-bold mb-0 text-danger" th:text="${summary.fullLocations}">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-2">Trống</div>
+                    <h3 class="fw-bold mb-0 text-secondary" th:text="${summary.emptyLocations}">0</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form th:action="@{/warehouses/locations}" method="get" class="mb-3">
+        <div class="row g-2">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="text"
+                           name="keyword"
+                           class="form-control"
+                           placeholder="Tìm theo mã vị trí, lối đi, kệ, ngăn..."
+                           th:value="${keyword}">
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <select class="form-select" name="warehouseId">
+                    <option value="">-- Chọn kho --</option>
+                    <option th:each="w : ${warehouses}"
+                            th:value="${w.warehouseId}"
+                            th:text="${w.warehouseName}"
+                            th:selected="${warehouseId != null and warehouseId == w.warehouseId}">
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Tìm kiếm
+                </button>
+                <a th:href="@{/warehouses/locations}" class="btn btn-outline-secondary w-100">Reset</a>
+            </div>
+        </div>
+    </form>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Mã vị trí</th>
+                        <th>Lối đi</th>
+                        <th>Kệ</th>
+                        <th>Ngăn</th>
+                        <th>Sức chứa</th>
+                        <th>Đã dùng</th>
+                        <th>Tỷ lệ</th>
+                        <th>Trạng thái</th>
+                        <th class="text-center pe-4">Hành động</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(locations)}">
+                        <td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu vị trí kho</td>
+                    </tr>
+
+                    <tr th:each="loc : ${locations}">
+                        <td class="ps-4 fw-semibold text-primary" th:text="${loc.locationCode}">A1-S1-B1</td>
+                        <td th:text="${loc.aisleCode}">A1</td>
+                        <td th:text="${loc.rackCode}">S1</td>
+                        <td th:text="${loc.binCode}">B1</td>
+                        <td th:text="${loc.capacity}">100</td>
+                        <td class="fw-semibold" th:text="${loc.usedCapacity}">85</td>
+                        <td>
+                            <div th:with="percent=${loc.capacity != null and loc.capacity > 0 and loc.usedCapacity != null ? (loc.usedCapacity * 100 / loc.capacity) : 0}">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress" style="width: 110px; height: 8px;">
+                                        <div class="progress-bar"
+                                             th:style="'width:' + ${percent} + '%'"
+                                             th:classappend="${percent >= 100} ? ' bg-danger' : (${percent >= 70} ? ' bg-warning' : ' bg-success')">
+                                        </div>
+                                    </div>
+                                    <span th:text="${percent + '%'}">0%</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${loc.status == 'FULL'} ? ' text-bg-danger' : (${loc.status == 'EMPTY'} ? ' text-bg-secondary' : ' text-bg-success')"
+                                  th:text="${loc.status == 'FULL'} ? 'Đã đầy' : (${loc.status == 'EMPTY'} ? 'Trống' : 'Hoạt động')">
+                                Hoạt động
+                            </span>
+                        </td>
+                        <td class="text-center pe-4">
+                            <div class="d-flex justify-content-center gap-2">
+                                <a th:href="@{/warehouses/locations/edit/{id}(id=${loc.locationId})}"
+                                   class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-pencil"></i> Sửa
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
