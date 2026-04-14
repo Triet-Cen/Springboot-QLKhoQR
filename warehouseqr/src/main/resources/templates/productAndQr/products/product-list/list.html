@@ -5,7 +5,16 @@
 </head>
 <body>
 <div id="mainContent">
-
+    <div th:if="${success}" class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <span th:text="${success}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <div th:if="${error}" class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span th:text="${error}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold mb-1">Quản lý Sản phẩm & QR</h2>
@@ -144,22 +153,93 @@
     </div>
 
     <div class="modal fade" id="importCsvModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <form th:action="@{/products/import-csv}" method="post" enctype="multipart/form-data">
                     <div class="modal-header">
-                        <h5 class="modal-title fw-bold">Import File CSV</h5>
+                        <h5 class="modal-title fw-bold">Import File CSV & Xem trước</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label class="form-label">Vui lòng chọn file (.csv)</label>
-                            <input class="form-control" type="file" name="files" accept=".csv" required>
+
+                    <div class="modal-body bg-light">
+                        <div class="row">
+                            <div class="col-md-5 border-end">
+                                <h6 class="text-primary fw-bold mb-3"><i class="bi bi-1-circle"></i> Chuẩn bị dữ liệu</h6>
+                                <p class="small text-muted mb-2">Nếu chưa có file, vui lòng tải file mẫu và điền dữ liệu theo đúng định dạng.</p>
+
+                                <a th:href="@{/downloads/template_import.csv}" class="btn btn-outline-info btn-sm w-100 mb-4" download>
+                                    <i class="bi bi-download"></i> Tải File CSV Mẫu
+                                </a>
+
+                                <h6 class="text-primary fw-bold mb-2"><i class="bi bi-2-circle"></i> Tải file lên</h6>
+                                <input class="form-control" type="file" name="files" id="csvFileInput" accept=".csv" required>
+
+                                <div class="accordion mt-4 shadow-sm" id="referenceAccordion">
+                                    <div class="accordion-item border-0">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button collapsed py-2 bg-white text-dark fw-semibold border" type="button" data-bs-toggle="collapse" data-bs-target="#refData">
+                                                <i class="bi bi-search me-2 text-warning"></i> Bảng tra cứu Mã ID
+                                            </button>
+                                        </h2>
+                                        <div id="refData" class="accordion-collapse collapse" data-bs-parent="#referenceAccordion">
+                                            <div class="accordion-body p-0 border border-top-0 bg-white" style="max-height: 250px; overflow-y: auto; font-size: 13px;">
+                                                <ul class="nav nav-tabs nav-justified" id="refTab" role="tablist">
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link active py-1 rounded-0" data-bs-toggle="tab" data-bs-target="#refCat" type="button">Danh Mục</button>
+                                                    </li>
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link py-1 rounded-0" data-bs-toggle="tab" data-bs-target="#refSup" type="button">NCC</button>
+                                                    </li>
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link py-1 rounded-0" data-bs-toggle="tab" data-bs-target="#refWare" type="button">Kho</button>
+                                                    </li>
+                                                </ul>
+                                                <div class="tab-content p-2">
+                                                    <div class="tab-pane fade show active" id="refCat">
+                                                        <ul class="list-unstyled mb-0">
+                                                            <li th:each="cat : ${categories}" class="mb-1">
+                                                                <span class="badge bg-secondary me-1" th:text="${cat.categoryId}"></span> <span th:text="${cat.categoryName}"></span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                    <div class="tab-pane fade" id="refSup">
+                                                        <ul class="list-unstyled mb-0">
+                                                            <li th:each="sup : ${suppliers}" class="mb-1">
+                                                                <span class="badge bg-secondary me-1" th:text="${sup.supplierId}"></span> <span th:text="${sup.supplierName}"></span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                    <div class="tab-pane fade" id="refWare">
+                                                        <ul class="list-unstyled mb-0">
+                                                            <li th:each="ware : ${warehouses}" class="mb-1">
+                                                                <span class="badge bg-secondary me-1" th:text="${ware.warehouseId}"></span> <span th:text="${ware.warehouseName}"></span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-7">
+                                <h6 class="text-success fw-bold mb-3"><i class="bi bi-3-circle"></i> Xem trước Dữ liệu</h6>
+                                <div id="csvPreviewArea" class="table-responsive border rounded bg-white shadow-sm" style="height: 380px; overflow-y: auto;">
+                                    <div class="text-center p-5 text-muted mt-5">
+                                        <i class="bi bi-file-earmark-spreadsheet display-4 text-light"></i><br>
+                                        Vui lòng chọn file CSV ở cột bên trái để xem trước dữ liệu...
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="modal-footer border-top-0">
-                        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn btn-success"><i class="bi bi-cloud-upload"></i> Bắt đầu Import</button>
+
+                    <div class="modal-footer border-top-0 bg-white">
+                        <button type="button" class="btn btn-secondary border" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" id="btnConfirmImport" class="btn btn-success px-4" disabled>
+                            <i class="bi bi-check2-circle"></i> Xác nhận Lưu vào Hệ thống
+                        </button>
                     </div>
                 </form>
             </div>
@@ -228,6 +308,57 @@
                 }
             });
         }
+        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const previewArea = document.getElementById('csvPreviewArea');
+            const submitBtn = document.getElementById('btnConfirmImport');
+
+            if (!file) {
+                previewArea.innerHTML = '<div class="text-center p-4 text-muted">Vui lòng chọn file CSV để xem trước dữ liệu...</div>';
+                submitBtn.disabled = true;
+                return;
+            }
+
+            // Dùng FileReader của JS để đọc file ngay trên trình duyệt
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const text = event.target.result;
+                // Cắt file thành từng dòng, bỏ qua các dòng rỗng
+                const rows = text.split('\n').filter(row => row.trim() !== '');
+
+                if(rows.length <= 1) {
+                    previewArea.innerHTML = '<div class="text-center p-4 text-danger">File CSV trống hoặc chỉ có tiêu đề!</div>';
+                    submitBtn.disabled = true;
+                    return;
+                }
+
+                // Vẽ bảng HTML
+                let tableHtml = '<table class="table table-sm table-bordered table-hover mb-0" style="font-size: 13px; white-space: nowrap;">';
+
+                rows.forEach((row, index) => {
+                    const cols = row.split(','); // Tách các cột bằng dấu phẩy
+
+                    if (index === 0) { // Dòng tiêu đề
+                        tableHtml += '<thead class="table-dark sticky-top"><tr>';
+                        cols.forEach(col => tableHtml += `<th>${col.trim()}</th>`);
+                        tableHtml += '</tr></thead><tbody>';
+                    } else { // Các dòng dữ liệu
+                        tableHtml += '<tr>';
+                        cols.forEach(col => tableHtml += `<td>${col.trim()}</td>`);
+                        tableHtml += '</tr>';
+                    }
+                });
+
+                tableHtml += '</tbody></table>';
+
+                // In bảng ra màn hình và mở khóa nút Xác nhận
+                previewArea.innerHTML = tableHtml;
+                submitBtn.disabled = false;
+            };
+
+            // Đọc file dưới dạng chữ UTF-8 để không lỗi font tiếng Việt
+            reader.readAsText(file, 'UTF-8');
+        });
     </script>
 </div>
 </body>
