@@ -342,6 +342,22 @@
             }
         };
 
+        // Hàm format số có dấu phẩy (dùng khi render ban đầu)
+        function formatCurrency(number) {
+            return parseInt(number || 0, 10).toLocaleString('vi-VN');
+        }
+
+        // Hàm tự động format khi người dùng gõ vào ô input
+        function handlePriceInput(input) {
+            // Xóa tất cả ký tự không phải là số
+            let val = input.value.replace(/[^0-9]/g, '');
+            if (val === '') {
+                input.value = '0';
+            } else {
+                input.value = parseInt(val, 10).toLocaleString('vi-VN');
+            }
+        }
+
         const codeReader = new ZXing.BrowserQRCodeReader();
         const beepSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
         let controls = null;
@@ -386,6 +402,28 @@
         }
         dom.cameraSwitch.addEventListener("change", e => e.target.checked ? startCamera() : stopCamera());
 
+        function normalizeInboundData(rawData) {
+            const price = rawData.importPrice || rawData.price || rawData.gia_nhap || 0;
+            const qty = rawData.actualQty !== undefined ? rawData.actualQty : (rawData.qty || 1);
+
+            return {
+                ...rawData,
+                productId: rawData.productId || rawData.product_id,
+                productName: rawData.productName || 'Sản phẩm mới',
+
+                // Logic đối soát: Nếu có expectedQty từ Backend thì dùng, không thì mặc định bằng thực tế
+                expectedQty: rawData.expectedQty !== undefined ? rawData.expectedQty : qty,
+                actualQty: qty,
+
+                lotCode: rawData.lotCode || "Mặc định",
+                batchId: rawData.batchId || 1,
+                locationId: rawData.locationId || 1,
+                locationCode: rawData.locationCode || "Vị trí mặc định",
+                importPrice: price,
+                price: price
+            };
+        }
+
         function normalizeItemData(rawData) {
             const detectedPrice = rawData.price || rawData.exportPrice || rawData.export_price || rawData.unitPrice || rawData.importPrice || rawData.gia_xuat || rawData.gia_nhap || 0;
             return {
@@ -404,33 +442,72 @@
             };
         }
 
+
         function checkAndAddRow(rawData, source) {
             if (dom.noData) dom.noData.style.display = "none";
-            const data = normalizeItemData(rawData);
+
+            // 1. Tách logic chuẩn hóa dữ liệu dựa trên chế độ hiện tại
+            let data;
+            if (currentMode === "INBOUND") {
+                data = normalizeInboundData(rawData); // Hàm chuyên cho Nhập kho
+            } else {
+                data = normalizeItemData(rawData); // Hàm chuyên cho Xuất kho
+            }
+
             const scannedRows = document.querySelectorAll('.scanned-item');
             let existingRow = null;
 
+            // 2. Tìm dòng sản phẩm đã tồn tại trong danh sách để cộng dồn
             for (let row of scannedRows) {
                 const rowId = String(row.getAttribute('data-product-id'));
                 const rowLot = String(row.getAttribute('data-lot-code'));
                 const rowLocId = String(row.getAttribute('data-location-id'));
-                if (rowId === String(data.productId) && rowLot === String(data.lotCode || 'Mặc định') && rowLocId === String(data.locationId)) {
-                    existingRow = row; break;
+
+                // Điều kiện cộng dồn: Trùng ID sản phẩm + Trùng Mã lô + Trùng Vị trí
+                if (rowId === String(data.productId) &&
+                    rowLot === String(data.lotCode || 'Mặc định') &&
+                    rowLocId === String(data.locationId)) {
+                    existingRow = row;
+                    break;
                 }
             }
 
             if (existingRow) {
+                // 3. Nếu đã có trong danh sách -> Tăng số lượng thực tế
                 const input = existingRow.querySelector('.qty-input');
-                input.value = parseFloat(input.value) + (parseFloat(data.actualQty) || 1);
-                existingRow.classList.add('bg-warning', 'bg-opacity-10');
-                setTimeout(() => existingRow.classList.remove('bg-warning', 'bg-opacity-10'), 500);
+                const currentVal = parseFloat(input.value) || 0;
+                const addVal = parseFloat(data.actualQty) || 1;
+
+                input.value = currentVal + addVal;
+
+                // Chỉ đối soát màu sắc nếu đang ở chế độ NHẬP KHO
+                if (currentMode === "INBOUND") {
+                    validateQty(input);
+                }
             } else {
+                // 4. Nếu chưa có -> Thêm dòng mới vào giao diện
                 if (currentMode === "OUTBOUND") {
-                    renderOutboundItemToUI(data, { locationId: data.locationId, batchId: data.batchId }, source);
+                    renderOutboundItemToUI(data, {
+                        locationId: data.locationId,
+                        batchId: data.batchId
+                    }, source);
                 } else {
-                    renderProductToUI(data.productId, data.productName, data.actualQty || 1, source, data.lotCode, data.batchId, data.locationId, data.locationCode, data.price || 0);
+                    // Chế độ INBOUND: Truyền đủ các tham số, đặc biệt là expectedQty cuối cùng
+                    renderProductToUI(
+                        data.productId,
+                        data.productName,
+                        data.actualQty,
+                        null,
+                        data.lotCode,
+                        data.batchId,
+                        data.locationId,
+                        data.locationCode,
+                        data.importPrice,
+                        data.expectedQty // Cần thiết cho đối soát sai lệch
+                    );
                 }
             }
+
             updateCounter();
         }
 
@@ -444,7 +521,22 @@
                 if (text.includes('|')) {
                     const warehouseId = document.getElementById('warehouseSelect') ? document.getElementById('warehouseSelect').value : "";
                     const [sku, lotCode] = text.split('|');
+
+
+                    if (!warehouseId && currentMode === "INBOUND") {
+                        alert("BẠN CHƯA CHỌN KHO!\nVui lòng chọn Kho xử lý trước khi quét mã sản phẩm.");
+                        lastScan = ""; // Reset để có thể quét lại
+                        return; // Dừng lại, không fetch API nữa
+                    }
+
                     const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}&warehouseId=${warehouseId}`);
+
+                    if (response.redirected) {
+                        alert("Phiên đăng nhập đã hết hạn hoặc bạn không có quyền. Hệ thống sẽ chuyển về trang đăng nhập.");
+                        window.location.href = response.url;
+                        return;
+                    }
+
                     if (!response.ok) throw new Error(await response.text());
                     const data = await response.json();
                     if (!data.locationId) { data.locationId = 1; data.locationCode = "LOC-DEFAULT-01"; }
@@ -473,7 +565,13 @@
                     }
                 }
                 updateCounter();
-            } catch (err) { alert(err.message); lastScan = ""; }
+            } catch (err) { // Nếu lỗi parse JSON (do nhận về HTML), thông báo rõ hơn
+                if (err.message.includes("is not valid JSON")) {
+                    alert("Lỗi: Hệ thống trả về dữ liệu không hợp lệ (có thể do lỗi Security hoặc URL sai).");
+                } else {
+                    alert(err.message);
+                }
+                lastScan = ""; }
         }
 
         function initCSVImport() { dom.csvInput.addEventListener('change', handleCSVUpload); }
@@ -486,45 +584,105 @@
             const dropContent = dom.dropzone.querySelector('.py-2');
             const originalContent = dropContent.innerHTML;
             dropContent.innerHTML = `<div class="spinner-border spinner-border-sm text-primary"></div>`;
+
             try {
                 const response = await fetch(OP_CONFIG[currentMode].parseApi, { method: 'POST', body: formData });
                 if (!response.ok) throw new Error(await response.text());
                 const items = await response.json();
+
+                // --- LOGIC TỰ ĐỘNG CHỌN KHO & NCC TỪ CSV ---
+                if (items.length > 0 && currentMode === "INBOUND") {
+                    const firstItem = items[0];
+
+                    if (firstItem.supplierId) {
+                        const sSelect = document.getElementById('supplierSelect');
+                        if(sSelect) sSelect.value = firstItem.supplierId;
+                    }
+
+                    if (firstItem.warehouseId) {
+                        const wSelect = document.getElementById('warehouseSelect');
+                        if(wSelect) wSelect.value = firstItem.warehouseId;
+                    }
+                }
+                // -------------------------------------------
+
                 items.forEach(item => checkAndAddRow(item, "CSV"));
-            } catch (err) { alert("Lỗi: " + err.message); }
-            finally { e.target.value = ""; dropContent.innerHTML = originalContent; updateCounter(); }
+            } catch (err) {
+                alert("Lỗi: " + err.message);
+            } finally {
+                e.target.value = "";
+                dropContent.innerHTML = originalContent;
+                updateCounter();
+            }
         }
 
-        function renderProductToUI(productId, productName, qty, poId, lotCode, batchId, locationId, locationCode, importPrice = 0) {
+        function renderProductToUI(productId, productName, actualQty, poId, lotCode, batchId, locationId, locationCode, importPrice = 0, expectedQty = null) {
+            if (expectedQty === null) expectedQty = actualQty;
+
             const newItem = document.createElement("div");
-            newItem.className = "list-group-item scanned-item border-0 p-4 mb-3";
+            const isDiscrepancy = parseFloat(actualQty) !== parseFloat(expectedQty);
+            const borderColor = isDiscrepancy ? 'border-warning' : 'border-success';
+
+            newItem.className = `list-group-item scanned-item border-0 p-4 mb-3 shadow-sm ${borderColor}`;
+            newItem.style.borderLeft = "6px solid " + (isDiscrepancy ? "#f59e0b" : "#10b981") + " !important";
+
+            // Các thuộc tính định danh giữ nguyên
             newItem.setAttribute('data-product-id', productId);
-            newItem.setAttribute('data-product-name', productName || 'SP ' + productId);
-            newItem.setAttribute('data-lot-code', lotCode || 'Mặc định');
-            newItem.setAttribute('data-batch-id', batchId || 1);
-            newItem.setAttribute('data-location-id', locationId || 1);
+            newItem.setAttribute('data-product-name', productName);
+            newItem.setAttribute('data-lot-code', lotCode);
+            newItem.setAttribute('data-batch-id', batchId);
+            newItem.setAttribute('data-expected-qty', expectedQty);
+
             newItem.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="fw-bold mb-1 text-dark">${productName || 'Sản phẩm ' + productId}</h6>
-                        <div class="d-flex gap-2">
-                            <span class="badge bg-light text-muted border fw-normal">Lô: ${lotCode}</span>
-                            <span class="badge bg-primary bg-opacity-10 text-primary fw-bold border border-primary border-opacity-10">Vị trí: ${locationCode}</span>
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="text-end">
-                            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">ĐƠN GIÁ</label>
-                            <input type="number" class="form-control form-control-sm price-input" value="${importPrice}" style="width: 110px;">
-                        </div>
-                        <div class="text-end">
-                            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">SL</label>
-                            <input type="number" class="form-control form-control-sm qty-input" value="${qty}" style="width: 75px;">
-                        </div>
-                        <button class="btn btn-light-danger btn-sm rounded-3 p-2" onclick="removeRow(this)"><i class="bi bi-trash3 text-danger"></i></button>
-                    </div>
-                </div>`;
+<div class="d-flex justify-content-between align-items-center">
+    <div style="flex: 1;">
+        <h6 class="fw-bold mb-1 text-dark">${productName}</h6>
+        <div class="d-flex gap-2 flex-wrap">
+            <span class="badge bg-light text-muted border fw-normal">Lô: ${lotCode}</span>
+            <span class="badge bg-primary bg-opacity-10 text-primary fw-bold border">Kệ: ${locationCode}</span>
+            ${isDiscrepancy ? '<span class="badge bg-danger">Sai lệch số lượng!</span>' : ''}
+        </div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <div class="text-end">
+            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">ID KỆ</label>
+            <input type="number" class="form-control form-control-sm loc-input" value="${locationId}" style="width: 60px; font-weight: bold;">
+        </div>
+
+        <div class="text-end">
+            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">ĐƠN GIÁ</label>
+            <input type="text" class="form-control form-control-sm price-input"
+                   value="${formatCurrency(importPrice)}" style="width: 100px;"
+                   oninput="handlePriceInput(this)">
+        </div>
+        <div class="text-end">
+            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">DỰ KIẾN</label>
+            <input type="number" class="form-control form-control-sm bg-light" value="${expectedQty}" disabled style="width: 65px; border: none;">
+        </div>
+        <div class="text-end">
+            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px; color: #4f46e5;">THỰC NHẬP</label>
+            <input type="number" class="form-control form-control-sm qty-input border-primary"
+                   value="${actualQty}" style="width: 70px;" onchange="validateQty(this)">
+        </div>
+        <button class="btn btn-light-danger btn-sm rounded-3 p-2 ms-2" onclick="removeRow(this)"><i class="bi bi-trash3 text-danger"></i></button>
+    </div>
+</div>`;
             dom.scannedList.prepend(newItem);
+        }
+
+        // Hàm bổ sung để đổi màu khi người dùng sửa số lượng trực tiếp trên giao diện
+        function validateQty(input) {
+            const row = input.closest('.scanned-item');
+            const expected = parseFloat(row.getAttribute('data-expected-qty'));
+            const actual = parseFloat(input.value);
+
+            if (actual !== expected) {
+                row.style.borderLeftColor = "#f59e0b"; // Màu cam cảnh báo
+                row.classList.add('border-warning');
+            } else {
+                row.style.borderLeftColor = "#10b981"; // Màu xanh chuẩn
+                row.classList.remove('border-warning');
+            }
         }
 
         function renderOutboundItemToUI(item, bestLoc, soCode) {
@@ -602,13 +760,20 @@
             if (!warehouseId) return alert("Vui lòng chọn Kho xử lý!");
 
             const items = Array.from(scannedRows).map(row => {
-                const priceVal = parseFloat(row.querySelector('.price-input').value) || 0;
+                const rawPriceString = row.querySelector('.price-input').value;
+                const priceVal = parseFloat(rawPriceString.replace(/[^0-9]/g, '')) || 0;
+                const locInput = row.querySelector('.loc-input');
+                const locId = locInput ? parseInt(locInput.value) : (parseInt(row.getAttribute('data-location-id')) || 1);
                 return {
                     productId: parseInt(row.getAttribute('data-product-id')),
-                    locationId: parseInt(row.getAttribute('data-location-id')) || 1,
+                    locationId: locId,
                     batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
-                    price: priceVal, exportPrice: priceVal, importPrice: priceVal, unitPrice: priceVal, sellingPrice: priceVal,
-                    actualQty: parseFloat(row.querySelector('.qty-input').value) || 1,
+                    price: priceVal, exportPrice: priceVal,
+                    importPrice: priceVal,
+                    unitPrice: priceVal,
+                    sellingPrice: priceVal,
+                    expectedQty: parseFloat(row.getAttribute('data-expected-qty')) || 0,
+                    actualQty: parseFloat(row.querySelector('.qty-input').value) || 0,
                     productName: row.getAttribute('data-product-name'),
                     lotCode: row.getAttribute('data-lot-code') || "Mặc định",
                     requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value) || 1,

@@ -115,41 +115,47 @@ public class ProductService {
     }
 
     public ProductScanDTO getProductForScan(String sku, String lotCode, Long warehouseId) {
-        // 1. Tìm Product
+        // 1. Tìm Sản phẩm qua SKU (Lấy từ phần đầu của QR)
         Product product = productRepository.findBySku(sku);
-        if (product == null) throw new RuntimeException("SKU " + sku + " không tồn tại!");
+        if (product == null) throw new RuntimeException("Không tìm thấy sản phẩm với SKU: " + sku);
 
-        // 2. Tìm Batch liên kết với Product đó
+        // 2. Tìm Lô hàng qua LotCode (Lấy từ phần sau của QR)
+        // Phải tìm theo cả Product_id để tránh trùng LotCode giữa các sản phẩm khác nhau
         ProductBatch batch = productBatchRepository.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id())
-                .orElseThrow(() -> new RuntimeException("Lô " + lotCode + " không thuộc sản phẩm này!"));
+                .orElseThrow(() -> new RuntimeException("Lô " + lotCode + " không tồn tại cho sản phẩm này!"));
 
-        // 3. Tìm vị trí (location) cũ/gần nhất của lô hàng này trong kho
-        // Sử dụng phương thức findFirst... bạn đã định nghĩa trong Repo
+        // 3. Gợi ý vị trí cũ (Ghi điểm nghiệp vụ)
         Optional<InventoryLocationBalance> balanceOpt = balanceRepo.findFirstByWarehouseIdAndProductIdAndBatchId(
                 warehouseId, product.getProduct_id(), batch.getBatchId());
 
-        // 4. Thiết lập giá trị mặc định nếu chưa từng có tồn kho (balance == null)
         Long locationId = 1L;
         String locationCode = "Vị trí mặc định";
 
         if (balanceOpt.isPresent()) {
-            InventoryLocationBalance balance = balanceOpt.get();
-            locationId = balance.getLocationId();
-            locationCode = "Kệ cũ: " + locationId; // Sau này bạn có thể join lấy locationCode xịn hơn
+            locationId = balanceOpt.get().getLocationId();
+            locationCode = "Kệ cũ: " + locationId;
         }
 
-        // 5. Đóng gói vào DTO (Đảm bảo truyền đủ 9 tham số)
-        return new ProductScanDTO(
-                product.getProduct_id(),
-                product.getProductName(),
-                batch.getBatchId(),
-                batch.getLotCode(),
-                product.getSku(),
-                1.0,           // actualQty mặc định khi quét là 1
-                locationId,    // Lấy động từ balance
-                locationCode,  // Lấy động từ balance
-                batch.getCostPrice() != null ? batch.getCostPrice().doubleValue() : 0.0 // Giá nhập gợi ý
-        );
+        // 4. Trả về DTO hoàn chỉnh (Đủ 10 tham số cho đối soát Phương án A)
+        // 4. Khởi tạo DTO bằng Setter (Tránh lỗi Constructor Parameter)
+        ProductScanDTO dto = new ProductScanDTO();
+        dto.setProductId(product.getProduct_id());
+        dto.setProductName(product.getProductName());
+        dto.setSku(product.getSku());
+
+        dto.setBatchId(batch.getBatchId());
+        dto.setLotCode(batch.getLotCode());
+
+        dto.setExpectedQty(1.0); // Mặc định khi quét lẻ là 1
+        dto.setActualQty(1.0);
+
+        dto.setLocationId(locationId);
+        dto.setLocationCode(locationCode);
+        dto.setWarehouseId(warehouseId); // Truyền luôn kho hiện tại vào
+
+        dto.setImportPrice(batch.getCostPrice() != null ? batch.getCostPrice().doubleValue() : 0.0);
+
+        return dto;
     }
 
 }
