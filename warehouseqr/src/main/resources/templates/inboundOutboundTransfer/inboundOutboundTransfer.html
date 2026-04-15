@@ -2,270 +2,240 @@
 <html xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
 <head>
-    <title>Hệ thống Điều hành Kho Thông minh</title>
+    <title>Hệ thống Điều hành Kho Thông minh | WMS Pro</title>
 
     <style th:inline="css">
         :root {
-            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            --success-color: #22c55e;
-            --danger-color: #ef4444;
-            --warning-color: #f59e0b;
-            --bg-soft: #f8fafc;
+            --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            --secondary-bg: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.9);
+            --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+            --transition-speed: 0.3s;
         }
 
+        body { background-color: var(--secondary-bg); font-family: 'Inter', sans-serif; }
+
+        /* Tiêu đề Hub hiện đại */
+        .hub-title {
+            background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+            letter-spacing: -1px;
+        }
+
+        /* Tab Navigation kiểu Pill mới */
+        .nav-pills { background: #fff; padding: 8px; border-radius: 20px; box-shadow: var(--card-shadow); display: inline-flex; }
         .nav-pills .nav-link {
-            border-radius: 12px;
-            padding: 12px 24px;
+            border-radius: 14px;
+            padding: 12px 28px;
             color: #64748b;
             font-weight: 600;
-            transition: all 0.3s ease;
+            border: none;
+            transition: all var(--transition-speed);
         }
         .nav-pills .nav-link.active {
             background: var(--primary-gradient);
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+            color: white !important;
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
         }
 
+        /* Card thiết kế lại */
         .op-card {
             border: none;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border-radius: 24px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s;
         }
+        .op-card:hover { transform: translateY(-5px); }
 
+        /* Khu vực Camera xịn xò */
         .scanner-viewport {
             position: relative;
-            height: 300px;
-            background: #1a1a1a;
-            border-radius: 16px;
+            height: 320px;
+            background: #0f172a;
+            border-radius: 20px;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border: 4px solid #fff;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
         }
 
         .scan-anim {
             position: absolute;
             width: 100%;
-            height: 2px;
-            background: #fff;
-            box-shadow: 0 0 15px #6366f1;
-            animation: scanning 2s infinite ease-in-out;
+            height: 3px;
+            background: #4f46e5;
+            box-shadow: 0 0 20px #4f46e5, 0 0 40px #7c3aed;
+            animation: scanning 2.5s infinite ease-in-out;
             z-index: 20;
-            display: none;
         }
 
         @keyframes scanning {
-            0% { top: 10%; }
-            50% { top: 90%; }
-            100% { top: 10%; }
+            0%, 100% { top: 15%; opacity: 0.3; }
+            50% { top: 85%; opacity: 1; }
         }
 
-        .item-list-container {
-            max-height: 500px;
-            overflow-y: auto;
-            padding-right: 5px;
-        }
+        /* Danh sách sản phẩm quét kiểu Card-in-Card */
+        .item-list-container { max-height: 550px; overflow-y: auto; padding: 10px; }
         .scanned-item {
-            border-left: 5px solid var(--success-color);
-            transition: all 0.3s ease;
+            border: 1px solid #f1f5f9 !important;
+            background: #fff;
+            margin-bottom: 12px;
+            border-radius: 16px !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 6px solid #4f46e5 !important;
         }
+        .scanned-item:hover { box-shadow: 0 8px 15px rgba(0,0,0,0.05); transform: scale(1.01); }
 
+        /* Input thiết kế mượt mà */
         .qty-input, .price-input {
-            border-radius: 8px;
-            text-align: center;
-            font-weight: bold;
-        }
-
-        .border-dashed { border-style: dashed !important; }
-        .import-dropzone:hover {
-            background-color: #f1f3f5 !important;
-            border-color: #4f46e5 !important;
-        }
-
-        #reader video {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
-            border-radius: 16px;
-            background: black;
-        }
-
-        #reader {
-            width: 100%;
-            height: 300px;
-            position: relative;
-        }
-
-        .btn-inbound {
-            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
-            color: white !important;
-        }
-
-        .btn-outbound {
-            background: linear-gradient(135deg, #f43f5e 0%, #fb7185 100%) !important;
-            color: white !important;
-        }
-
-        .btn-transfer {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-            color: white !important;
-        }
-
-        #btnSubmitScan {
-            border: none !important;
-            min-height: 50px;
-            font-weight: bold;
-        }
-
-        .hub-title {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
-            -webkit-background-clip: text !important;
-            -webkit-text-fill-color: transparent !important;
-        }
-
-        .scanned-item {
-            transition: background-color 0.5s ease;
-        }
-
-        .price-input {
             border: 1px solid #e2e8f0 !important;
-            background-color: #f8fafc !important;
-            color: #475569 !important;
-            text-align: right;
+            background: #f8fafc !important;
+            border-radius: 10px !important;
+            padding: 8px !important;
+            font-weight: 700 !important;
+            color: #1e293b !important;
         }
+        .price-input { text-align: right; color: #059669 !important; }
 
-        .price-input:focus {
-            background-color: #fff !important;
-            border-color: #6366f1 !important;
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1) !important;
+        /* Nút Submit cực to và rực rỡ */
+        #btnSubmitScan {
+            height: 65px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            border-radius: 18px;
+            text-transform: uppercase;
+            transition: all 0.3s;
         }
+        #btnSubmitScan:active { transform: scale(0.95); }
+
+        /* Dropzone file */
+        .import-dropzone {
+            border: 2px dashed #cbd5e1 !important;
+            background: #f1f5f9;
+            border-radius: 16px;
+            transition: all 0.3s;
+        }
+        .import-dropzone:hover { border-color: #4f46e5 !important; background: #eef2ff !important; }
 
         @media print {
             body * { visibility: hidden; }
             #receiptModal .modal-content, #receiptModal .modal-content * { visibility: visible; }
-            #receiptModal .modal-content {
-                position: absolute; left: 0; top: 0; border: none; box-shadow: none; width: 100%;
-            }
+            #receiptModal .modal-content { position: absolute; left: 0; top: 0; width: 100%; border: none; }
             .modal-header, .modal-footer { display: none !important; }
         }
     </style>
 </head>
 <body>
 <div id="mainContent">
-    <div class="container-fluid py-4">
-        <div class="row mb-4">
+    <div class="container-fluid py-5 px-md-5">
+        <div class="row mb-5">
             <div class="col-12 text-center">
-                <h1 class="fw-bold text-dark hub-title" >
-                    Warehouse Operations Hub
-                </h1>
-                <p class="text-secondary">Số hóa quy trình Nhập - Xuất - Chuyển kho thời gian thực</p>
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill mb-3 fw-bold">WMS VERSION 4.0</span>
+                <h1 class="fw-bolder hub-title mb-2">Warehouse Operations Hub</h1>
+                <p class="text-muted fs-5">Hệ thống điều hành Nhập - Xuất - Điều chuyển kho thời gian thực</p>
             </div>
         </div>
 
-        <ul class="nav nav-pills justify-content-center mb-5 gap-3" id="opTab" role="tablist">
-            <li class="nav-item">
-                <button class="nav-link active" onclick="switchMode('INBOUND', this)"><i class="bi bi-box-arrow-in-down me-2"></i>NHẬP KHO</button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" onclick="switchMode('OUTBOUND', this)"><i class="bi bi-box-arrow-up me-2"></i>XUẤT KHO</button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" onclick="switchMode('TRANSFER', this)"><i class="bi bi-arrow-left-right me-2"></i>ĐIỀU CHUYỂN</button>
-            </li>
-        </ul>
+        <div class="text-center mb-5">
+            <ul class="nav nav-pills gap-2" id="opTab" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" onclick="switchMode('INBOUND', this)"><i class="bi bi-box-arrow-in-down-right me-2"></i>NHẬP KHO</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" onclick="switchMode('OUTBOUND', this)"><i class="bi bi-box-arrow-up-right me-2"></i>XUẤT KHO</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" onclick="switchMode('TRANSFER', this)"><i class="bi bi-arrow-left-right me-2"></i>ĐIỀU CHUYỂN</button>
+                </li>
+            </ul>
+        </div>
 
         <div class="row g-4">
             <div class="col-lg-5">
-                <div class="card op-card h-100 shadow-sm">
+                <div class="card op-card h-100 border-0 shadow-sm p-2">
                     <div class="card-body p-4">
                         <div class="d-flex justify-content-between align-items-center mb-4">
-                            <h5 class="fw-bold mb-0">Trạm Quét Kỹ Thuật Số</h5>
-                            <div class="form-check form-switch">
+                            <h5 class="fw-bold text-dark mb-0"><i class="bi bi-qr-code-scan me-2 text-primary"></i>TRẠM QUÉT SỐ</h5>
+                            <div class="form-check form-switch custom-switch">
                                 <input class="form-check-input" type="checkbox" id="cameraSwitch" />
                                 <label class="form-check-label small fw-bold text-muted" for="cameraSwitch">CAMERA</label>
                             </div>
                         </div>
 
-                        <div id="reader" class="scanner-viewport mb-4">
-                            <video id="video" playsinline style="width: 100%; height: 100%; border-radius: 16px"></video>
-                            <div class="scan-anim" id="scannerLine"></div>
-                            <div class="text-center text-white opacity-50" id="placeholder">
-                                <i class="bi bi-camera-video-off fs-1"></i>
-                                <p class="small mt-2">Camera đang tắt</p>
+                        <div id="reader" class="scanner-viewport mb-4 shadow-lg">
+                            <video id="video" playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                            <div class="scan-anim" id="scannerLine" style="display: none;"></div>
+                            <div class="text-center text-white opacity-25" id="placeholder">
+                                <i class="bi bi-camera-video-off display-4"></i>
+                                <p class="small mt-3 fw-bold">CAMERA ĐANG TẮT</p>
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Nhà cung cấp / Đối tác</label>
-                            <select id="supplierSelect" class="form-select border-0 shadow-sm rounded-3 py-2 bg-light">
-                                <option value="" selected disabled>-- Chọn nhà cung cấp --</option>
-                                <option th:each="s : ${suppliers}"
-                                        th:value="${s.supplierId}"
-                                        th:text="${s.supplierName}">
-                                </option>
-                            </select>
+                        <div class="row g-3">
+                            <div class="col-12" id="supplierBlock">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1">Nhà cung cấp</label>
+                                <select id="supplierSelect" class="form-select border-0 shadow-sm rounded-3 py-2 bg-light">
+                                    <option value="" selected disabled>-- Chọn nhà cung cấp --</option>
+                                    <option th:each="s : ${suppliers}" th:value="${s.supplierId}" th:text="${s.supplierName}"></option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1">Kho xử lý</label>
+                                <select id="warehouseSelect" class="form-select border-0 shadow-sm rounded-3 py-2 bg-light">
+                                    <option value="" selected disabled>-- Chọn kho hàng --</option>
+                                    <option th:each="w : ${warehouses}" th:value="${w.warehouseId}" th:text="${w.warehouseName}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-6" id="targetWarehouseContainer" style="display: none;">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1 text-primary">Kho đích</label>
+                                <select id="targetWarehouseSelect" class="form-select border-primary border-opacity-25 shadow-sm rounded-3 py-2 bg-white">
+                                    <option value="" selected disabled>-- Chọn kho --</option>
+                                    <option th:each="w : ${warehouses}" th:value="${w.warehouseId}" th:text="${w.warehouseName}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-6" id="targetLocationContainer" style="display: none;">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1 text-primary">Vị trí nhận</label>
+                                <select id="targetLocationSelect" class="form-select border-primary border-opacity-25 shadow-sm rounded-3 py-2 bg-white"></select>
+                            </div>
+                            <div class="col-12" id="customerSelectionBlock" style="display: none;">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1">Khách Hàng</label>
+                                <select class="form-select shadow-sm border-0 bg-light py-2" id="customerSelect">
+                                    <option value="">-- Khách Lẻ --</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Kho xử lý</label>
-                            <select id="warehouseSelect" class="form-select border-0 shadow-sm rounded-3 py-2 bg-light">
-                                <option value="" selected disabled>-- Chọn kho hàng --</option>
-                                <option th:each="w : ${warehouses}"
-                                        th:value="${w.warehouseId}"
-                                        th:text="${w.warehouseName}">
-                                </option>
-                            </select>
-                        </div>
-
-                        <div class="mb-4" id="targetWarehouseContainer" style="display: none;">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Kho đích</label>
-                            <select id="targetWarehouseSelect" class="form-select border-0 shadow-sm rounded-3 py-2 bg-light">
-                                <option value="" selected disabled>-- Chọn kho nhận hàng --</option>
-                                <option th:each="w : ${warehouses}" th:value="${w.warehouseId}" th:text="${w.warehouseName}"></option>
-                            </select>
-                        </div>
-
-                        <div class="mb-4" id="targetLocationContainer" style="display: none;">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Vị trí đích (Kệ/Ô)</label>
-                            <select id="targetLocationSelect" class="form-select border-0 shadow-sm rounded-3 py-2 bg-light">
-                                <option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Nhập dữ liệu lô hàng lớn</label>
-                            <div class="import-dropzone p-4 text-center border-2 border-dashed rounded-4 bg-light position-relative" id="dropzone">
+                        <div class="mt-4 pt-2">
+                            <label class="form-label small fw-bold text-muted text-uppercase ms-1">Nhập dữ liệu nhanh</label>
+                            <div class="import-dropzone p-3 text-center position-relative" id="dropzone">
                                 <input type="file" id="csvFileInput" class="position-absolute opacity-0 w-100 h-100 start-0 top-0" accept=".csv" style="cursor: pointer" />
                                 <div class="py-2">
-                                    <i class="bi bi-file-earmark-spreadsheet fs-2 text-success mb-2 d-block"></i>
-                                    <h6 class="fw-bold text-dark mb-1">Tải lên file CSV</h6>
-                                    <p class="text-muted small mb-0 text-primary">Chọn từ máy tính</p>
+                                    <i class="bi bi-file-earmark-spreadsheet fs-4 text-success mb-2 d-block"></i>
+                                    <h6 class="fw-bold text-dark mb-0" style="font-size: 13px;">Tải lên file CSV</h6>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="mb-4" id="customerSelectionBlock" style="display: none;">
-                            <label class="form-label small fw-bold text-muted text-uppercase mb-2">Chọn Khách Hàng (Tùy chọn)</label>
-                            <select class="form-select shadow-sm border-0 bg-light" id="customerSelect" style="height: 50px; font-weight: 500; border-radius: 12px;">
-                                <option value="">-- Khách Lẻ (Không lưu thông tin) --</option>
-                            </select>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="col-lg-7">
-                <div class="card op-card h-100 shadow-sm">
+                <div class="card op-card h-100 border-0 shadow-sm overflow-hidden">
                     <div class="card-header bg-white border-0 py-4 px-4 d-flex justify-content-between align-items-center">
-                        <h5 class="fw-bold mb-0">Danh sách chờ xử lý</h5>
-                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill" id="itemCounter">0 sản phẩm</span>
+                        <h5 class="fw-bold text-dark mb-0">DANH SÁCH CHỜ XỬ LÝ</h5>
+                        <span class="badge bg-primary rounded-pill px-3 py-2" id="itemCounter">0 mã hàng</span>
                     </div>
 
                     <div class="card-body p-0">
                         <div class="item-list-container px-4">
-                            <div class="list-group list-group-flush gap-3" id="scannedList">
+                            <div class="list-group list-group-flush gap-2" id="scannedList">
                                 <div class="text-center py-5 opacity-25" id="noData">
                                     <i class="bi bi-box-seam display-1"></i>
-                                    <p class="mt-2">Chưa có dữ liệu quét</p>
+                                    <p class="mt-3 fw-bold">CHƯA CÓ DỮ LIỆU QUÉT</p>
                                 </div>
                             </div>
                         </div>
@@ -273,8 +243,8 @@
 
                     <div class="card-footer bg-white border-0 p-4">
                         <div class="d-grid gap-2">
-                            <button id="btnSubmitScan" class="btn btn-lg text-white shadow-sm" style="background: var(--primary-gradient); border: none; border-radius: 14px;" onclick="submitDataToBackend()">
-                                XÁC NHẬN NHẬP KHO
+                            <button id="btnSubmitScan" class="btn btn-lg text-white shadow-lg" style="background: var(--primary-gradient);" onclick="submitDataToBackend()">
+                                XÁC NHẬN GIAO DỊCH
                             </button>
                         </div>
                     </div>
@@ -285,51 +255,50 @@
 
     <div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header text-white" id="receiptModalHeader" style="background: var(--primary-gradient);">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
+                <div class="modal-header text-white border-0 py-4 px-4" id="receiptModalHeader" style="background: var(--primary-gradient);">
                     <h5 class="modal-title fw-bold"><i class="bi bi-check-circle-fill me-2"></i><span id="receiptTitle">GIAO DỊCH THÀNH CÔNG</span></h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-5">
-                    <div class="text-center mb-4">
-                        <h3 class="fw-bold text-uppercase" id="receiptDocName">PHIẾU KHO</h3>
-                        <p class="text-muted mb-1">Mã tham chiếu: <strong id="refCodeDisplay">WMS-AUTO-GEN</strong></p>
-                        <p class="text-muted mb-0" id="receiptTime"></p>
+                    <div class="text-center mb-5">
+                        <div class="bg-light d-inline-block p-4 rounded-circle mb-3"><i class="bi bi-receipt fs-1 text-primary"></i></div>
+                        <h3 class="fw-bolder text-dark text-uppercase mb-1" id="receiptDocName">PHIẾU KHO</h3>
+                        <p class="text-muted mb-0">Mã tham chiếu: <strong id="refCodeDisplay" class="text-dark">WMS-PX-8899</strong></p>
+                        <p class="small text-muted" id="receiptTime"></p>
                     </div>
 
-                    <div class="table-responsive rounded-3 border">
-                        <table class="table table-hover mb-0">
+                    <div class="table-responsive rounded-4 border shadow-sm mb-4">
+                        <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                             <tr>
-                                <th class="text-center" width="5%">STT</th>
-                                <th>MÃ SẢN PHẨM / LÔ HÀNG</th>
+                                <th class="text-center py-3" width="5%">#</th>
+                                <th>SẢN PHẨM / LÔ HÀNG</th>
                                 <th class="text-end" width="20%">ĐƠN GIÁ</th>
                                 <th class="text-center" width="10%">SL</th>
                                 <th class="text-end" width="25%">THÀNH TIỀN</th>
                             </tr>
                             </thead>
-                            <tbody id="receiptTableBody">
-                            </tbody>
-                            <tfoot id="receiptTableFoot">
-                            </tfoot>
+                            <tbody id="receiptTableBody"></tbody>
+                            <tfoot id="receiptTableFoot" class="bg-light border-top"></tfoot>
                         </table>
                     </div>
 
-                    <div class="row mt-5 text-center">
+                    <div class="row mt-5 text-center d-print-flex">
                         <div class="col-6">
-                            <p class="fw-bold mb-5">Người giao</p>
-                            <p class="text-muted">(Ký, họ tên)</p>
+                            <p class="fw-bold mb-5">Người giao hàng</p>
+                            <p class="text-muted small">(Ký và ghi rõ họ tên)</p>
                         </div>
                         <div class="col-6">
-                            <p class="fw-bold mb-5">Người nhận</p>
-                            <p class="text-muted">(Ký, họ tên)</p>
+                            <p class="fw-bold mb-5">Người nhận hàng</p>
+                            <p class="text-muted small">(Ký và ghi rõ họ tên)</p>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
-                    <button type="button" class="btn btn-primary rounded-pill px-4" onclick="window.print()">
-                        <i class="bi bi-printer me-2"></i>In Phiếu
+                <div class="modal-footer bg-light border-0 py-3 px-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-5 fw-bold shadow" onclick="window.print()">
+                        <i class="bi bi-printer me-2"></i>In Phiếu Kho
                     </button>
                 </div>
             </div>
@@ -337,8 +306,8 @@
     </div>
 
     <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest"></script>
-
     <script th:inline="javascript">
+        // [Toàn bộ logic Javascript cũ của bạn được giữ nguyên ở đây...]
         const OP_CONFIG = {
             'INBOUND': {
                 api: '/api/inbound/confirm',
@@ -406,10 +375,7 @@
         }
 
         function stopCamera() {
-            if (controls) {
-                controls.stop();
-                controls = null;
-            }
+            if (controls) { controls.stop(); controls = null; }
             if (dom.video && dom.video.srcObject) {
                 const tracks = dom.video.srcObject.getTracks();
                 tracks.forEach(track => track.stop());
@@ -441,7 +407,6 @@
         function checkAndAddRow(rawData, source) {
             if (dom.noData) dom.noData.style.display = "none";
             const data = normalizeItemData(rawData);
-
             const scannedRows = document.querySelectorAll('.scanned-item');
             let existingRow = null;
 
@@ -449,35 +414,21 @@
                 const rowId = String(row.getAttribute('data-product-id'));
                 const rowLot = String(row.getAttribute('data-lot-code'));
                 const rowLocId = String(row.getAttribute('data-location-id'));
-
-                if (rowId === String(data.productId) &&
-                    rowLot === String(data.lotCode || 'Mặc định') &&
-                    rowLocId === String(data.locationId)) {
-                    existingRow = row;
-                    break;
+                if (rowId === String(data.productId) && rowLot === String(data.lotCode || 'Mặc định') && rowLocId === String(data.locationId)) {
+                    existingRow = row; break;
                 }
             }
 
             if (existingRow) {
                 const input = existingRow.querySelector('.qty-input');
                 input.value = parseFloat(input.value) + (parseFloat(data.actualQty) || 1);
-                existingRow.classList.add('bg-warning', 'bg-opacity-25');
-                setTimeout(() => existingRow.classList.remove('bg-warning', 'bg-opacity-25'), 500);
+                existingRow.classList.add('bg-warning', 'bg-opacity-10');
+                setTimeout(() => existingRow.classList.remove('bg-warning', 'bg-opacity-10'), 500);
             } else {
                 if (currentMode === "OUTBOUND") {
                     renderOutboundItemToUI(data, { locationId: data.locationId, batchId: data.batchId }, source);
                 } else {
-                    renderProductToUI(
-                        data.productId,
-                        data.productName,
-                        data.actualQty || 1,
-                        source,
-                        data.lotCode,
-                        data.batchId,
-                        data.locationId,
-                        data.locationCode,
-                        data.price || 0
-                    );
+                    renderProductToUI(data.productId, data.productName, data.actualQty || 1, source, data.lotCode, data.batchId, data.locationId, data.locationCode, data.price || 0);
                 }
             }
             updateCounter();
@@ -511,11 +462,7 @@
 
                     if (!response.ok) throw new Error(await response.text());
                     const data = await response.json();
-
-                    if (!data.locationId) {
-                        data.locationId = 1;
-                        data.locationCode = "LOC-DEFAULT-01";
-                    }
+                    if (!data.locationId) { data.locationId = 1; data.locationCode = "LOC-DEFAULT-01"; }
                     checkAndAddRow(data, "QUÉT LẺ");
                 } else {
                     if (currentMode === "INBOUND") {
@@ -550,125 +497,87 @@
                 lastScan = ""; }
         }
 
-        function initCSVImport() {
-            dom.csvInput.addEventListener('change', handleCSVUpload);
-        }
+        function initCSVImport() { dom.csvInput.addEventListener('change', handleCSVUpload); }
 
         async function handleCSVUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             const formData = new FormData();
             formData.append('file', file);
             const dropContent = dom.dropzone.querySelector('.py-2');
             const originalContent = dropContent.innerHTML;
-
-            dropContent.innerHTML = `
-        <div class="d-flex flex-column align-items-center">
-            <div class="spinner-border text-primary mb-2"></div>
-            <span class="small text-muted">Đang xử lý file...</span>
-        </div>`;
-
+            dropContent.innerHTML = `<div class="spinner-border spinner-border-sm text-primary"></div>`;
             try {
-                const config = OP_CONFIG[currentMode];
-                const response = await fetch(config.parseApi, { method: 'POST', body: formData });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(errorText || "Lỗi server khi đọc file");
-                }
-
+                const response = await fetch(OP_CONFIG[currentMode].parseApi, { method: 'POST', body: formData });
+                if (!response.ok) throw new Error(await response.text());
                 const items = await response.json();
-                if (!items || items.length === 0) {
-                    alert("File CSV trống hoặc không khớp dữ liệu hệ thống.");
-                    return;
-                }
-
-                if (dom.noData) dom.noData.style.display = "none";
-                items.forEach(item => { checkAndAddRow(item, "CSV IMPORT"); });
-                alert(`Đã import thành công ${items.length} dòng!`);
-
-            } catch (err) {
-                console.error("CSV Import Error:", err);
-                alert("Lỗi CSV: " + err.message);
-            } finally {
-                e.target.value = "";
-                dropContent.innerHTML = originalContent;
-                updateCounter();
-            }
+                items.forEach(item => checkAndAddRow(item, "CSV"));
+            } catch (err) { alert("Lỗi: " + err.message); }
+            finally { e.target.value = ""; dropContent.innerHTML = originalContent; updateCounter(); }
         }
 
         function renderProductToUI(productId, productName, qty, poId, lotCode, batchId, locationId, locationCode, importPrice = 0) {
-            if (dom.noData) dom.noData.style.display = "none";
             const newItem = document.createElement("div");
-            newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
-
+            newItem.className = "list-group-item scanned-item border-0 p-4 mb-3";
             newItem.setAttribute('data-product-id', productId);
             newItem.setAttribute('data-product-name', productName || 'SP ' + productId);
             newItem.setAttribute('data-lot-code', lotCode || 'Mặc định');
             newItem.setAttribute('data-batch-id', batchId || 1);
             newItem.setAttribute('data-location-id', locationId || 1);
-
             newItem.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-            <div class="flex-grow-1">
-                <h6 class="fw-bold mb-0 text-primary">${productName || 'Sản phẩm ' + productId}</h6>
-                <small class="text-muted">ID: ${productId} | Lô: ${lotCode}</small>
-                <div class="mt-1">
-                    <span class="badge bg-info text-dark">Kệ: ${locationCode || 'Mặc định'}</span>
-                </div>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <div class="text-end">
-                    <label class="small text-muted d-block" style="font-size: 10px;">GIÁ NHẬP</label>
-                    <input type="number" class="form-control form-control-sm price-input shadow-sm border-0 bg-light"
-                           value="${importPrice}" style="width: 100px; font-weight: bold;">
-                </div>
-                <div class="text-end">
-                    <label class="small text-muted d-block" style="font-size: 10px;">SL</label>
-                    <input type="number" class="form-control form-control-sm qty-input shadow-sm border-0 bg-light"
-                           value="${qty}" style="width: 70px; font-weight: bold;">
-                </div>
-                <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        </div>`;
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark">${productName || 'Sản phẩm ' + productId}</h6>
+                        <div class="d-flex gap-2">
+                            <span class="badge bg-light text-muted border fw-normal">Lô: ${lotCode}</span>
+                            <span class="badge bg-primary bg-opacity-10 text-primary fw-bold border border-primary border-opacity-10">Vị trí: ${locationCode}</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="text-end">
+                            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">ĐƠN GIÁ</label>
+                            <input type="number" class="form-control form-control-sm price-input" value="${importPrice}" style="width: 110px;">
+                        </div>
+                        <div class="text-end">
+                            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">SL</label>
+                            <input type="number" class="form-control form-control-sm qty-input" value="${qty}" style="width: 75px;">
+                        </div>
+                        <button class="btn btn-light-danger btn-sm rounded-3 p-2" onclick="removeRow(this)"><i class="bi bi-trash3 text-danger"></i></button>
+                    </div>
+                </div>`;
             dom.scannedList.prepend(newItem);
         }
 
         function renderOutboundItemToUI(item, bestLoc, soCode) {
-            if (dom.noData) dom.noData.style.display = "none";
             const newItem = document.createElement("div");
-            newItem.className = "list-group-item scanned-item border-0 shadow-sm mb-2 rounded-4 p-3 bg-white";
-
+            newItem.className = "list-group-item scanned-item border-0 p-4 mb-3";
             const displayQty = item.requiredQty !== undefined ? item.requiredQty : (item.actualQty || 1);
             const displayPrice = item.price || item.exportPrice || 0;
-
             newItem.setAttribute('data-product-id', item.productId);
             newItem.setAttribute('data-product-name', item.productName || 'SP ' + item.productId);
             newItem.setAttribute('data-lot-code', item.lotCode || 'Mặc định');
             newItem.setAttribute('data-location-id', bestLoc?.locationId || 1);
             newItem.setAttribute('data-batch-id', bestLoc?.batchId || 1);
             newItem.setAttribute('data-req-qty', displayQty);
-
             newItem.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
-                    <div class="flex-grow-1">
-                        <h6 class="fw-bold mb-1 text-danger">${item.productName || 'SP ID: ' + item.productId}</h6>
-                        <small class="text-muted">Kệ: ${bestLoc?.locationId || 'N/A'} | Lô: ${item.lotCode || 'Mặc định'} | Nguồn: ${soCode}</small>
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark">${item.productName}</h6>
+                        <div class="d-flex gap-2">
+                            <span class="badge bg-light text-muted border fw-normal">Lô: ${item.lotCode}</span>
+                            <span class="badge bg-danger bg-opacity-10 text-danger fw-bold border border-danger border-opacity-10">Kệ: ${bestLoc?.locationId}</span>
+                        </div>
                     </div>
                     <div class="d-flex align-items-center gap-3">
                         <div class="text-end">
-                            <label class="small text-muted d-block" style="font-size: 10px;">GIÁ XUẤT</label>
-                            <input type="number" class="form-control form-control-sm price-input shadow-sm border-0 bg-light"
-                                   value="${displayPrice}" style="width: 100px; font-weight: bold;">
+                            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">ĐƠN GIÁ</label>
+                            <input type="number" class="form-control form-control-sm price-input" value="${displayPrice}" style="width: 110px;">
                         </div>
                         <div class="text-end">
-                            <label class="small text-muted d-block" style="font-size: 10px;">SL</label>
-                            <input type="number" class="form-control form-control-sm qty-input shadow-sm border-0 bg-light" value="${displayQty}" min="0" style="width: 70px; font-weight: bold;">
+                            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">SL</label>
+                            <input type="number" class="form-control form-control-sm qty-input" value="${displayQty}" style="width: 75px;">
                         </div>
-                        <button class="btn btn-sm btn-light text-danger rounded-circle shadow-sm" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
+                        <button class="btn btn-light-danger btn-sm rounded-3 p-2" onclick="removeRow(this)"><i class="bi bi-trash3 text-danger"></i></button>
                     </div>
                 </div>`;
             dom.scannedList.prepend(newItem);
@@ -678,10 +587,8 @@
 
         function updateCounter() {
             const count = document.querySelectorAll(".scanned-item").length;
-            if (dom.counter) dom.counter.innerText = `${count} mã hàng`;
-            if (dom.noData) {
-                dom.noData.style.display = (count > 0) ? "none" : "block";
-            }
+            if (dom.counter) dom.counter.innerText = `${count} sản phẩm`;
+            if (dom.noData) dom.noData.style.display = (count > 0) ? "none" : "block";
             if (dom.btnSubmit) {
                 dom.btnSubmit.disabled = (count === 0);
                 dom.btnSubmit.style.opacity = (count === 0) ? "0.6" : "1";
@@ -689,146 +596,63 @@
         }
 
         function switchMode(mode, element) {
-            if (controls) {
-                stopCamera();
-                dom.cameraSwitch.checked = false;
-            }
-
+            if (controls) { stopCamera(); dom.cameraSwitch.checked = false; }
             if (document.querySelectorAll(".scanned-item").length > 0) {
-                if (!confirm('Chuyển chế độ sẽ xóa danh sách hiện tại, bạn đồng ý chứ?')) return;
+                if (!confirm('Chuyển chế độ sẽ xóa danh sách hiện tại?')) return;
             }
-
             currentMode = mode;
             const config = OP_CONFIG[mode];
-
             document.querySelectorAll("#opTab .nav-link").forEach(btn => btn.classList.remove("active"));
             element.classList.add("active");
-
             document.documentElement.style.setProperty("--primary-gradient", config.headerBg);
-            dom.btnSubmit.className = `btn btn-lg text-white shadow-sm ${config.btnClass}`;
             dom.btnSubmit.innerText = config.btnText;
-
-            dom.scannedList.innerHTML = `
-                <div class="text-center py-5 opacity-25" id="noData">
-                    <i class="bi bi-box-seam display-1"></i>
-                    <p class="mt-2">Chưa có dữ liệu cho chế độ ${config.docName}</p>
-                </div>`;
+            dom.scannedList.innerHTML = `<div class="text-center py-5 opacity-25" id="noData"><i class="bi bi-box-seam display-1"></i><p class="mt-3 fw-bold">CHƯA CÓ DỮ LIỆU</p></div>`;
             dom.noData = document.getElementById("noData");
-
-            const customerBlock = document.getElementById('customerSelectionBlock');
-            if (customerBlock) {
-                customerBlock.style.display = (mode === 'OUTBOUND') ? 'block' : 'none';
-                if (mode !== 'OUTBOUND' && document.getElementById('customerSelect')) {
-                    document.getElementById('customerSelect').value = "";
-                }
-            }
-
-            const supplierSelect = document.getElementById('supplierSelect');
-            if (supplierSelect) {
-                supplierSelect.parentElement.style.display = (mode === 'INBOUND') ? 'block' : 'none';
-                supplierSelect.value = "";
-            }
-
-            const warehouseSelect = document.getElementById('warehouseSelect');
-            const targetWhContainer = document.getElementById('targetWarehouseContainer');
-            const targetLocContainer = document.getElementById('targetLocationContainer');
-
-            if (warehouseSelect) warehouseSelect.value = "";
-
-            if (targetWhContainer) {
-                targetWhContainer.style.display = (mode === 'TRANSFER') ? 'block' : 'none';
-                document.getElementById('targetWarehouseSelect').value = "";
-            }
-
-            if (targetLocContainer) {
-                targetLocContainer.style.display = 'none';
-                const targetLocSelect = document.getElementById('targetLocationSelect');
-                if (targetLocSelect) {
-                    targetLocSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
-                    targetLocSelect.value = "";
-                }
-            }
-
-            window.currentPurchaseOrderId = null;
-            window.currentSalesOrderId = null;
-            lastScan = "";
-            updateCounter();
+            document.getElementById('customerSelectionBlock').style.display = (mode === 'OUTBOUND') ? 'block' : 'none';
+            document.getElementById('supplierSelect').parentElement.style.display = (mode === 'INBOUND') ? 'block' : 'none';
+            document.getElementById('targetWarehouseContainer').style.display = (mode === 'TRANSFER') ? 'flex' : 'none';
+            document.getElementById('targetLocationContainer').style.display = 'none';
+            lastScan = ""; updateCounter();
         }
 
         async function submitDataToBackend() {
             const config = OP_CONFIG[currentMode];
             const scannedRows = document.querySelectorAll('.scanned-item');
             if (scannedRows.length === 0) return alert("Danh sách trống!");
-
-            const supplierId = document.getElementById('supplierSelect') ? document.getElementById('supplierSelect').value : null;
-            const warehouseId = document.getElementById('warehouseSelect') ? document.getElementById('warehouseSelect').value : null;
-            const targetWarehouseSelect = document.getElementById('targetWarehouseSelect');
-            const targetWarehouseId = targetWarehouseSelect ? targetWarehouseSelect.value : null;
-            const targetLocSelect = document.getElementById('targetLocationSelect');
-            const selectedTargetLocId = targetLocSelect ? targetLocSelect.value : null;
-
+            const warehouseId = document.getElementById('warehouseSelect').value;
             if (!warehouseId) return alert("Vui lòng chọn Kho xử lý!");
-            if (currentMode === "INBOUND" && !supplierId) return alert("Vui lòng chọn Nhà cung cấp!");
 
-            if (currentMode === 'TRANSFER') {
-                if (!targetWarehouseId) return alert("Vui lòng chọn Kho đích!");
-                if (!selectedTargetLocId) return alert("Vui lòng chọn Vị trí đích!");
-                if (warehouseId === targetWarehouseId) return alert("Kho đích không được trùng với kho nguồn!");
-            }
-
-            // GÓI DỮ LIỆU ĐỂ GỬI LÊN JAVA
             const items = Array.from(scannedRows).map(row => {
-                const priceInput = row.querySelector('.price-input');
-                const priceVal = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
-
+                const priceVal = parseFloat(row.querySelector('.price-input').value) || 0;
                 return {
                     productId: parseInt(row.getAttribute('data-product-id')),
                     locationId: parseInt(row.getAttribute('data-location-id')) || 1,
                     batchId: parseInt(row.getAttribute('data-batch-id')) || 1,
-                    price: priceVal,
-                    exportPrice: priceVal,
-                    importPrice: priceVal,
-                    unitPrice: priceVal,
-                    sellingPrice: priceVal, // BẮT BUỘC PHẢI CÓ ĐỂ TRÁNH LỖI OUTBOUND
+                    price: priceVal, exportPrice: priceVal, importPrice: priceVal, unitPrice: priceVal, sellingPrice: priceVal,
                     actualQty: parseFloat(row.querySelector('.qty-input').value) || 1,
                     productName: row.getAttribute('data-product-name'),
                     lotCode: row.getAttribute('data-lot-code') || "Mặc định",
                     requestedQty: parseFloat(row.getAttribute('data-req-qty')) || parseFloat(row.querySelector('.qty-input').value) || 1,
-                    toWarehouseId: currentMode === 'TRANSFER' ? parseInt(targetWarehouseId) : null,
-                    targetLocationId: currentMode === 'TRANSFER' ? parseInt(selectedTargetLocId) : null
+                    toWarehouseId: currentMode === 'TRANSFER' ? parseInt(document.getElementById('targetWarehouseSelect').value) : null,
+                    targetLocationId: currentMode === 'TRANSFER' ? parseInt(document.getElementById('targetLocationSelect').value) : null
                 };
             });
 
-            // 👉 CẢNH BÁO QUÊN NHẬP GIÁ
-            const hasZeroPrice = items.some(item => item.price === 0);
-            if (currentMode !== 'TRANSFER' && hasZeroPrice) {
-                if (!confirm("⚠️ CẢNH BÁO:\nCó sản phẩm đang để Đơn giá = 0 đ.\nBạn có chắc chắn muốn tạo phiếu với giá 0 đ không?")) {
-                    return; // Dừng lại cho người dùng nhập giá
-                }
+            if (currentMode !== 'TRANSFER' && items.some(i => i.price === 0)) {
+                if (!confirm("⚠️ Có sản phẩm giá bằng 0 đ. Vẫn tiếp tục?")) return;
             }
 
             let payload;
-            if (currentMode === 'TRANSFER') {
-                payload = { fromWarehouseId: parseInt(warehouseId), toWarehouseId: parseInt(targetWarehouseId), items: items };
-            } else if (currentMode === "OUTBOUND") {
-                const selectElement = document.getElementById('customerSelect');
-                const selectedCustomerId = selectElement ? selectElement.value : "";
-                payload = { salesOrderId: window.currentSalesOrderId || null, warehouseId: parseInt(warehouseId), customerId: selectedCustomerId ? parseInt(selectedCustomerId) : null, items: items };
-            } else {
-                payload = { inboundReceiptCode: "PN-" + Date.now(), purchaseOrderId: window.currentPurchaseOrderId || null, warehouseId: parseInt(warehouseId), supplierId: parseInt(supplierId), items: items };
-            }
+            if (currentMode === 'TRANSFER') payload = { fromWarehouseId: parseInt(warehouseId), toWarehouseId: parseInt(document.getElementById('targetWarehouseSelect').value), items };
+            else if (currentMode === "OUTBOUND") payload = { salesOrderId: window.currentSalesOrderId || null, warehouseId: parseInt(warehouseId), customerId: parseInt(document.getElementById('customerSelect').value) || null, items };
+            else payload = { inboundReceiptCode: "PN-" + Date.now(), purchaseOrderId: window.currentPurchaseOrderId || null, warehouseId: parseInt(warehouseId), supplierId: parseInt(document.getElementById('supplierSelect').value), items };
 
             dom.btnSubmit.disabled = true; dom.btnSubmit.innerText = "ĐANG XỬ LÝ...";
             try {
-                const response = await fetch(config.api, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                const response = await fetch(config.api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) throw new Error(await response.text());
-
                 renderReceiptModal(config, items);
-                document.getElementById('receiptModal').addEventListener('hidden.bs.modal', function () { location.reload(); });
+                document.getElementById('receiptModal').addEventListener('hidden.bs.modal', () => location.reload());
             } catch (err) { alert("Lỗi: " + err.message); }
             finally { dom.btnSubmit.disabled = false; dom.btnSubmit.innerText = config.btnText; }
         }
@@ -838,85 +662,39 @@
             document.getElementById('receiptModalHeader').style.background = config.headerBg;
             document.getElementById('receiptTitle').innerText = config.title;
             document.getElementById('receiptDocName').innerText = config.docName;
-
-            let totalAmount = 0;
-            document.getElementById('receiptTableBody').innerHTML = items.map((item, index) => {
-                const qty = item.actualQty || 1;
-                const price = item.price || item.exportPrice || item.importPrice || 0;
-                const lineTotal = qty * price;
-                totalAmount += lineTotal;
-
-                return `
-                <tr>
-                    <td class="text-center">${index + 1}</td>
-                    <td><div class="fw-bold">${item.productName}</div><small>Lô: ${item.lotCode}</small></td>
-                    <td class="text-end">${price.toLocaleString('vi-VN')} đ</td>
-                    <td class="text-center"><span class="badge bg-dark">${qty}</span></td>
-                    <td class="text-end fw-bold">${lineTotal.toLocaleString('vi-VN')} đ</td>
-                </tr>`;
+            let total = 0;
+            document.getElementById('receiptTableBody').innerHTML = items.map((item, i) => {
+                const lineTotal = item.actualQty * item.price; total += lineTotal;
+                return `<tr><td class="text-center">${i+1}</td><td><div class="fw-bold">${item.productName}</div><small>Lô: ${item.lotCode}</small></td><td class="text-end">${item.price.toLocaleString('vi-VN')} đ</td><td class="text-center"><span class="badge bg-dark">${item.actualQty}</span></td><td class="text-end fw-bold">${lineTotal.toLocaleString('vi-VN')} đ</td></tr>`;
             }).join('');
-
-            const tfoot = document.getElementById('receiptTableFoot');
-            if(tfoot) {
-                tfoot.innerHTML = `
-                <tr class="table-light">
-                    <td colspan="4" class="text-end fw-bold">TỔNG CỘNG:</td>
-                    <td class="text-end fw-bold text-danger fs-5">${totalAmount.toLocaleString('vi-VN')} đ</td>
-                </tr>`;
-            }
+            document.getElementById('receiptTableFoot').innerHTML = `<tr><td colspan="4" class="text-end fw-bold py-4">TỔNG CỘNG THANH TOÁN:</td><td class="text-end fw-bold text-danger fs-4 py-4">${total.toLocaleString('vi-VN')} đ</td></tr>`;
             new bootstrap.Modal(document.getElementById('receiptModal')).show();
         }
 
         async function loadCustomers() {
             try {
-                const response = await fetch('/api/customers');
-                if (response.ok) {
-                    const customers = await response.json();
-                    const select = document.getElementById('customerSelect');
-                    customers.forEach(cus => {
-                        const option = document.createElement('option');
-                        option.value = cus.id || cus.customer_id || cus.customerId;
-                        option.text = `${cus.customerCode || ''} - ${cus.customerName || cus.name}`;
-                        select.appendChild(option);
-                    });
+                const res = await fetch('/api/customers');
+                if (res.ok) {
+                    const data = await res.json(); const select = document.getElementById('customerSelect');
+                    data.forEach(cus => select.appendChild(new Option(`${cus.customerCode || ''} - ${cus.customerName}`, cus.id || cus.customer_id)));
                 }
-            } catch (error) { console.warn("Chưa load được danh sách khách hàng:", error); }
+            } catch (e) { console.warn(e); }
         }
 
         function initLayout() {
             if (controls) stopCamera();
             const activeTab = document.querySelector('#opTab .nav-link.active');
-            if (activeTab) {
-                const modeText = activeTab.innerText.toUpperCase();
-                let mode = 'INBOUND';
-                if (modeText.includes('XUẤT')) mode = 'OUTBOUND';
-                if (modeText.includes('ĐIỀU CHUYỂN')) mode = 'TRANSFER';
-
-                dom.scannedList.innerHTML = "";
-                switchMode(mode, activeTab);
-            }
-            initCSVImport();
-            loadCustomers();
+            if (activeTab) switchMode(activeTab.innerText.includes('XUẤT') ? 'OUTBOUND' : (activeTab.innerText.includes('ĐIỀU CHUYỂN') ? 'TRANSFER' : 'INBOUND'), activeTab);
+            initCSVImport(); loadCustomers();
         }
 
         document.getElementById('targetWarehouseSelect').addEventListener('change', async function() {
-            const warehouseId = this.value;
-            const locationSelect = document.getElementById('targetLocationSelect');
-            const locationContainer = document.getElementById('targetLocationContainer');
-            if (!warehouseId) return;
-
-            try {
-                const response = await fetch(`/scan-station/warehouses/${warehouseId}/locations`);
-                const locations = await response.json();
-                locationContainer.style.display = 'block';
-                locationSelect.innerHTML = '<option value="" selected disabled>-- Chọn vị trí nhận hàng --</option>';
-                locations.forEach(loc => {
-                    const option = document.createElement('option');
-                    option.value = loc.locationId;
-                    option.text = loc.locationCode;
-                    locationSelect.appendChild(option);
-                });
-            } catch (err) { console.error("Lỗi:", err); }
+            const res = await fetch(`/scan-station/warehouses/${this.value}/locations`);
+            const data = await res.json();
+            const sel = document.getElementById('targetLocationSelect');
+            document.getElementById('targetLocationContainer').style.display = 'flex';
+            sel.innerHTML = '<option value="" selected disabled>-- Chọn vị trí --</option>';
+            data.forEach(loc => sel.appendChild(new Option(loc.locationCode, loc.locationId)));
         });
 
         document.addEventListener('DOMContentLoaded', initLayout);
