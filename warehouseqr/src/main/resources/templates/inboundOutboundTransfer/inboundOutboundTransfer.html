@@ -342,6 +342,22 @@
             }
         };
 
+        // Hàm format số có dấu phẩy (dùng khi render ban đầu)
+        function formatCurrency(number) {
+            return parseInt(number || 0, 10).toLocaleString('vi-VN');
+        }
+
+        // Hàm tự động format khi người dùng gõ vào ô input
+        function handlePriceInput(input) {
+            // Xóa tất cả ký tự không phải là số
+            let val = input.value.replace(/[^0-9]/g, '');
+            if (val === '') {
+                input.value = '0';
+            } else {
+                input.value = parseInt(val, 10).toLocaleString('vi-VN');
+            }
+        }
+
         const codeReader = new ZXing.BrowserQRCodeReader();
         const beepSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
         let controls = null;
@@ -635,7 +651,9 @@
 
         <div class="text-end">
             <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">ĐƠN GIÁ</label>
-            <input type="number" class="form-control form-control-sm price-input" value="${importPrice}" style="width: 100px;">
+            <input type="text" class="form-control form-control-sm price-input"
+                   value="${formatCurrency(importPrice)}" style="width: 100px;"
+                   oninput="handlePriceInput(this)">
         </div>
         <div class="text-end">
             <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">DỰ KIẾN</label>
@@ -742,9 +760,10 @@
             if (!warehouseId) return alert("Vui lòng chọn Kho xử lý!");
 
             const items = Array.from(scannedRows).map(row => {
-                const priceVal = parseFloat(row.querySelector('.price-input').value) || 0;
-
-                const locId = parseInt(row.querySelector('.loc-input').value);
+                const rawPriceString = row.querySelector('.price-input').value;
+                const priceVal = parseFloat(rawPriceString.replace(/[^0-9]/g, '')) || 0;
+                const locInput = row.querySelector('.loc-input');
+                const locId = locInput ? parseInt(locInput.value) : (parseInt(row.getAttribute('data-location-id')) || 1);
                 return {
                     productId: parseInt(row.getAttribute('data-product-id')),
                     locationId: locId,
