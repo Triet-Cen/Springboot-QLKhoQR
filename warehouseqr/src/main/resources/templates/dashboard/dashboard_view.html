@@ -38,6 +38,9 @@
         <div class="col-md-7">
             <div class="card border-0 shadow-sm p-3 h-100">
                 <h6 class="fw-bold mb-3">Thống kê tổng quát</h6>
+                <a th:href="@{/api/dashboard/export-excel}" class="btn btn-sm btn-success">
+                    <i class="fas fa-file-excel"></i> Xuất Báo Cáo Excel
+                </a>
                 <div style="height: 300px;">
                     <canvas id="inventoryBarChart"></canvas>
                 </div>
@@ -59,6 +62,41 @@
                 <h6 class="fw-bold mb-3">Xu hướng nhập xuất 7 ngày qua</h6>
                 <div style="height: 350px;">
                     <canvas id="trendLineChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm p-3">
+                <h6 class="fw-bold mb-3">Danh sách Nhà cung cấp đối tác</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Mã NCC</th>
+                            <th>Tên Nhà cung cấp</th>
+                            <th>Người liên hệ</th>
+                            <th>Điện thoại</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="sup : ${suppliers}">
+                            <td th:text="${sup.supplierCode}" class="fw-bold">NCC001</td>
+                            <td th:text="${sup.supplierName}">Công ty ABC</td>
+                            <td th:text="${sup.contactPerson}">Nguyễn Văn A</td>
+                            <td th:text="${sup.phone}">090xxxxxxx</td>
+                            <td>
+                                <span th:if="${sup.active}" class="badge bg-success">Đang hợp tác</span>
+                                <span th:unless="${sup.active}" class="badge bg-danger">Ngừng cung cấp</span>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(suppliers)}">
+                            <td colspan="5" class="text-center text-muted">Chưa có dữ liệu nhà cung cấp</td>
+                        </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

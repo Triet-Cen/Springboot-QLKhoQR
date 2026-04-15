@@ -12,4 +12,6 @@ public interface WarehouseLocationRepository extends JpaRepository<WarehouseLoca
     Optional<WarehouseLocation> findByLocationCode (String locationCode);
 
     List<WarehouseLocation> findByWarehouses_WarehouseId(Long warehouseId);
+    Optional<WarehouseLocation> findByLocationCodeAndWarehouses_WarehouseId(String locationCode, Long warehouseId);
+    public WarehouseLocation findById(long id);
 }
