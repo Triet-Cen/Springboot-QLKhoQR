@@ -493,6 +493,14 @@
                 if (text.includes('|')) {
                     const warehouseId = document.getElementById('warehouseSelect') ? document.getElementById('warehouseSelect').value : "";
                     const [sku, lotCode] = text.split('|');
+
+
+                    if (!warehouseId && currentMode === "INBOUND") {
+                        alert("BẠN CHƯA CHỌN KHO!\nVui lòng chọn Kho xử lý trước khi quét mã sản phẩm.");
+                        lastScan = ""; // Reset để có thể quét lại
+                        return; // Dừng lại, không fetch API nữa
+                    }
+
                     const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}&warehouseId=${warehouseId}`);
 
                     if (response.redirected) {

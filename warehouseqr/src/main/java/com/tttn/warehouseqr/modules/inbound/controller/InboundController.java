@@ -1,5 +1,6 @@
 package com.tttn.warehouseqr.modules.inbound.controller;
 
+import com.tttn.warehouseqr.common.util.SecurityUtils;
 import com.tttn.warehouseqr.modules.inbound.dto.InboundRequestDTO;
 import com.tttn.warehouseqr.modules.inbound.service.InboundService;
 import com.tttn.warehouseqr.modules.inbound.service.impl.InboundServiceImpl;
@@ -18,10 +19,12 @@ public class InboundController {
 
     private final InboundServiceImpl inboundService;
     private final ProductService productService;
+    private final SecurityUtils  securityUtils;
 
-    public InboundController(InboundServiceImpl inboundService, ProductService productService) {
+    public InboundController(InboundServiceImpl inboundService, ProductService productService, SecurityUtils securityUtils) {
         this.inboundService = inboundService;
         this.productService = productService;
+        this.securityUtils = securityUtils;
     }
 
 
@@ -43,7 +46,7 @@ public class InboundController {
     public ResponseEntity<String> processInbound(@RequestBody InboundRequestDTO dto) {
         try {
             // Tạm thời lấy ID người dùng là 1 (sau này thay bằng SecurityContext)
-            Long userId = 1L;
+            Long userId = securityUtils.getCurrentUserId();
             // Gọi service xử lý nghiệp vụ trừ PO, cộng tồn kho mà ta đã viết
             inboundService.createInboundReceipt(dto, userId);
             return ResponseEntity.ok("Nhập kho thành công!");
