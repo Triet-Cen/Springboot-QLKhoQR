@@ -1,6 +1,7 @@
 package com.tttn.warehouseqr.modules.inventory.controller;
 
 import com.tttn.warehouseqr.modules.inventory.dto.InventoryDashboardDto;
+import com.tttn.warehouseqr.modules.inventory.dto.InventoryDetailDto;
 import com.tttn.warehouseqr.modules.inventory.dto.InventoryItemDto;
 import com.tttn.warehouseqr.modules.inventory.service.InventoryService;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -42,5 +44,21 @@ public class InventoryController {
         model.addAttribute("keyword", keyword);
 
         return "inventory/inventory-dashboard";
+    }
+
+    @GetMapping("/details/{productId}")
+    public String getInventoryDetails(@PathVariable Long productId,
+                                      @RequestParam(required = false) Long warehouseId, // CỰC KỲ QUAN TRỌNG: required = false
+                                      Model model) {
+
+        // Gọi Service lấy chi tiết. Hàm Repository
+        // để xử lý "warehouseId IS NULL" rồi nên truyền null vào không sao cả.
+        List<InventoryDetailDto> details = inventoryService.getProductDetails(productId, warehouseId);
+
+        model.addAttribute("details", details);
+
+        // Cú pháp này báo cho Thymeleaf biết: Chỉ lấy đúng cái đoạn
+        // <div th:fragment="detail-fragment"> để trả về, ĐỪNG trả về cả trang.
+        return "inventory/inventory-dashboard :: detail-fragment";
     }
 }

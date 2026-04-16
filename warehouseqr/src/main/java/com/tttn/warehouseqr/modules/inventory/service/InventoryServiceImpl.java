@@ -1,6 +1,7 @@
 package com.tttn.warehouseqr.modules.inventory.service;
 
 import com.tttn.warehouseqr.modules.inventory.dto.InventoryDashboardDto;
+import com.tttn.warehouseqr.modules.inventory.dto.InventoryDetailDto;
 import com.tttn.warehouseqr.modules.inventory.dto.InventoryItemDto;
 
 import com.tttn.warehouseqr.modules.inventory.entity.InventoryLocationBalance;
@@ -31,27 +32,33 @@ public class InventoryServiceImpl implements InventoryService {
     public InventoryDashboardDto getDashboardStats(List<InventoryItemDto> items) {
         InventoryDashboardDto stats = new InventoryDashboardDto();
 
-        // Tổng số loại sản phẩm
+        // Tổng số dòng sản phẩm
         stats.setTotalProducts(items.size());
 
         long lowStockCount = 0;
-        double totalQty = 0.0;
-        double totalVal = 0.0;
+
+        // Khởi tạo bằng BigDecimal.ZERO thay vì 0.0
+        BigDecimal totalQty = BigDecimal.ZERO;
+        BigDecimal totalVal = BigDecimal.ZERO;
 
         for (InventoryItemDto item : items) {
 
-            totalQty += (item.getTotalQuantity() != null ? item.getTotalQuantity() : 0.0);
-            totalVal += (item.getTotalValue() != null ? item.getTotalValue() : 0.0);
+            // Lấy giá trị an toàn, nếu null thì gán là 0
+            BigDecimal qty = (item.getTotalQuantity() != null) ? item.getTotalQuantity() : BigDecimal.ZERO;
+            BigDecimal val = (item.getTotalValue() != null) ? item.getTotalValue() : BigDecimal.ZERO;
 
+            // Dùng phương thức .add() để cộng dồn, và phải gán ngược lại vào biến
+            totalQty = totalQty.add(qty);
+            totalVal = totalVal.add(val);
 
             if (item.isLowStock()) {
                 lowStockCount++;
             }
         }
 
-        // Chuyển ngược lại về BigDecimal để set vào Dto nếu DashboardDto yêu cầu BigDecimal
-        stats.setTotalQuantity(BigDecimal.valueOf(totalQty));
-        stats.setTotalInventoryValue(BigDecimal.valueOf(totalVal));
+        // Set thẳng vào Dto mà không cần chuyển đổi (valueOf) nữa
+        stats.setTotalQuantity(totalQty);
+        stats.setTotalInventoryValue(totalVal);
         stats.setLowStockWarnings(lowStockCount);
 
         return stats;
@@ -90,5 +97,11 @@ public class InventoryServiceImpl implements InventoryService {
         balance.setQty(balance.getQty().add(qty));
         balance.setUpdateAt(LocalDateTime.now());
         balanceRepository.save(balance);
+    }
+
+    @Override
+    public List<InventoryDetailDto> getProductDetails(Long productId, Long warehouseId) {
+        // Gọi query lấy chi tiết theo Vị trí và Lô hàng
+        return productRepository.getProductInventoryDetails(productId, warehouseId);
     }
 }
