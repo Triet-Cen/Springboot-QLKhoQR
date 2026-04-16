@@ -143,10 +143,13 @@ public class StorageLocationServiceImpl implements StorageLocationService {
                         r.getBatchId(),
                         r.getLotCode(),
                         r.getSku(),
-                        r.getQty() != null ? r.getQty().doubleValue() : 0.0,
+                        r.getQty() != null ? r.getQty().doubleValue() : 0.0, // expectedQty
+                        0.0,                                                   // actualQty
                         r.getLocationId(),
                         r.getLocationCode(),
-                        0.0
+                        0.0,                                                   // importPrice
+                        null,                                                  // supplierId
+                        null                                                   // warehouseId
                 ))
                 .collect(Collectors.toList());
     }
@@ -163,7 +166,7 @@ public class StorageLocationServiceImpl implements StorageLocationService {
             throw new RuntimeException("Không tìm thấy vị trí kho từ mã QR này.");
         }
 
-        StorageLocationRepository.LocationInventoryView first = rows.get(0);
+        StorageLocationRepository.LocationInventoryView first = rows.getFirst();
 
         // Có vị trí nhưng chưa có sản phẩm nào
         if (first.getProductId() == null) {
