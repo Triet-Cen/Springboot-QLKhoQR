@@ -1,5 +1,6 @@
 package com.tttn.warehouseqr.modules.masterdata.product.repository;
 
+import com.tttn.warehouseqr.modules.inventory.dto.InventoryDetailDto;
 import com.tttn.warehouseqr.modules.inventory.dto.InventoryItemDto;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import com.tttn.warehouseqr.modules.stocktake.dto.ExpiryWarningDto;
@@ -31,7 +32,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
 
     //Báo cáo tồn kho
+    // Báo cáo tồn kho
     @Query("SELECT new com.tttn.warehouseqr.modules.inventory.dto.InventoryItemDto(" +
+            "p.product_id, " + // BỔ SUNG DÒNG NÀY Ở ĐẦU
             "p.sku, " +
             "p.productName, " +
             "c.categoryName, " +
@@ -46,7 +49,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "WHERE (:keyword IS NULL OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
             "OR LOWER(p.productName) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
             "GROUP BY p.product_id, p.sku, p.productName, c.categoryName, p.minStock " +
-            "HAVING COUNT(ilb.id) > 0")   // Chỉ lấy sản phẩm có ít nhất một bản ghi trong kho được lọc
+            "HAVING COUNT(ilb.id) > 0")
     List<InventoryItemDto> getInventoryReport(@Param("keyword") String keyword, @Param("warehouseId") Long warehouseId);
 
 
@@ -58,6 +61,16 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "GROUP BY p.product_id, p.sku, p.productName, p.minStock " +
             "HAVING COALESCE(SUM(ilb.qty), 0) <= p.minStock")
     List<LowStockDto> findLowStockByWarehouse(@Param("warehouseId") Long warehouseId);
+
+
+    //Chi tiết sản phẩm trong tồn kho
+    @Query("SELECT new com.tttn.warehouseqr.modules.inventory.dto.InventoryDetailDto(" +
+            "wl.locationCode, pb.lotCode, ilb.qty) " +
+            "FROM InventoryLocationBalance ilb " +
+            "JOIN WarehouseLocation wl ON ilb.locationId = wl.locationId " + // Đã sửa location_id thành locationId
+            "LEFT JOIN ProductBatch pb ON ilb.batchId = pb.batchId " +
+            "WHERE ilb.productId = :productId AND ilb.warehouseId = :warehouseId")
+    List<InventoryDetailDto> getProductInventoryDetails(@Param("productId") Long productId, @Param("warehouseId") Long warehouseId);
 
 
 }
