@@ -63,29 +63,34 @@
 
                 <!-- 4 thẻ thống kê -->
                 <div class="row mb-4">
-                    <div class="col-md-3">
+                    <div class="col-md-3 mb-3">
                         <div class="card-stat h-100">
-                            <div>
+                            <div class="flex-grow-1 overflow-hidden pe-2">
                                 <div class="title">Tổng sản phẩm</div>
-                                <div class="value" th:text="${#numbers.formatDecimal(dashboard?.totalProducts ?: 0, 0, 'COMMA', 0, 'POINT')}">0</div>
+                                <div class="value text-truncate">
+                                    <span th:text="${dashboard?.totalProducts ?: 0}">0</span>
+                                </div>
                             </div>
-                            <div class="icon-box icon-blue"><i class="bi bi-box-seam"></i></div>
+                            <div class="icon-box icon-blue flex-shrink-0"><i class="bi bi-box-seam"></i></div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card-stat">
-                            <div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100">
+                            <div class="flex-grow-1 overflow-hidden pe-2">
                                 <div class="title">Tổng số lượng</div>
-                                <div class="value" th:text="${#numbers.formatDecimal(dashboard?.totalQuantity ?: 0, 0, 'COMMA', 0, 'POINT')}">0</div>
+                                <div class="value text-truncate">
+                                    <span th:text="${dashboard?.formattedTotalQuantity ?: dashboard?.totalQuantity ?: 0}">0</span>
+                                </div>
                             </div>
-                            <div class="icon-box icon-green"><i class="bi bi-boxes"></i></div>
+                            <div class="icon-box icon-green flex-shrink-0"><i class="bi bi-boxes"></i></div>
                         </div>
                     </div>
+
                     <div class="col-md-3 mb-3">
                         <div class="card-stat h-100">
                             <div class="flex-grow-1 overflow-hidden pe-2">
                                 <div class="title">Giá trị tồn kho</div>
-
                                 <div class="value text-truncate" title="Giá trị tồn kho chi tiết">
                                     <span th:text="${dashboard?.formattedTotalValue ?: '0'}">0</span>
                                     <span class="ms-1">đ</span>
@@ -94,13 +99,16 @@
                             <div class="icon-box icon-purple flex-shrink-0"><i class="bi bi-cash-stack"></i></div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card-stat">
-                            <div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100">
+                            <div class="flex-grow-1 overflow-hidden pe-2">
                                 <div class="title">Sắp hết hàng</div>
-                                <div class="value text-danger" th:text="${dashboard?.lowStockWarnings ?: 0}">0</div>
+                                <div class="value text-truncate text-danger">
+                                    <span th:text="${dashboard?.lowStockWarnings ?: 0}">0</span>
+                                </div>
                             </div>
-                            <div class="icon-box icon-red"><i class="bi bi-exclamation-triangle"></i></div>
+                            <div class="icon-box icon-red flex-shrink-0"><i class="bi bi-exclamation-triangle"></i></div>
                         </div>
                     </div>
                 </div>
