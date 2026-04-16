@@ -3,6 +3,7 @@ package com.tttn.warehouseqr.modules.Location.controller;
 import com.tttn.warehouseqr.modules.Location.entity.StorageLocation;
 import com.tttn.warehouseqr.modules.Location.repository.WarehouseZoneRepository;
 import com.tttn.warehouseqr.modules.Location.service.StorageLocationService;
+
 import com.tttn.warehouseqr.modules.masterdata.warehouse.services.WarehouseService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;

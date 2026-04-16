@@ -25,14 +25,24 @@ public class ProductScanDTO {
     // 5. SKU để đối soát nếu cần
     private String sku;
 
+    //6. Số lượng mong đợi
+    private Double expectedQty;
+
+    //7. Số lượng thực nhận
     private Double actualQty;
 
-    // 6. ID vị trí
+    // 8. ID vị trí Kho
     private Long locationId;
 
-    // 7. Mã vị trí (ví dụ: KE-A-01)
+    // 9. Mã vị trí (ví dụ: KE-A-01)
     private String locationCode;
 
+    //10. Giá nhập
     private Double importPrice;
+
+    //11. Id Nhà Cung Cấp
+    private Long supplierId;
+    //12. Id Mã kho
+    private Long warehouseId;
 
 }

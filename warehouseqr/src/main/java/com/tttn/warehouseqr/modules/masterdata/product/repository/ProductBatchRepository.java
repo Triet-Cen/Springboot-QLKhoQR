@@ -25,7 +25,8 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
             "JOIN b.product p " +
             "LEFT JOIN QrCode q ON q.referenceId = b.batchId AND q.referenceType = 'BATCH' " +
             "WHERE (:keyw IS NULL OR :keyw = '' OR p.sku LIKE %:keyw% OR p.productName LIKE %:keyw% OR b.lotCode LIKE %:keyw%) " +
-            "AND (:categoryId = 0 OR p.category.categoryId = :categoryId)")
+            "AND (:categoryId = 0 OR p.category.categoryId = :categoryId) " +
+            "ORDER BY b.batchId DESC")
     Page<ProductQrDTO> searchBatchesWithQr(@Param("keyw") String keyw,@Param("categoryId") long categoryId, Pageable pageable);
 
     @Query("SELECT pb FROM ProductBatch pb WHERE pb.lotCode = :lotCode AND pb.product.product_id = :productId")

@@ -12,9 +12,12 @@ import com.tttn.warehouseqr.modules.inventory.repository.InventoryHistoryReposit
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.ProductBatch;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
+import com.tttn.warehouseqr.modules.masterdata.supplier.repository.SupplierRepository;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseLocationRepository;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseRepository;
 import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrderItemRepository;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -45,7 +48,11 @@ public class InboundServiceImpl implements InboundService {
 
     private final WarehouseLocationRepository warehouseLocationRepository;
 
-    public InboundServiceImpl(InboundReceiptRepository receiptRepo, InboundReceiptItemRepository itemRepo, PurchaseOrderItemRepository poItemRepo, InventoryLocationBalanceRepository balanceRepo, InventoryHistoryRepository historyRepo, ProductRepository productRepo, ProductBatchRepository batchRepo, WarehouseLocationRepository warehouseLocationRepository) {
+    private final SupplierRepository supplierRepository;
+
+    private final WarehouseRepository warehouseRepository;
+
+    public InboundServiceImpl(InboundReceiptRepository receiptRepo, InboundReceiptItemRepository itemRepo, PurchaseOrderItemRepository poItemRepo, InventoryLocationBalanceRepository balanceRepo, InventoryHistoryRepository historyRepo, ProductRepository productRepo, ProductBatchRepository batchRepo, WarehouseLocationRepository warehouseLocationRepository, SupplierRepository supplierRepository, WarehouseRepository warehouseRepository) {
         this.receiptRepo = receiptRepo;
         this.itemRepo = itemRepo;
         this.poItemRepo = poItemRepo;
@@ -54,12 +61,14 @@ public class InboundServiceImpl implements InboundService {
         this.productRepo = productRepo;
         this.batchRepo = batchRepo;
         this.warehouseLocationRepository = warehouseLocationRepository;
+        this.supplierRepository = supplierRepository;
+        this.warehouseRepository = warehouseRepository;
     }
 
 
     @Override
     @Transactional(rollbackFor = Exception.class) // Đã thêm rollback an toàn
-    public InboundReceipt createInboundReceipt(InboundRequestDTO dto) {
+    public InboundReceipt createInboundReceipt(InboundRequestDTO dto, Long userId) {
         // 1. Kiểm tra Header cơ bản
         if (dto.getWarehouseId() == null) throw new RuntimeException("Lỗi: warehouseId bị null");
 
@@ -74,6 +83,7 @@ public class InboundServiceImpl implements InboundService {
         receipt.setStatus("COMPLETED");
         receipt.setCreatedAt(LocalDateTime.now());
         receipt.setReceivedAt(LocalDateTime.now());
+        receipt.setCreatedBy(userId);
 
         InboundReceipt savedReceipt = receiptRepo.save(receipt);
 
@@ -101,15 +111,19 @@ public class InboundServiceImpl implements InboundService {
                 item.setBatch(batch);
             }
 
-            BigDecimal qty = BigDecimal.valueOf(itemDto.getActualQty() != null ? itemDto.getActualQty() : 0.0);
-            item.setActualQty(qty);
-            item.setExpectedQty(qty);
+            BigDecimal actualQty = BigDecimal.valueOf(itemDto.getActualQty() != null ? itemDto.getActualQty() : 0.0);
+            BigDecimal expectedQty = BigDecimal.valueOf(itemDto.getExpectedQty() != null ? itemDto.getExpectedQty() : 0.0);
+
+            item.setActualQty(actualQty);
+            item.setExpectedQty(expectedQty); // Phải lấy từ trường expectedQty của DTO
             item.setPutawayLocationId(itemDto.getLocationId());
+
 
             itemRepo.save(item);
 
             // QUAN TRỌNG: Chỉ update PO nếu có PurchaseOrderId
             if (dto.getPurchaseOrderId() != null) {
+                // Cập nhật số lượng thực nhận vào đơn mua
                 poItemRepo.updateReceivedQty(dto.getPurchaseOrderId(), itemDto.getProductId(), itemDto.getActualQty());
             }
 
@@ -124,9 +138,8 @@ public class InboundServiceImpl implements InboundService {
             );
 
             if (balanceOpt.isPresent()) {
-                // NẾU ĐÃ CÓ HÀNG TẠI VỊ TRÍ NÀY -> Cộng dồn
                 InventoryLocationBalance existingBalance = balanceOpt.get();
-                existingBalance.setQty(existingBalance.getQty().add(qty));
+                existingBalance.setQty(existingBalance.getQty().add(actualQty));
                 existingBalance.setUpdateAt(LocalDateTime.now()); // Cập nhật thời gian
                 balanceRepo.save(existingBalance);
             } else {
@@ -136,7 +149,7 @@ public class InboundServiceImpl implements InboundService {
                 newBalance.setLocationId(itemDto.getLocationId());
                 newBalance.setProductId(itemDto.getProductId());
                 newBalance.setBatchId(itemDto.getBatchId());
-                newBalance.setQty(qty);
+                newBalance.setQty(actualQty);
                 newBalance.setStatus("AVAILABLE");
                 // THÊM DÒNG NÀY: Ghi lại thời gian tạo
                 newBalance.setUpdateAt(LocalDateTime.now());
@@ -148,8 +161,8 @@ public class InboundServiceImpl implements InboundService {
             InventoryHistory history = new InventoryHistory();
             history.setTransactionType("INBOUND");
             history.setProductId(itemDto.getProductId());
-            history.setBatchId(itemDto.getBatchId()); // ĐÃ THÊM: Lưu Batch ID vào lịch sử
-            history.setQtyChange(qty);
+            history.setBatchId(itemDto.getBatchId());
+            history.setQtyChange(actualQty);
             history.setToLocationId(itemDto.getLocationId());
             history.setWarehouseId(dto.getWarehouseId());
             historyRepo.save(history);
@@ -165,6 +178,10 @@ public class InboundServiceImpl implements InboundService {
     @Override
     public List<ProductScanDTO> parseCsvToDTO(MultipartFile file) {
         List<ProductScanDTO> dtos = new ArrayList<>();
+
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+
         try(BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
             reader.mark(1);
             if (reader.read() != 0xFEFF) {
@@ -175,34 +192,87 @@ public class InboundServiceImpl implements InboundService {
                     CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());
 
             for (CSVRecord record : parser) {
+                // Đọc dữ liệu từ các cột trong CSV
                 String sku = record.get("SKU");
                 String lotCode = record.get("Mã Lô Hàng");
-                String qtyStr = record.get("Số Lượng");
-
+                String expiryDateStr = record.get("Ngày Hết Hạn");
+                String supplierCode = record.get("Mã NCC");
+                String qtyStr = record.get("Số Lượng"); // Số lượng này đóng vai trò là "Dự kiến" từ hóa đơn
                 String priceStr = record.isMapped("Giá Nhập") ? record.get("Giá Nhập") : "0";
+                String warehouseCode = record.isMapped("Mã Kho") ? record.get("Mã Kho") : "";
 
-                // 🛠 ĐÃ FIX LỖI: Gán giá trị 1 lần duy nhất để biến trở thành "effectively final"
-                String locationCode = (record.isMapped("Mã Vị Trí") && record.get("Mã Vị Trí") != null && !record.get("Mã Vị Trí").trim().isEmpty())
-                        ? record.get("Mã Vị Trí")
-                        : "LOC-DEFAULT-01";
 
+
+                // 1. Kiểm tra Sản phẩm (Master Data)
                 Product product = productRepo.findBySku(sku);
+                if (product == null) {
+                    throw new RuntimeException("Lỗi dòng " + record.getRecordNumber() + ": Sản phẩm SKU " + sku + " chưa tồn tại!");
+                }
 
-                var batch = batchRepo.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id()).orElse(null);
 
-                // Bây giờ locationCode có thể thoải mái dùng trong lambda (->) mà không bị lỗi
+                // 2. Xử lý Lô hàng (ProductBatch) - Tự động tạo định danh để in tem QR
+                var batch = batchRepo.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id())
+                        .orElseGet(() -> {
+                            ProductBatch newBatch = new ProductBatch();
+                            newBatch.setLotCode(lotCode);
+                            newBatch.setProduct(product);
+                            newBatch.setCostPrice(new BigDecimal(priceStr));
+
+                            // Xử lý ngày hết hạn
+                            if (expiryDateStr != null && !expiryDateStr.trim().isEmpty()) {
+                                try {
+                                    newBatch.setExpiryDate(java.time.LocalDate.parse(expiryDateStr.trim(), formatter));
+                                } catch (Exception e) {
+                                    throw new RuntimeException("Lỗi định dạng ngày tại dòng " + record.getRecordNumber() + ": " + expiryDateStr);
+                                }
+                            }
+
+                            // Gán Nhà cung cấp từ SupplierRepository
+                            if (supplierCode != null && !supplierCode.trim().isEmpty()) {
+                                supplierRepository.findBySupplierCode(supplierCode.trim())
+                                        .ifPresent(newBatch::setSupplier);
+                            }
+
+                            // Lưu ngay để lấy Batch ID phục vụ in tem QR
+                            return batchRepo.save(newBatch);
+                        });
+
+                // 3. Xác định Vị trí kho (Put-away Location)
+                String locationCode = (record.isMapped("Mã Vị Trí") && !record.get("Mã Vị Trí").isEmpty())
+                        ? record.get("Mã Vị Trí") : "LOC-DEFAULT-01";
+
                 var location = warehouseLocationRepository.findByLocationCode(locationCode)
-                        .orElseThrow(() -> new RuntimeException("Vị trí đặt không tồn tại: " + locationCode));
+                        .orElseThrow(() -> new RuntimeException("Vị trí " + locationCode + " không tồn tại trong hệ thống!"));
+
+                // 4. Đóng gói DTO (Áp dụng logic đối soát Phương án A)
+                double qtyFromCsv = Double.parseDouble(qtyStr);
+
                 ProductScanDTO dto = new ProductScanDTO();
                 dto.setProductId(product.getProduct_id());
                 dto.setProductName(product.getProductName());
                 dto.setSku(sku);
                 dto.setLotCode(lotCode);
-                dto.setBatchId(batch != null ? batch.getBatchId(): null);
-                dto.setActualQty(Double.parseDouble(qtyStr));
+                dto.setBatchId(batch.getBatchId()); // Batch ID dùng để sinh mã QR
+
+                // LOGIC QUAN TRỌNG:
+                dto.setExpectedQty(qtyFromCsv); // Số lượng dự kiến từ hóa đơn/CSV (không cho sửa ở FE)
+                dto.setActualQty(qtyFromCsv);   // Số lượng thực tế (Ban đầu bằng dự kiến, cho FE sửa)
+
                 dto.setLocationId(location.getLocationId());
                 dto.setLocationCode(locationCode);
                 dto.setImportPrice(Double.parseDouble(priceStr));
+
+                // Tìm warehouseId từ mã kho
+                if (!warehouseCode.isEmpty()) {
+                    warehouseRepository.findByWarehouseCode(warehouseCode)
+                            .ifPresent(w -> dto.setWarehouseId(w.getWarehouseId()));
+                }
+
+                // Tìm supplierId từ mã NCC (bạn đã có supplierCode)
+                if (supplierCode != null) {
+                    supplierRepository.findBySupplierCode(supplierCode)
+                            .ifPresent(s -> dto.setSupplierId(s.getSupplierId()));
+                }
 
                 dtos.add(dto);
             }
