@@ -143,13 +143,13 @@ public class StorageLocationServiceImpl implements StorageLocationService {
                         r.getBatchId(),
                         r.getLotCode(),
                         r.getSku(),
-                        r.getQty() != null ? r.getQty().doubleValue() : 0.0, // expectedQty
-                        0.0,                                                   // actualQty
+                        r.getQty() != null ? r.getQty().doubleValue() : 0.0,
+                        0.0,
                         r.getLocationId(),
                         r.getLocationCode(),
-                        0.0,                                                   // importPrice
-                        null,                                                  // supplierId
-                        null                                                   // warehouseId
+                        0.0,
+                        null,
+                        null
                 ))
                 .collect(Collectors.toList());
     }
