@@ -85,4 +85,18 @@ public class ScanController {
         }
     }
 
+
+    // Quét QR kiểm kê
+    @GetMapping("/stocktake")
+    public String showStocktakeScan(@RequestParam("sessionId") Long sessionId,
+                                    @RequestParam(value = "returnUrl", required = false) String returnUrl,
+                                    Model model) {
+        model.addAttribute("sessionId", sessionId);
+        model.addAttribute("returnUrl", returnUrl != null ? returnUrl : "/admin/stocktake");
+        // Tái sử dụng cùng giao diện inboundOutboundTransfer nhưng có thể hiển thị chế độ kiểm kê
+        // Bạn có thể truyền thêm flag "mode=stocktake" để giao diện điều chỉnh hành vi
+        model.addAttribute("mode", "stocktake");
+        return "inboundOutboundTransfer/inboundOutboundTransfer";
+    }
+
 }

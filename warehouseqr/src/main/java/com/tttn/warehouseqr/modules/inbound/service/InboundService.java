@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface InboundService {
     // Xử lý tạo phiếu nhập và cập nhật kho
-    InboundReceipt createInboundReceipt(InboundRequestDTO dto);
+    InboundReceipt createInboundReceipt(InboundRequestDTO dto, Long userId);
 
     // Tìm kiếm thông tin phiếu nhập
     InboundReceipt getById(Long id);

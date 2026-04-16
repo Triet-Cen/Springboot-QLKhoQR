@@ -1,21 +1,31 @@
 package com.tttn.warehouseqr.modules.Location.service.Impl;
 
+import com.tttn.warehouseqr.modules.Location.dto.LocationInventoryScanDTO;
 import com.tttn.warehouseqr.modules.Location.entity.StorageLocation;
 import com.tttn.warehouseqr.modules.Location.repository.StorageLocationRepository;
 import com.tttn.warehouseqr.modules.Location.service.StorageLocationService;
+import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.QrCode;
+import com.tttn.warehouseqr.modules.masterdata.product.repository.QrCodeResipotory;
+import com.tttn.warehouseqr.utils.QrCodeUtil;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 public class StorageLocationServiceImpl implements StorageLocationService {
 
     private final StorageLocationRepository storageLocationRepository;
+    private final QrCodeResipotory qrCodeResipotory;
 
-    public StorageLocationServiceImpl(StorageLocationRepository storageLocationRepository) {
+    public StorageLocationServiceImpl(StorageLocationRepository storageLocationRepository,
+                                      QrCodeResipotory qrCodeResipotory) {
         this.storageLocationRepository = storageLocationRepository;
+        this.qrCodeResipotory = qrCodeResipotory;
     }
 
     @Override
@@ -65,15 +75,15 @@ public class StorageLocationServiceImpl implements StorageLocationService {
             location.setCapacity(0);
         }
 
-        // vị trí mới chưa có tồn thì mặc định used = 0
         location.setUsedCapacity(0);
 
-        // nếu user chọn INACTIVE thì giữ, còn lại để hệ thống tự tính
         if (!"INACTIVE".equalsIgnoreCase(location.getStatus())) {
             location.setStatus("EMPTY");
         }
 
-        return storageLocationRepository.save(location);
+        StorageLocation saved = storageLocationRepository.save(location);
+        generateOrUpdateLocationQr(saved);
+        return saved;
     }
 
     @Override
@@ -88,21 +98,144 @@ public class StorageLocationServiceImpl implements StorageLocationService {
         oldLocation.setRackCode(location.getRackCode());
         oldLocation.setBinCode(location.getBinCode());
         oldLocation.setCapacity(location.getCapacity());
-        oldLocation.setQrCodeId(location.getQrCodeId());
         oldLocation.setDescription(location.getDescription());
 
-        // Không lấy usedCapacity từ form vì form không có field này
         BigDecimal usedQty = storageLocationRepository.getUsedQtyByLocationId(id);
         oldLocation.setUsedCapacity(usedQty != null ? usedQty.intValue() : 0);
 
-        // Cho phép giữ INACTIVE nếu user chọn khóa vị trí
         if ("INACTIVE".equalsIgnoreCase(location.getStatus())) {
             oldLocation.setStatus("INACTIVE");
         } else {
             recalculateOperationalStatus(oldLocation);
         }
 
-        return storageLocationRepository.save(oldLocation);
+        StorageLocation saved = storageLocationRepository.save(oldLocation);
+        generateOrUpdateLocationQr(saved);
+        return saved;
+    }
+
+    @Override
+    public List<ProductScanDTO> traceProductLocationsByQr(String qrContent) {
+        if (qrContent == null || qrContent.isBlank()) {
+            throw new RuntimeException("QR content không được để trống.");
+        }
+
+        QrCode qrCode = qrCodeResipotory.findByQrContent(qrContent.trim())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy QR trong hệ thống."));
+
+        if (!"BATCH".equalsIgnoreCase(qrCode.getReferenceType())) {
+            throw new RuntimeException("QR này không phải QR của lô hàng sản phẩm.");
+        }
+
+        Long batchId = qrCode.getReferenceId();
+
+        List<StorageLocationRepository.ProductLocationView> rows =
+                storageLocationRepository.findProductLocationsByBatchId(batchId);
+
+        if (rows.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy vị trí đang chứa sản phẩm cho QR này.");
+        }
+
+        return rows.stream()
+                .map(r -> new ProductScanDTO(
+                        r.getProductId(),
+                        r.getProductName(),
+                        r.getBatchId(),
+                        r.getLotCode(),
+                        r.getSku(),
+                        r.getQty() != null ? r.getQty().doubleValue() : 0.0,
+                        r.getLocationId(),
+                        r.getLocationCode(),
+                        0.0
+                ))
+                .collect(Collectors.toList());
+    }
+    @Override
+    public List<LocationInventoryScanDTO> traceInventoryByLocationQr(String qrContent) {
+        if (qrContent == null || qrContent.isBlank()) {
+            throw new RuntimeException("QR vị trí không được để trống.");
+        }
+
+        List<StorageLocationRepository.LocationInventoryView> rows =
+                storageLocationRepository.findInventoryByLocationQr(qrContent.trim());
+
+        if (rows.isEmpty()) {
+            throw new RuntimeException("Không tìm thấy vị trí kho từ mã QR này.");
+        }
+
+        StorageLocationRepository.LocationInventoryView first = rows.get(0);
+
+        // Có vị trí nhưng chưa có sản phẩm nào
+        if (first.getProductId() == null) {
+            throw new RuntimeException(
+                    "Vị trí " + first.getLocationCode() + " hiện chưa có sản phẩm nào."
+            );
+        }
+
+        return rows.stream()
+                .map(r -> new LocationInventoryScanDTO(
+                        r.getLocationId(),
+                        r.getLocationCode(),
+                        r.getAisleCode(),
+                        r.getRackCode(),
+                        r.getBinCode(),
+                        r.getZoneName(),
+                        r.getProductId(),
+                        r.getProductName(),
+                        r.getSku(),
+                        r.getBatchId(),
+                        r.getLotCode(),
+                        r.getQty() != null ? r.getQty().doubleValue() : 0.0
+                ))
+                .toList();
+    }
+    @Override
+    public Map<String, Object> getLocationQrInfo(Long locationId) {
+        StorageLocation location = storageLocationRepository.findById(locationId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy vị trí kho."));
+
+        QrCode qrCode = qrCodeResipotory.findByReferenceIdAndReferenceType(locationId, "LOCATION");
+        if (qrCode == null) {
+            qrCode = generateOrUpdateLocationQr(location);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("locationId", location.getLocationId());
+        result.put("locationCode", location.getLocationCode());
+        result.put("qrCodeId", qrCode.getQrCodeId());
+        result.put("qrContent", qrCode.getQrContent());
+        result.put("imgBase64", qrCode.getImgPath());
+        return result;
+    }
+
+    private QrCode generateOrUpdateLocationQr(StorageLocation location) {
+        if (location.getLocationId() == null) {
+            throw new RuntimeException("Vị trí kho chưa có ID nên chưa thể sinh QR.");
+        }
+
+        String qrContent = location.getLocationCode();
+        String base64Image = QrCodeUtil.GenerateQRCodeBase64(qrContent, 300, 300);
+
+        QrCode qrCode = qrCodeResipotory.findByReferenceIdAndReferenceType(location.getLocationId(), "LOCATION");
+
+        if (qrCode == null) {
+            qrCode = new QrCode();
+            qrCode.setReferenceType("LOCATION");
+            qrCode.setReferenceId(location.getLocationId());
+            qrCode.setPrinted(false);
+        }
+
+        qrCode.setQrContent(qrContent);
+        qrCode.setImgPath(base64Image);
+
+        qrCode = qrCodeResipotory.save(qrCode);
+
+        if (location.getQrCodeId() == null || !location.getQrCodeId().equals(qrCode.getQrCodeId())) {
+            location.setQrCodeId(qrCode.getQrCodeId());
+            storageLocationRepository.save(location);
+        }
+
+        return qrCode;
     }
 
     private void syncUsageAndStatusFromInventory(StorageLocation loc) {

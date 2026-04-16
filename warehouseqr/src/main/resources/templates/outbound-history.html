@@ -3,35 +3,64 @@
       th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
 <head>
     <title>Lịch sử Xuất Kho | WMS Pro</title>
+
     <style>
-        /* Tông màu chủ đạo của WMS Pro */
         .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
         .table thead th { background-color: #f8f9fa; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6; }
-        .btn-view { background: #f8f9fa; color: #4f46e5; border: 1px solid #e5e7eb; border-radius: 8px; font-weight: 600; }
-        .btn-view:hover { background: #4f46e5; color: white; }
+        .btn-view { background: #f8f9fa; color: #4f46e5; border: 1px solid #e5e7eb; border-radius: 8px; font-weight: 600; transition: all 0.3s; }
+        .btn-view:hover { background: #4f46e5; color: white; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3); }
         .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .filter-box { background-color: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 20px;}
 
-        /* CSS cho việc In ấn */
+        /* Tối ưu khung thông tin Invoice khi không có QR */
+        .invoice-info-box { background-color: #f8fafc; border: 1px solid #f1f5f9; }
+        .icon-circle { width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+
         @media print {
             body * { visibility: hidden; }
             #detailModal .modal-content, #detailModal .modal-content * { visibility: visible; }
-            #detailModal .modal-content { position: absolute; left: 0; top: 0; width: 100%; border: none; }
+            #detailModal .modal-content { position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none !important; }
             .modal-footer, .btn-close { display: none !important; }
+            .invoice-info-box { background-color: transparent !important; border: none !important; padding: 0 !important; }
         }
     </style>
 </head>
 <body>
 <div id="mainContent">
     <div class="container-fluid py-4">
-        <div class="row mb-4">
-            <div class="col-md-8">
+        <div class="row mb-3 align-items-center">
+            <div class="col-md-5">
                 <h3 class="fw-bold text-dark mb-1">Lịch sử Phiếu Xuất Kho</h3>
-                <p class="text-muted small">Quản lý và tra cứu thông tin người nhận hàng</p>
+                <p class="text-muted small">Tra cứu và quản lý chứng từ xuất hàng</p>
             </div>
-            <div class="col-md-4 text-end">
-                <button class="btn btn-white shadow-sm rounded-3 border" onclick="loadHistory()">
-                    <i class="bi bi-arrow-clockwise me-1"></i> Làm mới dữ liệu
+            <div class="col-md-7 text-end">
+                <button class="btn btn-white shadow-sm rounded-3 border fw-bold" onclick="resetFilter()">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Làm mới
                 </button>
+                <button class="btn btn-success shadow-sm rounded-3 border ms-2 fw-bold" onclick="exportExcel()">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Xuất Excel
+                </button>
+            </div>
+        </div>
+
+        <div class="filter-box row g-3">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-muted">Tìm kiếm mã phiếu</label>
+                <div class="input-group shadow-sm" style="border-radius: 8px; overflow: hidden;">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="searchKeyword" class="form-control border-start-0 ps-0" placeholder="Nhập mã PX...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted">Từ ngày</label>
+                <input type="date" id="startDate" class="form-control shadow-sm text-muted border-0 bg-light">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold text-muted">Đến ngày</label>
+                <input type="date" id="endDate" class="form-control shadow-sm text-muted border-0 bg-light">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100 fw-bold shadow-sm" onclick="loadHistory(0)" style="height: 38px;">Lọc Dữ Liệu</button>
             </div>
         </div>
 
@@ -55,51 +84,85 @@
                     </table>
                 </div>
             </div>
+
+            <div class="card-footer bg-white border-top-0 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small fw-bold" id="pageInfo">Hiển thị 0 kết quả</span>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginationControls"></ul>
+                    </nav>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
-                <div class="modal-header border-0 py-4 px-4" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white;">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-receipt-cutoff me-2"></i> CHI TIẾT BIÊN LAI XUẤT KHO</h5>
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+                <div class="modal-header border-0 py-3 px-4" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white;">
+                    <h5 class="modal-title fw-bold" style="letter-spacing: 1px;"><i class="bi bi-receipt-cutoff me-2 text-info"></i> CHI TIẾT BIÊN LAI XUẤT KHO</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-5">
-                    <div class="text-center mb-4">
-                        <h4 class="fw-bold mb-1" id="mCode">PX-000000</h4>
-                        <p class="text-muted mb-0">Người nhận: <span id="mCustomer" class="fw-bold text-dark"></span></p>
-                    </div>
-                    <hr class="my-4 opacity-50">
 
-                    <table class="table table-sm border-0">
-                        <thead class="table-light">
-                        <tr>
-                            <th class="py-2 text-center" width="5%">STT</th>
-                            <th class="py-2">Sản phẩm / Lô hàng</th>
-                            <th class="py-2 text-end" width="20%">Đơn giá</th>
-                            <th class="py-2 text-center" width="10%">SL</th>
-                            <th class="py-2 text-end" width="25%">Thành tiền</th>
-                        </tr>
-                        </thead>
-                        <tbody id="mItemsBody"></tbody>
-                        <tfoot id="mItemsFoot"></tfoot>
-                    </table>
+                <div class="modal-body p-4 p-md-5 bg-white">
+                    <div class="row g-4 mb-5 invoice-info-box p-4 rounded-4 mx-0 shadow-sm">
+                        <div class="col-md-4 border-end border-light">
+                            <h6 class="text-uppercase fw-bolder text-muted mb-3" style="font-size: 11px; letter-spacing: 1.2px;">Mã Chứng Từ</h6>
+                            <h3 class="fw-bolder text-primary mb-0" id="mCode">PX-000000</h3>
+                        </div>
+                        <div class="col-md-4 border-end border-light px-md-4">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary bg-opacity-10 icon-circle me-3 text-primary"><i class="bi bi-building fs-4"></i></div>
+                                <div>
+                                    <h6 class="text-uppercase fw-bolder text-muted mb-1" style="font-size: 11px; letter-spacing: 1.2px;">Khách hàng nhận</h6>
+                                    <p class="fw-bold text-dark mb-0 fs-6" id="mCustomer">Khách lẻ</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 px-md-4">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-success bg-opacity-10 icon-circle me-3 text-success"><i class="bi bi-person-badge fs-4"></i></div>
+                                <div>
+                                    <h6 class="text-uppercase fw-bolder text-muted mb-1" style="font-size: 11px; letter-spacing: 1.2px;">Người lập phiếu</h6>
+                                    <p class="fw-bold text-dark mb-0 fs-6" id="mCreator">Hệ thống</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold text-dark mb-3 text-uppercase" style="letter-spacing: 0.5px;"><i class="bi bi-box-seam me-2 text-primary"></i>Chi tiết danh mục hàng hóa</h6>
+                    <div class="table-responsive rounded-4 border shadow-sm">
+                        <table class="table table-hover table-borderless align-middle mb-0">
+                            <thead class="table-light border-bottom">
+                            <tr>
+                                <th class="py-3 text-center text-muted fw-bold" width="5%">STT</th>
+                                <th class="py-3 text-muted fw-bold">SẢN PHẨM / LÔ HÀNG</th>
+                                <th class="py-3 text-end text-muted fw-bold" width="18%">ĐƠN GIÁ</th>
+                                <th class="py-3 text-center text-muted fw-bold" width="12%">SỐ LƯỢNG</th>
+                                <th class="py-3 text-end text-muted fw-bold" width="22%">THÀNH TIỀN</th>
+                            </tr>
+                            </thead>
+                            <tbody id="mItemsBody"></tbody>
+                            <tfoot id="mItemsFoot" class="bg-light border-top"></tfoot>
+                        </table>
+                    </div>
 
                     <div class="row mt-5 text-center d-none d-print-flex">
                         <div class="col-6">
-                            <p class="fw-bold mb-5">Người giao</p>
-                            <p class="text-muted">(Ký, họ tên)</p>
+                            <p class="fw-bold mb-5">Người giao hàng</p>
+                            <p class="text-muted fst-italic">(Ký, ghi rõ họ tên)</p>
                         </div>
                         <div class="col-6">
-                            <p class="fw-bold mb-5">Người nhận</p>
-                            <p class="text-muted">(Ký, họ tên)</p>
+                            <p class="fw-bold mb-5">Khách hàng nhận</p>
+                            <p class="text-muted fst-italic">(Ký, ghi rõ họ tên)</p>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-0 bg-light py-3">
-                    <button class="btn btn-primary rounded-pill px-5 fw-bold" onclick="window.print()">
-                        <i class="bi bi-printer me-2"></i> In Lại Phiếu
+
+                <div class="modal-footer border-top-0 bg-light py-3 px-4 d-flex justify-content-between align-items-center">
+                    <span class="small text-muted fst-italic"><i class="bi bi-info-circle me-1"></i> Hệ thống quản lý kho thông minh WMS Pro</span>
+                    <button class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold" onclick="window.print()" style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%); border: none;">
+                        <i class="bi bi-printer me-2"></i> In Phiếu Xuất
                     </button>
                 </div>
             </div>
@@ -107,79 +170,109 @@
     </div>
 
     <script th:inline="javascript">
-        // 1. Tự động load khi mở trang
-        document.addEventListener('DOMContentLoaded', loadHistory);
+        let currentPage = 0;
+        document.addEventListener('DOMContentLoaded', () => loadHistory(0));
 
-        async function loadHistory() {
+        function resetFilter() {
+            document.getElementById('searchKeyword').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            loadHistory(0);
+        }
+
+        function exportExcel() {
+            const keyword = document.getElementById('searchKeyword').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            window.location.href = `/api/outbound/export?keyword=${encodeURIComponent(keyword)}&startDate=${startDate}&endDate=${endDate}`;
+        }
+
+        async function loadHistory(page) {
+            currentPage = page;
+            const keyword = document.getElementById('searchKeyword').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
             try {
-                const res = await fetch('/api/outbound/history');
+                const res = await fetch(`/api/outbound/history?page=${page}&size=10&keyword=${encodeURIComponent(keyword)}&startDate=${startDate}&endDate=${endDate}`);
                 const data = await res.json();
                 const tbody = document.getElementById('historyTableBody');
 
-                if(data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5">Chưa có phiếu xuất nào.</td></tr>';
+                if(!data.content || data.content.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>Không tìm thấy dữ liệu.</td></tr>';
+                    document.getElementById('pageInfo').innerText = "Hiển thị 0 kết quả";
+                    document.getElementById('paginationControls').innerHTML = '';
                     return;
                 }
 
-                tbody.innerHTML = data.map((item, index) => `
+                tbody.innerHTML = data.content.map((item, index) => `
                     <tr>
-                        <td class="text-center text-muted small">${index + 1}</td>
-                        <td><span class="fw-bold text-primary">${item.receiptCode}</span></td>
-                        <td><span class="text-muted small">${new Date(item.createdAt).toLocaleString('vi-VN')}</span></td>
-                        <td><div class="fw-bold">${item.customer || 'Khách lẻ'}</div></td>
-                        <td><span class="status-badge bg-success bg-opacity-10 text-success">${item.status || 'SHIPPED'}</span></td>
+                        <td class="text-center text-muted small fw-bold">${(page * 10) + index + 1}</td>
+                        <td><span class="fw-bolder text-primary">${item.receiptCode}</span></td>
+                        <td><span class="text-muted small"><i class="bi bi-clock me-1"></i>${new Date(item.createdAt).toLocaleString('vi-VN')}</span></td>
+                        <td><div class="fw-bold text-dark">${item.customer || 'Khách lẻ'}</div></td>
+                        <td><span class="status-badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">${item.status || 'SHIPPED'}</span></td>
                         <td class="text-center">
-                            <button class="btn btn-view btn-sm px-3" onclick="showDetail(${item.id}, '${item.receiptCode}', '${item.customer}')">
+                            <button class="btn btn-view btn-sm px-3" onclick="showDetail(${item.id}, '${item.receiptCode}', '${item.customer}', '${item.creatorName}')">
                                 <i class="bi bi-eye"></i> Xem
                             </button>
                         </td>
                     </tr>
                 `).join('');
+
+                document.getElementById('pageInfo').innerText = `Tổng cộng ${data.totalItems} mã phiếu (Trang ${data.currentPage + 1}/${data.totalPages})`;
+                renderPagination(data.totalPages, data.currentPage);
             } catch (err) {
-                console.error("Lỗi tải lịch sử:", err);
-                document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="6" class="text-center py-5 text-danger">Lỗi kết nối đến máy chủ!</td></tr>';
+                document.getElementById('historyTableBody').innerHTML = '<tr><td colspan="6" class="text-center py-5 text-danger">Lỗi kết nối máy chủ!</td></tr>';
             }
         }
 
-        // ĐÃ CẬP NHẬT: Hàm showDetail tự động tính toán tổng tiền
-        async function showDetail(id, code, customer) {
+        function renderPagination(totalPages, current) {
+            let html = '';
+            html += `<li class="page-item ${current === 0 ? 'disabled' : ''}"><button class="page-link text-dark fw-bold" onclick="loadHistory(${current - 1})">Trước</button></li>`;
+            for(let i = 0; i < totalPages; i++) {
+                html += `<li class="page-item ${current === i ? 'active' : ''}"><button class="page-link" onclick="loadHistory(${i})">${i + 1}</button></li>`;
+            }
+            html += `<li class="page-item ${current === totalPages - 1 ? 'disabled' : ''}"><button class="page-link text-dark fw-bold" onclick="loadHistory(${current + 1})">Sau</button></li>`;
+            document.getElementById('paginationControls').innerHTML = html;
+        }
+
+        async function showDetail(id, code, customer, creatorName) {
             try {
                 const res = await fetch(`/api/outbound/history/${id}/items`);
                 const items = await res.json();
 
                 document.getElementById('mCode').innerText = code;
                 document.getElementById('mCustomer').innerText = customer || 'Khách lẻ';
+                document.getElementById('mCreator').innerText = (creatorName && creatorName !== 'undefined') ? creatorName : 'Hệ thống';
 
                 let totalAmount = 0;
-
                 document.getElementById('mItemsBody').innerHTML = items.map((item, i) => {
                     const qty = item.actualQty || 1;
-                    // Bắt mọi loại biến giá có thể trả về từ Backend
-                    const price = item.price || item.exportPrice || item.unitPrice || 0;
+                    const price = item.price || 0;
                     const lineTotal = qty * price;
                     totalAmount += lineTotal;
-
                     return `
-                    <tr>
-                        <td class="text-center text-muted">${i+1}</td>
-                        <td><div class="fw-bold text-dark">${item.productName}</div><small class="text-muted">Lô: ${item.lotCode}</small></td>
-                        <td class="text-end">${price.toLocaleString('vi-VN')} đ</td>
-                        <td class="text-center"><span class="badge bg-dark rounded-pill">${qty}</span></td>
-                        <td class="text-end fw-bold">${lineTotal.toLocaleString('vi-VN')} đ</td>
-                    </tr>
-                    `;
+                    <tr class="border-bottom border-light">
+                        <td class="text-center text-muted fw-bold">${i+1}</td>
+                        <td>
+                            <div class="fw-bold text-dark mb-1" style="font-size: 15px;">${item.productName}</div>
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 fw-normal"><i class="bi bi-upc-scan me-1"></i>Lô: ${item.lotCode}</span>
+                        </td>
+                        <td class="text-end fw-medium text-secondary">${price.toLocaleString('vi-VN')} đ</td>
+                        <td class="text-center"><span class="badge bg-primary rounded-pill px-3 py-2 fs-6 shadow-sm" style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);">${qty}</span></td>
+                        <td class="text-end fw-bold text-dark fs-6">${lineTotal.toLocaleString('vi-VN')} đ</td>
+                    </tr>`;
                 }).join('');
 
-                // Gắn dòng tính tổng vào cuối bảng
                 document.getElementById('mItemsFoot').innerHTML = `
-                    <tr class="table-light">
-                        <td colspan="4" class="text-end fw-bold py-3">TỔNG CỘNG:</td>
-                        <td class="text-end fw-bold text-danger fs-5 py-3">${totalAmount.toLocaleString('vi-VN')} đ</td>
-                    </tr>
-                `;
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold text-muted py-4 fs-6 text-uppercase" style="letter-spacing: 1px;">Tổng Tiền Thanh Toán:</td>
+                        <td colspan="2" class="text-end fw-bolder text-danger py-4" style="font-size: 1.4rem;">${totalAmount.toLocaleString('vi-VN')} đ</td>
+                    </tr>`;
 
                 new bootstrap.Modal(document.getElementById('detailModal')).show();
-            } catch (err) { alert("Lỗi tải chi tiết phiếu xuất!"); }
+            } catch (err) { alert("Lỗi tải chi tiết!"); }
         }
     </script>
 </div>

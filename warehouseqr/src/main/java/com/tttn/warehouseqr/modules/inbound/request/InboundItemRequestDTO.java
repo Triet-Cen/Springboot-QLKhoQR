@@ -13,4 +13,5 @@ public class InboundItemRequestDTO {
     private String productName;
     private String lotCode;
     private Double importPrice;
+    private Double expectedQty;
 }

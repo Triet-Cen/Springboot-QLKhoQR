@@ -23,8 +23,7 @@
             <div class="d-flex flex-column lh-1">
                 <span class="fw-semibold text-dark mb-1" style="font-size: 14px;" sec:authentication="principal.Username">Nguyễn Văn A</span>
                 <small class="text-secondary" style="font-size: 11px;"
-                       th:text="${#authentication.authorities[0].authority.replace('ROLE_', '')}">
-                    Vai trò
+                       th:text="${#authentication.authorities[0].authority.replace('ROLE_', '')}">Vai trò
                 </small>
                 <!--                <span class="text-secondary" style="font-size: 12px;">Quản lý kho</span>-->
             </div>

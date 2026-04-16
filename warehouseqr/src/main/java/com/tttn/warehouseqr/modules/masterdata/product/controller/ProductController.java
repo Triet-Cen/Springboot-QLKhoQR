@@ -9,8 +9,10 @@ import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ImportQrService;
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductBatchService;
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductService;
+import com.tttn.warehouseqr.modules.masterdata.supplier.service.SupplierService;
 import com.tttn.warehouseqr.modules.masterdata.unit.entity.Unit;
 import com.tttn.warehouseqr.modules.masterdata.unit.service.UnitService;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.services.WarehouseService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -29,15 +31,23 @@ public class ProductController {
     private final UnitService unitService;
     private final ImportQrService importQrService;
     private final ProductBatchService productBatchService;
+    private final SupplierService supplierService;
+    private final WarehouseService warehouseService;
 
-    public ProductController(ProductService productService, CategoryService categoryService,
-                             UnitService unitService, ImportQrService importQrService,
-                             ProductBatchService productBatchService) {
+    public ProductController(ProductService productService,
+                             CategoryService categoryService,
+                             UnitService unitService,
+                             ImportQrService importQrService,
+                             ProductBatchService productBatchService,
+                             SupplierService supplierService,
+                             WarehouseService warehouseService) {
         this.productService = productService;
         this.categoryService = categoryService;
         this.unitService = unitService;
         this.importQrService = importQrService;
-        this.productBatchService=productBatchService;
+        this.productBatchService = productBatchService;
+        this.supplierService = supplierService;
+        this.warehouseService=warehouseService;
     }
 
     @PostMapping("/import-csv")
@@ -73,6 +83,9 @@ public class ProductController {
         model.addAttribute("productPage", response);
         model.addAttribute("keyword", keyw);
         model.addAttribute("categoryId", categoryId);
+        model.addAttribute("categories",categoryService.getAllCategory());
+        model.addAttribute("suppliers", supplierService.getAllSuppliers());
+        model.addAttribute("warehouses", warehouseService.getAllWarehouse());
 
         return "productAndQr/products/product-list/list";
     }

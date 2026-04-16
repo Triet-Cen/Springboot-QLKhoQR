@@ -63,4 +63,9 @@ public interface InventoryLocationBalanceRepository extends JpaRepository<Invent
 
     Optional<InventoryLocationBalance> findByWarehouseIdAndLocationIdAndProductIdAndBatchId(
             Long warehouseId, Long locationId, Long productId, Long batchId);
+
+    List<InventoryLocationBalance> findByBatchId(Long batchId);
+
+
+    List<InventoryLocationBalance> findByWarehouseId(Long warehouseId);
 }
