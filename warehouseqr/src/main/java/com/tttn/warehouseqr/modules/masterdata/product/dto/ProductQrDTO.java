@@ -1,17 +1,34 @@
 package com.tttn.warehouseqr.modules.masterdata.product.dto;
 
+import jakarta.validation.constraints.Future;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.validation.annotation.Validated;
+
 import java.time.LocalDate;
 
 public class ProductQrDTO {
+    @NotNull(message = "Mã sản phẩm không được rỗng!")
     private Long productId;
+
+    @NotNull(message = "Mã lô không được rỗng!")
     private Long batchId;
+
+    @NotBlank(message = "SKU không được rỗng!")
     private String sku;
+    @NotBlank(message = "Tên sản phẩm không được rỗng!")
     private String productName;
+    @NotBlank(message = "Lot code không được rỗng!")
     private String lotCode;
+    @Future(message = "Nhập ngày trong tương lai!")
     private LocalDate expiryDate;
     private Boolean hasQr;       // Trạng thái: Đã tạo QR hay chưa?
     private String qrBase64;
+    @NotNull(message = "Số lượng không được để trống")
+    @Min(value = 0,message = "Số lượng phải lớn hơn 0!")
     private Double quantity;
+    @NotBlank(message = "Vị trí không được để trống!")
     private String location;
 
     public Double getQuantity() {

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Kiểm tra dữ liệu Import</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Tùy chỉnh màu sắc cho các trạng thái */
+        .status-insert { background-color: #d1e7dd !important; } /* Xanh nhạt: Tạo mới */
+        .status-update { background-color: #fff3cd !important; } /* Vàng nhạt: Cộng dồn */
+        .status-invalid { background-color: #f8d7da !important; } /* Đỏ nhạt: Lỗi */
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container mt-5 mb-5">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Xác nhận dữ liệu Import Kho</h4>
+            <a th:href="@{/products}" class="btn btn-sm btn-light">Hủy bỏ</a>
+        </div>
+
+        <div class="card-body">
+            <div class="alert alert-info">
+                <strong>Hướng dẫn:</strong>
+                <span class="badge bg-success">Màu xanh</span> = Sẽ tạo sản phẩm/lô mới.
+                <span class="badge bg-warning text-dark">Màu vàng</span> = Trùng SKU, sẽ cộng dồn số lượng.
+                <span class="badge bg-danger">Màu đỏ</span> = Dữ liệu lỗi (Sẽ bị bỏ qua).
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>STT</th>
+                        <th>SKU</th>
+                        <th>Tên Sản Phẩm</th>
+                        <th>Mã Lô</th>
+                        <th>Số Lượng</th>
+                        <th>Vị Trí</th>
+                        <th>Hành Động Hệ Thống</th>
+                        <th>Chi tiết / Cảnh báo</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="item, stat : ${tempList}"
+                        th:classappend="${item.validationStatus == 'INSERT' or item.validationStatus == 'NEW_BATCH' ? 'status-insert' :
+                                            (item.validationStatus == 'UPDATE' ? 'status-update' :
+                                            (item.validationStatus == 'INVALID' ? 'status-invalid' : ''))}">
+
+                        <td th:text="${stat.count}">1</td>
+                        <td class="fw-bold" th:text="${item.sku}">SKU-01</td>
+                        <td th:text="${item.productName}">Tên SP</td>
+                        <td th:text="${item.batchCode}">Lô 01</td>
+                        <td class="fw-bold text-center" th:text="${item.quantity}">10</td>
+                        <td th:text="${item.locationCode}">Kệ A</td>
+
+                        <td class="text-center">
+                            <span th:if="${item.validationStatus == 'INSERT'}" class="badge bg-success">TẠO MỚI</span>
+                            <span th:if="${item.validationStatus == 'NEW_BATCH'}" class="badge bg-success">TẠO LÔ MỚI</span>
+                            <span th:if="${item.validationStatus == 'UPDATE'}" class="badge bg-warning text-dark">CỘNG DỒN</span>
+                            <span th:if="${item.validationStatus == 'INVALID'}" class="badge bg-danger">LỖI DỮ LIỆU</span>
+                        </td>
+
+                        <td th:text="${item.validationMessage}">Thông báo hệ thống</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-4 text-end border-top pt-3">
+                <form th:action="@{/products/import-confirm}" method="post">
+                    <input type="hidden" name="sessionId" th:value="${sessionId}" />
+
+                    <button type="submit" class="btn btn-success btn-lg px-5">
+                        <i class="bi bi-check-circle"></i> XÁC NHẬN NHẬP KHO CHÍNH THỨC
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -2,6 +2,8 @@ package com.tttn.warehouseqr.modules.masterdata.warehouse.entity;
 
 import jakarta.persistence.*;
 
+import java.util.List;
+
 @Entity
 @Table(name = "warehouses")
 public class Warehouse {
@@ -18,6 +20,11 @@ public class Warehouse {
 
     @Column(name = "warehouse_address",nullable = true,columnDefinition = "TEXT")
     private String warehouseAddress;
+
+    @OneToMany(mappedBy = "warehouses", fetch = FetchType.EAGER)
+    private List<WarehouseLocation> locations;
+
+
 
     public Warehouse() {
     }
@@ -60,5 +67,9 @@ public class Warehouse {
     public void setWarehouseAddress(String warehouseAddress) {
         this.warehouseAddress = warehouseAddress;
     }
+
+
+    public List<WarehouseLocation> getLocations() { return locations; }
+    public void setLocations(List<WarehouseLocation> locations) { this.locations = locations; }
 
 }

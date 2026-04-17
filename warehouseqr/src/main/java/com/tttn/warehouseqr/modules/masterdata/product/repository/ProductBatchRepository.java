@@ -49,4 +49,6 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
 
 
     Optional<ProductBatch> findByLotCodeAndProduct(String lotCode, Product product);
+
+    Optional<ProductBatch> findFirstByProduct(Product product);
 }
