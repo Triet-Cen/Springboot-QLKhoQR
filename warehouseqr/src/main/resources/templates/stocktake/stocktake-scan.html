@@ -148,33 +148,55 @@
                     return;
                 }
 
-                // Bước 2: Quét Sản phẩm (Không submit gửi API liền nữa)
+                // Bước 2: Quét Sản phẩm (Đã nâng cấp Fail Fast)
                 if (!lastProductQr) {
                     if (decodedText.includes("|")) { // Mã Sản phẩm có chứa dấu |
-                        lastProductQr = decodedText;
+                        isProcessing = true; // Khóa camera tạm thời
+                        if(html5QrCode.getState() === 2) { html5QrCode.pause(); } // Dừng camera lại ngay
 
-                        // Hiển thị tên SKU lên màn hình
-                        const skuInfo = decodedText.split("|")[0];
-                        document.getElementById('current-product').innerText = skuInfo;
-                        document.getElementById('product-info').classList.remove('d-none');
+                        // GỌI API KIỂM TRA TRƯỚC (PRE-CHECK)
+                        fetch(`/admin/stocktake/verify-item?sessionId=${sessionId}&locationQr=${savedLocationQr}&productQr=${encodeURIComponent(decodedText)}`)
+                        .then(async res => {
+                            if (res.ok) {
+                                // SERVER BÁO OK -> HÀNG ĐÚNG KỆ -> CHUYỂN SANG BƯỚC 3 (NHẬP SỐ LƯỢNG)
+                                lastProductQr = decodedText;
 
-                        // Chuyển sang Bước 3: Nhập số lượng
-                        document.getElementById('scan-step-indicator').className = "alert alert-warning fw-bold mx-auto";
-                        document.getElementById('scan-step-indicator').innerHTML = '<i class="bi bi-3-circle-fill"></i>  Nhập số lượng và Xác nhận';
+                                const skuInfo = decodedText.split("|")[0];
+                                document.getElementById('current-product').innerText = skuInfo;
+                                document.getElementById('product-info').classList.remove('d-none');
 
-                        // Hiện khu vực nhập số lượng
-                        document.getElementById('quantity-section').classList.remove('d-none');
-                        document.getElementById('quantity-section').classList.add('d-flex');
+                                document.getElementById('scan-step-indicator').className = "alert alert-warning fw-bold mx-auto";
+                                document.getElementById('scan-step-indicator').innerHTML = '<i class="bi bi-3-circle-fill"></i> Bước 3: Nhập số lượng và Xác nhận';
 
-                        // Mẹo UX/UI: Tạm dừng camera để user tập trung gõ phím
-                        if(html5QrCode.getState() === 2) { html5QrCode.pause(); }
+                                document.getElementById('quantity-section').classList.remove('d-none');
+                                document.getElementById('quantity-section').classList.add('d-flex');
 
-                        // Tự động focus vào ô nhập số, bôi đen số "1" có sẵn để người dùng gõ đè số mới luôn
-                        const qtyInput = document.getElementById('scanQty');
-                        qtyInput.focus();
-                        qtyInput.select();
+                                const qtyInput = document.getElementById('scanQty');
+                                qtyInput.focus();
+                                qtyInput.select();
 
-                        new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3').play().catch(e=>console.log);
+                                new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3').play().catch(e=>console.log);
+                                isProcessing = false; // Mở cờ xử lý
+
+                            } else {
+                                // SERVER BÁO LỖI -> HÀNG SAI KỆ HOẶC KHÔNG TỒN TẠI
+                                const errorMsg = await res.text();
+                                showStatus(`❌ LỖI: ${errorMsg}`, 'danger');
+
+                                // Nếu bạn có file âm thanh báo lỗi riêng thì thay link vào đây
+                                new Audio('https://www.soundjay.com/misc/sounds/fail-buzzer-01.mp3').play().catch(e=>console.log);
+
+                                // Đợi 2.5 giây cho người dùng đọc lỗi rồi mở camera lên quét SP khác
+                                setTimeout(() => {
+                                    if(html5QrCode.getState() === 3) { html5QrCode.resume(); }
+                                    isProcessing = false;
+                                }, 2500);
+                            }
+                        }).catch(err => {
+                            showStatus(`❌ Lỗi mạng: Không thể kiểm tra sản phẩm`, 'danger');
+                            setTimeout(() => { resumeScanner(); }, 2000);
+                        });
+
                     } else {
                         showStatus('Đây không phải là mã Sản phẩm hợp lệ!', 'warning');
                     }
