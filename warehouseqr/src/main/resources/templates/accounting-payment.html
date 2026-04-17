@@ -1,0 +1,587 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Kế Toán | Quản Lý Thu Tiền</title>
+
+    <style>
+        .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+        .table thead th { background-color: #f8f9fa; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6; }
+        .btn-view { background: #f8f9fa; color: #4f46e5; border: 1px solid #e5e7eb; border-radius: 8px; font-weight: 600; transition: all 0.3s; }
+        .btn-view:hover { background: #4f46e5; color: white; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3); }
+        .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+
+        .qr-float-panel {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 1060;
+            width: 420px;
+            max-width: calc(100vw - 40px);
+            display: none;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+        }
+        .qr-float-panel.show { display: block; }
+        .qr-float-panel .qr-preview {
+            width: 100%;
+            max-height: 420px;
+            background: #fff;
+            padding: 16px;
+            overflow-y: auto;
+        }
+        .qr-ticket {
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 12px;
+            background: linear-gradient(180deg, #ffffff, #f9fafb);
+        }
+        .qr-ticket:last-child { margin-bottom: 0; }
+        .qr-ticket canvas,
+        .qr-ticket img {
+            width: 100% !important;
+            height: auto !important;
+            max-width: 120px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .bg-unpaid { background-color: rgba(244, 63, 94, 0.1); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.2); }
+        .bg-paid { background-color: rgba(34, 197, 94, 0.1); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .bg-pending { background-color: rgba(245, 158, 11, 0.1); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.2); }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4 px-md-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="fw-bolder text-dark mb-1"><i class="bi bi-wallet2 text-success me-2"></i>Quản Lý Thu Tiền Xuất Kho</h3>
+                <p class="text-muted mb-0">Bộ phận Kế toán: Duyệt dòng tiền để mở khóa xuất hàng</p>
+            </div>
+            <button class="btn btn-primary rounded-pill px-4 shadow-sm" onclick="loadOrders()">
+                <i class="bi bi-arrow-clockwise me-2"></i>Làm mới dữ liệu
+            </button>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card card-custom p-3">
+                    <div class="text-muted small fw-bold">Tổng tiền đã thu</div>
+                    <div class="h4 fw-bolder text-success mb-0" id="metricPaid">0 đ</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-custom p-3">
+                    <div class="text-muted small fw-bold">Tổng tiền chờ thu</div>
+                    <div class="h4 fw-bolder text-danger mb-0" id="metricUnpaid">0 đ</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-custom p-3">
+                    <div class="text-muted small fw-bold">Số đơn chờ xử lý</div>
+                    <div class="h4 fw-bolder text-warning mb-0" id="metricPendingCount">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-custom mb-3 p-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="btn-group" role="group" aria-label="Bộ lọc trạng thái">
+                    <button class="btn btn-sm btn-outline-secondary active" onclick="setFilter('ALL', this)">Tất cả</button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="setFilter('UNPAID', this)">Chưa thu tiền</button>
+                    <button class="btn btn-sm btn-outline-success" onclick="setFilter('PAID', this)">Đã thu tiền</button>
+                </div>
+                <input id="searchKeyword" type="text" class="form-control form-control-sm" style="max-width: 260px;"
+                       placeholder="Tìm theo mã SO / khách hàng..." oninput="renderOrders()">
+            </div>
+        </div>
+
+        <div class="card card-custom">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th class="text-center py-3" width="5%">STT</th>
+                            <th>MÃ ĐƠN HÀNG</th>
+                            <th>NGÀY TẠO</th>
+                            <th>KHÁCH HÀNG</th>
+                            <th class="text-end">TỔNG TIỀN</th>
+                            <th class="text-center">PHÊ DUYỆT (QL)</th>
+                            <th class="text-center">THANH TOÁN (KT)</th>
+                            <th class="text-center" width="15%">THAO TÁC</th>
+                        </tr>
+                        </thead>
+                        <tbody id="orderTableBody">
+                        <tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="paymentQrPanel" class="qr-float-panel card border-0">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <div>
+                <div class="fw-bold">QR xuất kho theo sản phẩm</div>
+                <div class="small opacity-75" id="qrPanelTitle">Sẵn sàng chụp / in</div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-light" onclick="hideQrPanel()">Đóng</button>
+        </div>
+        <div class="qr-preview" id="qrPreviewBox"></div>
+        <div class="card-body pt-0">
+            <div class="small text-muted mb-2">Mã gốc đang phát hành</div>
+            <div id="qrPayloadText" class="fw-bold small text-break mb-3"></div>
+            <div class="alert alert-info py-2 px-3 small mb-3">
+                Khi ra kho, hãy quét <strong>SO trước</strong>, sau đó quét từng QR sản phẩm bên dưới.
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary btn-sm flex-fill" onclick="copyQrPayload()">Copy mã</button>
+                <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="window.print()">In</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header border-0 bg-success text-white" style="border-radius: 20px 20px 0 0;">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-check2-circle me-2"></i>XÁC NHẬN THU TIỀN</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" id="modalOrderId">
+                    <div class="text-center mb-4">
+                        <h4 class="fw-bolder text-dark mb-1" id="modalSoCode">SO-2026-001</h4>
+                        <p class="text-muted mb-0">Khách hàng: <strong id="modalCustomerName">Khách Lẻ</strong></p>
+                        <h2 class="text-danger fw-black mt-3 mb-0" id="modalTotalAmount">0 đ</h2>
+                        <span class="badge bg-danger bg-opacity-10 text-danger mt-1">CẦN THU</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">PHƯƠNG THỨC THANH TOÁN</label>
+                        <select id="paymentMethodSelect" class="form-select form-select-lg bg-light border-0 shadow-sm">
+                            <option value="TRANSFER">💳 Chuyển khoản Ngân hàng</option>
+                            <option value="CASH">💵 Tiền mặt / Thu COD</option>
+                            <option value="DEBT">📝 Ghi nợ (Khách quen)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-muted small">MÃ GIAO DỊCH / ỦY NHIỆM CHI</label>
+                        <input id="paymentTransactionCode" type="text" class="form-control bg-light border-0 shadow-sm"
+                               placeholder="Ví dụ: FT2504170001">
+                    </div>
+
+                    <div class="mb-1">
+                        <label class="form-label fw-bold text-muted small">GHI CHÚ</label>
+                        <textarea id="paymentNote" rows="2" class="form-control bg-light border-0 shadow-sm"
+                                  placeholder="Nội dung đối soát, người chuyển, ..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light" style="border-radius: 0 0 20px 20px;">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm" onclick="submitPayment()">
+                        <i class="bi bi-safe me-2"></i>Xác Nhận Đã Thu Tiền
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script th:inline="javascript">
+        let paymentModal;
+        let allOrders = [];
+        let currentFilter = 'ALL';
+        let lastQrPayload = '';
+        let lastQrPayloads = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            loadOrders();
+        });
+
+        function makeQr(box, payload, size = 120) {
+            if (!window.QRCode) {
+                box.innerHTML = '<div class="text-danger text-center small">Không tải được thư viện QR.</div>';
+                return;
+            }
+            new QRCode(box, {
+                text: payload,
+                width: size,
+                height: size,
+                colorDark: '#111827',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+
+        function showQrPanel(payloads, titleText) {
+            lastQrPayloads = Array.isArray(payloads) ? payloads : [];
+            lastQrPayload = lastQrPayloads.length > 0 ? lastQrPayloads[0].payload : '';
+            document.getElementById('qrPanelTitle').innerText = titleText || 'Sẵn sàng chụp / in';
+            document.getElementById('qrPayloadText').innerText = lastQrPayload || 'Không có mã QR';
+
+            const box = document.getElementById('qrPreviewBox');
+            box.innerHTML = '';
+
+            if (lastQrPayloads.length === 0) {
+                box.innerHTML = '<div class="text-muted text-center small">Không tìm thấy sản phẩm để tạo QR.</div>';
+            } else {
+                lastQrPayloads.forEach((item, index) => {
+                    const ticket = document.createElement('div');
+                    ticket.className = 'qr-ticket';
+                    ticket.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <div class="fw-bold text-dark">${item.productName || 'Sản phẩm'}</div>
+                                <div class="small text-muted">SKU: <strong>${item.sku || ''}</strong></div>
+                                <div class="small text-muted">Lô: <strong>${item.lotCode || ''}</strong></div>
+                                <div class="small text-muted">SL đề xuất: <strong>${item.requiredQty ?? ''}</strong></div>
+                            </div>
+                            <span class="badge bg-primary bg-opacity-10 text-primary">#${index + 1}</span>
+                        </div>
+                        <div class="qr-holder d-flex justify-content-center mb-2"></div>
+                        <div class="small text-break text-muted">${item.payload}</div>
+                    `;
+                    box.appendChild(ticket);
+
+                    const holder = ticket.querySelector('.qr-holder');
+                    if (item.imgPath) {
+                        const img = document.createElement('img');
+                        img.alt = `QR ${item.sku || ''}`;
+                        img.src = item.imgPath.startsWith('data:image')
+                            ? item.imgPath
+                            : `data:image/png;base64,${item.imgPath}`;
+                        holder.appendChild(img);
+                    } else {
+                        makeQr(holder, item.payload, 120);
+                    }
+                });
+            }
+
+            document.getElementById('paymentQrPanel').classList.add('show');
+        }
+
+        function hideQrPanel() {
+            document.getElementById('paymentQrPanel').classList.remove('show');
+        }
+
+        async function copyQrPayload() {
+            if (!lastQrPayload) return;
+            try {
+                const text = lastQrPayloads.length > 1
+                    ? lastQrPayloads.map(item => item.payload).join('\n')
+                    : lastQrPayload;
+                await navigator.clipboard.writeText(text);
+                alert('Đã copy mã QR.');
+            } catch (e) {
+                alert('Không thể copy tự động, bạn hãy chọn và sao chép thủ công.');
+            }
+        }
+
+        function buildOutboundQrPayload(item, lotCode) {
+            return `${item.sku || ''}|${lotCode || item.lotCode || 'Mặc định'}`;
+        }
+
+        function pickBestLocation(suggestedLocations) {
+            if (!Array.isArray(suggestedLocations) || suggestedLocations.length === 0) return null;
+            return [...suggestedLocations].sort((a, b) => {
+                const ra = Number(a.fifoRank || 999999);
+                const rb = Number(b.fifoRank || 999999);
+                if (ra !== rb) return ra - rb;
+                const aa = Number(b.availableQty || 0);
+                const ab = Number(a.availableQty || 0);
+                return aa - ab;
+            })[0];
+        }
+
+        async function buildLevel2QrList(soCode) {
+            const response = await fetch(`/api/outbound/suggest/${encodeURIComponent(soCode)}`);
+            if (!response.ok) throw new Error(await response.text());
+            const suggestions = await response.json();
+
+            return (suggestions || []).map(item => {
+                const bestLoc = pickBestLocation(item.suggestedLocations);
+                const lotCode = bestLoc?.lotCode || item.lotCode || 'Mặc định';
+                return {
+                    productName: item.productName || 'Sản phẩm',
+                    sku: item.sku || '',
+                    lotCode,
+                    requiredQty: item.requiredQty || 0,
+                    payload: buildOutboundQrPayload(item, lotCode)
+                };
+            });
+        }
+
+        // Tải dữ liệu từ API Kế toán
+        async function loadOrders() {
+            const tbody = document.getElementById('orderTableBody');
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
+
+            try {
+                const response = await fetch('/api/accounting/orders');
+                if (!response.ok) throw new Error("Lỗi khi tải dữ liệu");
+                allOrders = await response.json();
+
+                if(allOrders.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-muted">Chưa có đơn hàng nào trong hệ thống!</td></tr>';
+                    updateMetrics([]);
+                    return;
+                }
+
+                renderOrders();
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-danger fw-bold">Lỗi: ${err.message}</td></tr>`;
+            }
+        }
+
+        function setFilter(value, btn) {
+            currentFilter = value;
+            document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderOrders();
+        }
+
+        function updateMetrics(orders) {
+            const paid = orders
+                .filter(o => o.paymentStatus === 'PAID')
+                .reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+            const unpaid = orders
+                .filter(o => o.paymentStatus !== 'PAID')
+                .reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
+            const pendingCount = orders.filter(o => o.paymentStatus !== 'PAID').length;
+
+            document.getElementById('metricPaid').innerText = `${paid.toLocaleString('vi-VN')} đ`;
+            document.getElementById('metricUnpaid').innerText = `${unpaid.toLocaleString('vi-VN')} đ`;
+            document.getElementById('metricPendingCount').innerText = pendingCount;
+        }
+
+        function normalizeQrPayloads(rawPayloads) {
+            if (!Array.isArray(rawPayloads)) return [];
+            return rawPayloads
+                .map(item => ({
+                    productName: item.productName || 'Sản phẩm',
+                    sku: item.sku || '',
+                    lotCode: item.lotCode || '',
+                    requiredQty: item.requiredQty ?? '',
+                    payload: item.payload || item.qrContent || '',
+                    imgPath: item.imgPath || ''
+                }))
+                .filter(item => item.payload);
+        }
+
+        function renderOrders() {
+            const tbody = document.getElementById('orderTableBody');
+            const keyword = (document.getElementById('searchKeyword')?.value || '').trim().toLowerCase();
+
+            let filtered = allOrders.filter(order => {
+                if (currentFilter === 'PAID' && order.paymentStatus !== 'PAID') return false;
+                if (currentFilter === 'UNPAID' && order.paymentStatus === 'PAID') return false;
+                if (!keyword) return true;
+
+                const so = String(order.soCode || '').toLowerCase();
+                const cus = String(order.customerName || '').toLowerCase();
+                return so.includes(keyword) || cus.includes(keyword);
+            });
+
+            updateMetrics(filtered);
+
+            if(filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-muted">Không có đơn phù hợp bộ lọc.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map((order, index) => {
+                    const date = new Date(order.createdAt).toLocaleString('vi-VN');
+                    const total = (order.totalAmount || 0).toLocaleString('vi-VN') + ' đ';
+
+                    // Xử lý huy hiệu Quản lý
+                    let appBadge = order.status === 'PENDING'
+                        ? '<span class="status-badge bg-paid"><i class="bi bi-check-circle me-1"></i>Đã Duyệt</span>'
+                        : '<span class="status-badge bg-pending"><i class="bi bi-clock me-1"></i>Chờ Duyệt</span>';
+
+                    // Xử lý huy hiệu Kế toán & Nút bấm
+                    let payBadge = '';
+                    let actionBtn = '';
+
+                    if (order.paymentStatus === 'PAID') {
+                        payBadge = `<span class="status-badge bg-paid"><i class="bi bi-shield-check me-1"></i>Đã Thu (${order.paymentMethod || 'Tiền'})</span>`;
+                        const txCode = order.paymentTransactionCode ? `<div class="small text-muted">Mã GD: <strong>${order.paymentTransactionCode}</strong></div>` : '';
+                        const rollbackBtn = order.canRollbackPayment
+                            ? `<button class="btn btn-sm btn-outline-danger fw-bold" style="border-radius: 8px;" onclick="rollbackPayment(${order.id})">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Rollback
+                               </button>`
+                            : `<span class="small text-muted"><i class="bi bi-shield-lock me-1"></i>Không có quyền rollback</span>`;
+                        const viewQrBtn = `<button class="btn btn-sm btn-outline-primary fw-bold" style="border-radius: 8px;" onclick="viewPaymentQrs(${order.id}, '${order.soCode}')">
+                                <i class="bi bi-qr-code me-1"></i>Xem QR
+                            </button>`;
+                        actionBtn = `
+                            <div class="d-flex flex-column gap-1 align-items-center">
+                                <button class="btn btn-sm btn-light text-muted fw-bold disabled" style="border-radius: 8px;"><i class="bi bi-lock me-1"></i>Hoàn Tất</button>
+                                ${viewQrBtn}
+                                ${txCode}
+                                ${rollbackBtn}
+                            </div>`;
+                    } else {
+                        payBadge = '<span class="status-badge bg-unpaid"><i class="bi bi-exclamation-octagon me-1"></i>Chưa Thu Tiền</span>';
+
+                        const isApprovedByManager = String(order.status || '').toUpperCase() !== 'DRAFT';
+                        if (!isApprovedByManager) {
+                            actionBtn = `<button class="btn btn-sm btn-outline-secondary fw-bold" style="border-radius: 8px;" disabled>
+                                <i class="bi bi-hourglass-split me-1"></i>Chờ Trạm Trưởng Duyệt
+                            </button>`;
+                        } else {
+                            actionBtn = `<button class="btn btn-sm btn-success fw-bold shadow-sm" style="border-radius: 8px;"
+                                onclick="openPaymentModal(${order.id}, '${order.soCode}', '${order.customerName}', ${order.totalAmount})">
+                                <i class="bi bi-cash-coin me-1"></i>Thu Tiền Ngay
+                            </button>`;
+                        }
+                    }
+
+                    return `
+                        <tr>
+                            <td class="text-center fw-bold text-muted">${index + 1}</td>
+                            <td><span class="fw-bold text-primary">${order.soCode}</span></td>
+                            <td class="text-muted small">${date}</td>
+                            <td class="fw-medium">${order.customerName || 'Khách lẻ'}</td>
+                            <td class="text-end fw-bolder text-danger">${total}</td>
+                            <td class="text-center">${appBadge}</td>
+                            <td class="text-center">${payBadge}</td>
+                            <td class="text-center">${actionBtn}</td>
+                        </tr>
+                    `;
+                }).join('');
+        }
+
+        // Mở Modal Thu Tiền
+        function openPaymentModal(id, soCode, customerName, totalAmount) {
+            document.getElementById('modalOrderId').value = id;
+            document.getElementById('modalSoCode').innerText = soCode;
+            document.getElementById('modalCustomerName').innerText = customerName || 'Khách Lẻ';
+            document.getElementById('modalTotalAmount').innerText = (totalAmount || 0).toLocaleString('vi-VN') + ' đ';
+            document.getElementById('paymentTransactionCode').value = '';
+            document.getElementById('paymentNote').value = '';
+            paymentModal.show();
+        }
+
+        // Submit API Gọi lệnh Confirm Payment
+        async function submitPayment() {
+            const id = document.getElementById('modalOrderId').value;
+            const method = document.getElementById('paymentMethodSelect').value;
+            const transactionCode = document.getElementById('paymentTransactionCode').value.trim();
+            const note = document.getElementById('paymentNote').value.trim();
+            const btn = document.querySelector('#paymentModal .btn-success');
+
+            if (method === 'TRANSFER' && !transactionCode) {
+                alert('Đơn chuyển khoản bắt buộc nhập Mã giao dịch.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xử lý...';
+
+            try {
+                const query = new URLSearchParams({ method, transactionCode, note }).toString();
+                const res = await fetch(`/api/sales-orders/${id}/confirm-payment?${query}`, {
+                    method: 'POST'
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || "Có lỗi xảy ra khi duyệt tiền");
+                }
+
+                const paidOrder = allOrders.find(o => Number(o.id) === Number(id)) || {
+                    id: Number(id),
+                    soCode: data.soCode || document.getElementById('modalSoCode').innerText
+                };
+
+                let qrPayloads = normalizeQrPayloads(data.paymentQrs);
+                if (qrPayloads.length === 0) {
+                    try {
+                        qrPayloads = await buildLevel2QrList(paidOrder.soCode || data.soCode || document.getElementById('modalSoCode').innerText);
+                    } catch (qrErr) {
+                        qrPayloads = [{
+                            productName: 'QR dự phòng',
+                            sku: paidOrder.soCode || '',
+                            lotCode: 'Mặc định',
+                            requiredQty: 1,
+                            payload: `${paidOrder.soCode || ''}|Mặc định`
+                        }];
+                    }
+                }
+
+                showQrPanel(qrPayloads, `SO ${paidOrder.soCode || paidOrder.id} - QR theo sản phẩm`);
+
+                if (data.qrWarning) {
+                    alert(`✅ THU TIỀN THÀNH CÔNG!\n${data.qrWarning}`);
+                } else {
+                    alert('✅ THU TIỀN THÀNH CÔNG!\nQR đã được lưu lịch sử và hiển thị ở góc màn hình.');
+                }
+                paymentModal.hide();
+                loadOrders();
+
+            } catch (err) {
+                alert("❌ LỖI:\n" + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-safe me-2"></i>Xác Nhận Đã Thu Tiền';
+            }
+        }
+
+        async function rollbackPayment(id) {
+            const order = allOrders.find(o => Number(o.id) === Number(id));
+            if (!order?.canRollbackPayment) {
+                alert('Bạn không có quyền rollback thanh toán.');
+                return;
+            }
+
+            if (!confirm('Bạn chắc chắn muốn rollback trạng thái thanh toán đơn này?')) return;
+            const reason = prompt('Nhập lý do rollback (không bắt buộc):') || '';
+
+            try {
+                const query = new URLSearchParams({ reason }).toString();
+                const res = await fetch(`/api/sales-orders/${id}/rollback-payment?${query}`, { method: 'POST' });
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || 'Rollback thất bại');
+                }
+                alert('✅ Đã rollback thanh toán thành công.');
+                loadOrders();
+            } catch (err) {
+                alert('❌ LỖI:\n' + err.message);
+            }
+        }
+
+        async function viewPaymentQrs(orderId, soCode) {
+            try {
+                const res = await fetch(`/api/sales-orders/${orderId}/payment-qrs`);
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Không tải được lịch sử QR');
+                }
+
+                const payloads = normalizeQrPayloads(data.paymentQrs);
+                if (payloads.length === 0) {
+                    alert('Đơn này chưa có QR sản phẩm đã phát hành.');
+                    return;
+                }
+
+                showQrPanel(payloads, `SO ${soCode || data.soCode || orderId} - QR đã lưu`);
+            } catch (err) {
+                alert('❌ LỖI:\n' + err.message);
+            }
+        }
+    </script>
+
+</div>
+</body>
+</html>
+

@@ -8,12 +8,15 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 @Repository
 public interface SalesOrderItemRepository extends JpaRepository<SalesOrderItem, Long> {
 
     @Modifying
     @Transactional
-    @Query("UPDATE SalesOrderItem s SET s.shippedQty = s.shippedQty + :qty " +
+    @Query("UPDATE SalesOrderItem s SET s.shippedQty = COALESCE(s.shippedQty, 0) + :qty " +
             "WHERE s.salesOrder.id = :soId AND s.productId = :productId")
     int updateShippedQty(Long soId, Long productId, BigDecimal qty);
+
+    List<SalesOrderItem> findBySalesOrderId(Long soId);
 }
