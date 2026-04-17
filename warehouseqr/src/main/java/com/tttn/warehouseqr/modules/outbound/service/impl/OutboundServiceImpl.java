@@ -259,13 +259,17 @@ public class OutboundServiceImpl implements OutboundService {
         OutboundReceipt receipt = new OutboundReceipt();
         receipt.setOutboundReceiptCode("PX-" + System.currentTimeMillis());
         receipt.setWarehouseId(request.getWarehouseId());
-        receipt.setCustomerId(request.getCustomerId());
+        receipt.setCustomerId(request.getCustomerId() != null
+                ? request.getCustomerId()
+                : (order != null ? order.getCustomerId() : null));
         receipt.setCreatedBy(userId);
-        receipt.setStatus("SHIPPED");
+        receipt.setStatus("PENDING");
         receipt.setCreatedAt(LocalDateTime.now());
-        receipt.setShippedAt(LocalDateTime.now());
+        receipt.setShippedAt(null);
 
         OutboundReceipt savedReceipt = outboundReceiptRepository.save(receipt);
+        boolean hasAnyShipped = false;
+        boolean hasAnyShortage = false;
 
         for (OutboundItemDTO itemDto : request.getItems()) {
             BigDecimal requestedQty = itemDto.getRequestedQty() != null
@@ -274,7 +278,10 @@ public class OutboundServiceImpl implements OutboundService {
             BigDecimal actualQty = itemDto.getActualQty() != null
                     ? BigDecimal.valueOf(itemDto.getActualQty())
                     : BigDecimal.ZERO;
-            BigDecimal qty = actualQty.compareTo(BigDecimal.ZERO) > 0 ? actualQty : requestedQty;
+            // Với đơn có SO, chỉ xuất theo số lượng đã quét/thao tác thực tế.
+            BigDecimal qty = request.getSalesOrderId() != null
+                    ? actualQty
+                    : (actualQty.compareTo(BigDecimal.ZERO) > 0 ? actualQty : requestedQty);
 
             if (qty.compareTo(BigDecimal.ZERO) <= 0) continue;
 
@@ -303,15 +310,32 @@ public class OutboundServiceImpl implements OutboundService {
                 requestQtyByProduct.put(itemDto.getProductId(), cumulatedRequestQty);
             }
 
-            InventoryLocationBalance balance = balanceRepository.findFirstByWarehouseIdAndProductIdAndBatchId(
-                    request.getWarehouseId(),
-                    itemDto.getProductId(),
-                    itemDto.getBatchId()
-            ).orElse(null);
+            InventoryLocationBalance balance;
+            if (itemDto.getLocationId() != null) {
+                balance = balanceRepository.findByWarehouseIdAndLocationIdAndProductIdAndBatchId(
+                        request.getWarehouseId(),
+                        itemDto.getLocationId(),
+                        itemDto.getProductId(),
+                        itemDto.getBatchId()
+                ).orElse(null);
+            } else {
+                balance = balanceRepository.findFirstByWarehouseIdAndProductIdAndBatchId(
+                        request.getWarehouseId(),
+                        itemDto.getProductId(),
+                        itemDto.getBatchId()
+                ).orElse(null);
+            }
 
             BigDecimal availableQty = (balance != null && balance.getQty() != null) ? balance.getQty() : BigDecimal.ZERO;
             BigDecimal shippedQty = availableQty.min(qty);
             BigDecimal shortageQty = qty.subtract(shippedQty).max(BigDecimal.ZERO);
+
+            if (shippedQty.compareTo(BigDecimal.ZERO) > 0) {
+                hasAnyShipped = true;
+            }
+            if (shortageQty.compareTo(BigDecimal.ZERO) > 0) {
+                hasAnyShortage = true;
+            }
 
             if (balance != null && shippedQty.compareTo(BigDecimal.ZERO) > 0) {
                 balance.setQty(availableQty.subtract(shippedQty));
@@ -357,6 +381,14 @@ public class OutboundServiceImpl implements OutboundService {
                 historyRepository.save(history);
             }
         }
+
+        if (hasAnyShortage) {
+            savedReceipt.setStatus(hasAnyShipped ? "PARTIAL" : "PENDING");
+        } else {
+            savedReceipt.setStatus(hasAnyShipped ? "SHIPPED" : "PENDING");
+        }
+        savedReceipt.setShippedAt(hasAnyShipped ? LocalDateTime.now() : null);
+        outboundReceiptRepository.save(savedReceipt);
 
         if (order != null) {
             List<SalesOrderItem> refreshedItems = salesOrderItemRepository.findBySalesOrderId(order.getId());

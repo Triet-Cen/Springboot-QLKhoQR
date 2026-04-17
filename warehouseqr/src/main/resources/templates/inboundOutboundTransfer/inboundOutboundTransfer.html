@@ -876,7 +876,7 @@
             newItem.className = "list-group-item scanned-item border-0 p-4 mb-3";
             const fallbackQty = item.requiredQty !== undefined ? item.requiredQty : (item.actualQty || 1);
             const displayQty = bestLoc?.suggestedPickQty !== undefined ? bestLoc.suggestedPickQty : fallbackQty;
-            const scannedQty = displayQty;
+            const scannedQty = 0;
             const displayPrice = item.price || item.exportPrice || 0;
             const locationCode = bestLoc?.locationCode || bestLoc?.locationId || item.locationCode || "LOC-DEFAULT-01";
             const lotCode = bestLoc?.lotCode || item.lotCode || 'Mặc định';
