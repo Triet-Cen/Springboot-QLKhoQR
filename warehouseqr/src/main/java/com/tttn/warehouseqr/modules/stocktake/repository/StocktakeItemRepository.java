@@ -36,4 +36,18 @@ public interface StocktakeItemRepository extends JpaRepository<StocktakeItem, Lo
             "LEFT JOIN si.location wl " +
             "WHERE si.sessionId = :sessionId")
     List<StocktakeCompareDto> getCompareData(@Param("sessionId") Long sessionId);
+
+
+    @Query("SELECT si FROM StocktakeItem si " +
+            "JOIN WarehouseLocation wl ON si.locationId = wl.locationId " +
+            "WHERE si.sessionId = :sessionId " +
+            "AND wl.locationCode = :locationCode " +
+            "AND si.productId = :productId " +
+            "AND (:batchId IS NULL OR si.batchId = :batchId)")
+    Optional<StocktakeItem> findItemByLocationAndProduct(
+            @Param("sessionId") Long sessionId,
+            @Param("locationCode") String locationCode,
+            @Param("productId") Long productId,
+            @Param("batchId") Long batchId
+    );
 }
