@@ -3,7 +3,6 @@ package com.tttn.warehouseqr.modules.Location.controller;
 import com.tttn.warehouseqr.modules.Location.entity.StorageLocation;
 import com.tttn.warehouseqr.modules.Location.repository.WarehouseZoneRepository;
 import com.tttn.warehouseqr.modules.Location.service.StorageLocationService;
-import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.services.WarehouseService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -97,16 +96,6 @@ public class StorageLocationPageController {
         return "redirect:/warehouses/locations";
     }
 
-    @GetMapping("/trace-by-qr")
-    @ResponseBody
-    public ResponseEntity<?> traceByQr(@RequestParam String qrContent) {
-        try {
-            List<ProductScanDTO> result = storageLocationService.traceProductLocationsByQr(qrContent);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
     @GetMapping("/trace-inventory-by-location-qr")
     @ResponseBody
     public ResponseEntity<?> traceInventoryByLocationQr(@RequestParam String qrContent) {
@@ -116,6 +105,7 @@ public class StorageLocationPageController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
     @GetMapping("/location-qr/{id}")
     @ResponseBody
     public ResponseEntity<?> getLocationQr(@PathVariable Long id) {
