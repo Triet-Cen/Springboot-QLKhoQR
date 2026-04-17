@@ -49,7 +49,60 @@ public class OutboundController {
     public ResponseEntity<?> confirm(@RequestBody OutboundRequestDTO request) {
         Long userId = com.tttn.warehouseqr.common.util.SecurityUtils.getCurrentUserId();
 
-        try { return ResponseEntity.ok(outboundServiceImpl.confirmOutbound(request, userId)); }
+        try {
+            OutboundReceipt receipt = outboundServiceImpl.confirmOutbound(request, userId);
+            List<OutboundReceiptItem> savedItems = itemRepo.findByOutboundReceiptId(receipt.getId());
+
+            List<Map<String, Object>> itemPayload = new ArrayList<>();
+            List<String> shortageMessages = new ArrayList<>();
+
+            for (OutboundReceiptItem item : savedItems) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("productId", item.getProductId());
+                map.put("actualQty", item.getActualQty());
+                map.put("requestedQty", item.getRequestedQty());
+                map.put("shortageQty", item.getRequestedQty() != null && item.getActualQty() != null
+                        ? item.getRequestedQty().subtract(item.getActualQty()).max(java.math.BigDecimal.ZERO)
+                        : java.math.BigDecimal.ZERO);
+                map.put("price", item.getPrice() != null ? item.getPrice() : 0.0);
+
+                String pName = productRepo.findById(item.getProductId())
+                        .map(com.tttn.warehouseqr.modules.masterdata.product.entity.Product::getProductName)
+                        .orElse("SP " + item.getProductId());
+
+                String lCode = "Mặc định";
+                if (item.getBatchId() != null) {
+                    lCode = batchRepo.findById(item.getBatchId())
+                            .map(com.tttn.warehouseqr.modules.masterdata.product.entity.ProductBatch::getLotCode)
+                            .orElse("Mặc định");
+                }
+
+                map.put("productName", pName);
+                map.put("lotCode", lCode);
+                itemPayload.add(map);
+
+                java.math.BigDecimal requested = item.getRequestedQty() != null ? item.getRequestedQty() : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal actual = item.getActualQty() != null ? item.getActualQty() : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal shortage = requested.subtract(actual).max(java.math.BigDecimal.ZERO);
+                if (shortage.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                    shortageMessages.add(pName + " lô " + lCode + " thiếu " + shortage + " do hết hàng.");
+                }
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("id", receipt.getId());
+            response.put("receiptCode", receipt.getOutboundReceiptCode());
+            response.put("outboundReceiptCode", receipt.getOutboundReceiptCode());
+            response.put("createdAt", receipt.getCreatedAt());
+            response.put("shippedAt", receipt.getShippedAt());
+            response.put("status", receipt.getStatus());
+            response.put("warehouseId", receipt.getWarehouseId());
+            response.put("customerId", receipt.getCustomerId());
+            response.put("items", itemPayload);
+            response.put("warnings", shortageMessages);
+
+            return ResponseEntity.ok(response);
+        }
         catch (Exception e) { return ResponseEntity.badRequest().body(e.getMessage()); }
     }
 
@@ -80,13 +133,13 @@ public class OutboundController {
 
                 String customerName = "Khách lẻ";
                 if (r.getCustomerId() != null) {
-                    customerName = customerRepo.findById(r.getCustomerId()).map(c -> c.getCustomerName()).orElse("Khách lẻ");
+                    customerName = customerRepo.findById(r.getCustomerId()).map(com.tttn.warehouseqr.modules.masterdata.customer.entity.Customer::getCustomerName).orElse("Khách lẻ");
                 }
                 map.put("customer", customerName);
 
                 String creatorName = "Hệ thống";
                 if (r.getCreatedBy() != null) {
-                    creatorName = userRepo.findById(r.getCreatedBy()).map(u -> u.getFullName()).orElse("Hệ thống");
+                    creatorName = userRepo.findById(r.getCreatedBy()).map(com.tttn.warehouseqr.modules.auth.entity.User::getFullName).orElse("Hệ thống");
                 }
                 map.put("creatorName", creatorName);
 
@@ -102,7 +155,7 @@ public class OutboundController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Lỗi lấy dữ liệu: " + e.getMessage());
             return ResponseEntity.badRequest().body("Lỗi lấy dữ liệu: " + e.getMessage());
         }
     }
@@ -117,17 +170,21 @@ public class OutboundController {
             for(OutboundReceiptItem item : items) {
                 Map<String, Object> map = new HashMap<>();
                 map.put("actualQty", item.getActualQty());
+                map.put("requestedQty", item.getRequestedQty());
+                map.put("shortageQty", item.getRequestedQty() != null && item.getActualQty() != null
+                        ? item.getRequestedQty().subtract(item.getActualQty()).max(java.math.BigDecimal.ZERO)
+                        : java.math.BigDecimal.ZERO);
                 map.put("price", item.getPrice() != null ? item.getPrice() : 0.0);
 
                 String pName = productRepo.findById(item.getProductId())
-                        .map(p -> p.getProductName())
+                        .map(com.tttn.warehouseqr.modules.masterdata.product.entity.Product::getProductName)
                         .orElse("SP " + item.getProductId());
 
                 // 👉 FIX LỖI: Kiểm tra BatchId phải khác null thì mới tìm trong Database
                 String lCode = "Mặc định";
                 if (item.getBatchId() != null) {
                     lCode = batchRepo.findById(item.getBatchId())
-                            .map(b -> b.getLotCode())
+                            .map(com.tttn.warehouseqr.modules.masterdata.product.entity.ProductBatch::getLotCode)
                             .orElse("Mặc định");
                 }
 
@@ -139,7 +196,7 @@ public class OutboundController {
             return ResponseEntity.ok(result);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Lỗi backend: " + e.getMessage());
             return ResponseEntity.internalServerError().body("Lỗi Backend: " + e.getMessage());
         }
     }
@@ -186,10 +243,10 @@ public class OutboundController {
                 row.createCell(1).setCellValue(r.getOutboundReceiptCode());
                 row.createCell(2).setCellValue(r.getCreatedAt() != null ? r.getCreatedAt().toString() : "");
 
-                String creatorName = r.getCreatedBy() != null ? userRepo.findById(r.getCreatedBy()).map(u -> u.getFullName()).orElse("Hệ thống") : "Hệ thống";
+                String creatorName = r.getCreatedBy() != null ? userRepo.findById(r.getCreatedBy()).map(com.tttn.warehouseqr.modules.auth.entity.User::getFullName).orElse("Hệ thống") : "Hệ thống";
                 row.createCell(3).setCellValue(creatorName);
 
-                String customerName = r.getCustomerId() != null ? customerRepo.findById(r.getCustomerId()).map(c -> c.getCustomerName()).orElse("Khách lẻ") : "Khách lẻ";
+                String customerName = r.getCustomerId() != null ? customerRepo.findById(r.getCustomerId()).map(com.tttn.warehouseqr.modules.masterdata.customer.entity.Customer::getCustomerName).orElse("Khách lẻ") : "Khách lẻ";
                 row.createCell(4).setCellValue(customerName);
 
                 row.createCell(5).setCellValue(r.getStatus());

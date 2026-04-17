@@ -31,7 +31,7 @@ public class SalesOrder {
     private String customerName;
 
     @Column(name = "status", length = 50)
-    private String status; // PENDING, PICKING, SHIPPED, CANCELLED
+    private String status = "DRAFT"; // DRAFT (Nháp), PENDING (Đã duyệt), SHIPPED, CANCELLED
 
     @Column(name = "total_amount", precision = 19, scale = 4)
     private BigDecimal totalAmount;
@@ -41,6 +41,36 @@ public class SalesOrder {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    // 👉 MỚI THÊM: Trạng thái thanh toán (UNPAID / PAID)
+    @Column(name = "payment_status", length = 50)
+    private String paymentStatus = "UNPAID";
+
+    // 👉 MỚI THÊM: Phương thức thanh toán (COD / TRANSFER)
+    @Column(name = "payment_method", length = 50)
+    private String paymentMethod;
+
+    @Column(name = "payment_transaction_code", length = 100)
+    private String paymentTransactionCode;
+
+    @Column(name = "payment_note", length = 500)
+    private String paymentNote;
+
+    @Column(name = "payment_confirmed_at")
+    private LocalDateTime paymentConfirmedAt;
+
+    @Column(name = "payment_confirmed_by")
+    private Long paymentConfirmedBy;
+
+    @PrePersist
+    protected void onCreate() {
+        if (status == null || status.isBlank()) {
+            status = "DRAFT";
+        }
+        if (paymentStatus == null || paymentStatus.isBlank()) {
+            paymentStatus = "UNPAID";
+        }
+    }
 
     // Quan hệ song hướng để lấy nhanh danh sách sản phẩm khi quét mã đơn hàng
     @OneToMany(mappedBy = "salesOrder", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

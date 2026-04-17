@@ -236,6 +236,17 @@
             html += `<li class="page-item ${current === totalPages - 1 ? 'disabled' : ''}"><button class="page-link text-dark fw-bold" onclick="loadHistory(${current + 1})">Sau</button></li>`;
             document.getElementById('paginationControls').innerHTML = html;
         }
+        function generateQrForWarehouse(soCode) {
+            document.getElementById("salesQrCode").innerHTML = "";
+            new QRCode(document.getElementById("salesQrCode"), {
+                text: soCode, // Text này chính là thứ Thủ kho sẽ quét
+                width: 128,
+                height: 128,
+                colorDark : "#000000",
+                colorLight : "#ffffff"
+            });
+            alert("Đã tạo đơn và sinh mã QR. Chờ Quản lý duyệt!");
+        }
 
         async function showDetail(id, code, customer, creatorName) {
             try {
@@ -248,8 +259,10 @@
 
                 let totalAmount = 0;
                 document.getElementById('mItemsBody').innerHTML = items.map((item, i) => {
-                    const qty = item.actualQty || 1;
-                    const price = item.price || 0;
+                    const qty = parseFloat(item.actualQty || 0);
+                    const requestedQty = parseFloat(item.requestedQty || qty);
+                    const shortageQty = parseFloat(item.shortageQty || Math.max(requestedQty - qty, 0));
+                    const price = parseFloat(item.price || 0);
                     const lineTotal = qty * price;
                     totalAmount += lineTotal;
                     return `
@@ -260,7 +273,12 @@
                             <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 fw-normal"><i class="bi bi-upc-scan me-1"></i>Lô: ${item.lotCode}</span>
                         </td>
                         <td class="text-end fw-medium text-secondary">${price.toLocaleString('vi-VN')} đ</td>
-                        <td class="text-center"><span class="badge bg-primary rounded-pill px-3 py-2 fs-6 shadow-sm" style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);">${qty}</span></td>
+                        <td class="text-center">
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <span class="badge bg-primary rounded-pill px-3 py-2 fs-6 shadow-sm" style="background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);">${qty}</span>
+                                ${requestedQty > qty ? `<small class="text-danger fw-bold">Thiếu ${shortageQty}</small>` : ''}
+                            </div>
+                        </td>
                         <td class="text-end fw-bold text-dark fs-6">${lineTotal.toLocaleString('vi-VN')} đ</td>
                     </tr>`;
                 }).join('');

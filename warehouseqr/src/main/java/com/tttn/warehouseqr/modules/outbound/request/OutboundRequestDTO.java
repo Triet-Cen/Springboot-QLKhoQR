@@ -14,6 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class OutboundRequestDTO {
     private String outboundCode;
+    private String idempotencyKey;
     private Long warehouseId;
     private Long salesOrderId;
     private Long customerId;

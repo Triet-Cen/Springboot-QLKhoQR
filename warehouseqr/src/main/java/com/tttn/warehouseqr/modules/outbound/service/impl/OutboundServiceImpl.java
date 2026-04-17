@@ -13,12 +13,15 @@ import com.tttn.warehouseqr.modules.inventory.repository.InventoryHistoryReposit
 import com.tttn.warehouseqr.modules.outbound.dto.OutboundItemDTO;
 import com.tttn.warehouseqr.modules.outbound.dto.OutboundPickingSuggestionDTO;
 import com.tttn.warehouseqr.modules.outbound.entity.OutboundReceipt;
+import com.tttn.warehouseqr.modules.outbound.entity.OutboundIdempotencyRecord;
 import com.tttn.warehouseqr.modules.outbound.entity.OutboundReceiptItem;
+import com.tttn.warehouseqr.modules.outbound.repository.OutboundIdempotencyRepository;
 import com.tttn.warehouseqr.modules.outbound.repository.OutboundReceiptItemRepository;
 import com.tttn.warehouseqr.modules.outbound.repository.OutboundReceiptRepository;
 import com.tttn.warehouseqr.modules.outbound.request.OutboundRequestDTO;
 import com.tttn.warehouseqr.modules.outbound.service.OutboundService;
 import com.tttn.warehouseqr.modules.salesorder.entity.SalesOrder;
+import com.tttn.warehouseqr.modules.salesorder.entity.SalesOrderItem;
 import com.tttn.warehouseqr.modules.salesorder.repository.SalesOrderItemRepository;
 import com.tttn.warehouseqr.modules.salesorder.repository.SalesOrderRepository;
 import com.tttn.warehouseqr.modules.scan.dto.ScanSubmitDTO;
@@ -27,11 +30,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @Service
 public class OutboundServiceImpl implements OutboundService {
+
+    private static final String QR_REFERENCE_TYPE_BATCH = "BATCH";
 
     private final QrCodeResipotory qrCodeRepository;
     private final ProductBatchRepository batchRepository;
@@ -41,6 +48,7 @@ public class OutboundServiceImpl implements OutboundService {
     private final SalesOrderRepository salesOrderRepository;
     private final SalesOrderItemRepository salesOrderItemRepository;
     private final OutboundReceiptRepository outboundReceiptRepository;
+    private final OutboundIdempotencyRepository outboundIdempotencyRepository;
 
     public OutboundServiceImpl(QrCodeResipotory qrCodeRepository,
                                ProductBatchRepository batchRepository,
@@ -49,7 +57,8 @@ public class OutboundServiceImpl implements OutboundService {
                                InventoryHistoryRepository historyRepository,
                                SalesOrderRepository salesOrderRepository,
                                SalesOrderItemRepository salesOrderItemRepository,
-                               OutboundReceiptRepository outboundReceiptRepository) {
+                               OutboundReceiptRepository outboundReceiptRepository,
+                               OutboundIdempotencyRepository outboundIdempotencyRepository) {
         this.qrCodeRepository = qrCodeRepository;
         this.batchRepository = batchRepository;
         this.outboundItemRepository = outboundItemRepository;
@@ -58,14 +67,21 @@ public class OutboundServiceImpl implements OutboundService {
         this.salesOrderRepository = salesOrderRepository;
         this.salesOrderItemRepository = salesOrderItemRepository;
         this.outboundReceiptRepository = outboundReceiptRepository;
+        this.outboundIdempotencyRepository = outboundIdempotencyRepository;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void processOutboundList(ScanSubmitDTO request, Long userId) {
         for (String qrContent : request.getQrContents()) {
-            QrCode qrCode = qrCodeRepository.findByQrContent(qrContent)
-                    .orElseThrow(() -> new RuntimeException("Mã QR không hợp lệ: " + qrContent));
+            QrCode qrCode = qrCodeRepository.findByQrContentAndReferenceType(qrContent, QR_REFERENCE_TYPE_BATCH)
+                    .orElseThrow(() -> {
+                        boolean qrExistsWithOtherType = qrCodeRepository.findByQrContent(qrContent).isPresent();
+                        String message = qrExistsWithOtherType
+                                ? "QR này không phải QR lô hàng (BATCH), không thể dùng để trừ tồn kho xuất."
+                                : "Mã QR không hợp lệ: " + qrContent;
+                        return new RuntimeException(message);
+                    });
 
             Long batchId = qrCode.getReferenceId();
             ProductBatch batch = batchRepository.findById(batchId)
@@ -116,29 +132,130 @@ public class OutboundServiceImpl implements OutboundService {
         SalesOrder so = salesOrderRepository.findBySoCode(soCode)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + soCode));
 
-        return so.getItems().stream().map(item -> {
+        // 👉 LUẬT 1: CHỐT CHẶN BẢO MẬT TỪ QUẢN LÝ (Chưa duyệt -> Chặn lấy hàng)
+        if ("DRAFT".equalsIgnoreCase(so.getStatus())) {
+            throw new RuntimeException("LỖI BẢO MẬT: Đơn xuất này đang chờ Quản Lý Trưởng xác nhận. Thủ kho chưa được phép lấy hàng!");
+        }
+
+        List<OutboundPickingSuggestionDTO> suggestions = new ArrayList<>();
+
+        for (SalesOrderItem item : so.getItems()) {
+            BigDecimal orderedQty = item.getQuantity() != null ? item.getQuantity() : BigDecimal.ZERO;
+            BigDecimal shippedQty = item.getShippedQty() != null ? item.getShippedQty() : BigDecimal.ZERO;
+            BigDecimal remainingDemand = orderedQty.subtract(shippedQty);
+
+            if (remainingDemand.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+
             OutboundPickingSuggestionDTO dto = new OutboundPickingSuggestionDTO();
+
+            // 👉 MỚI BỔ SUNG: Truyền thông tin xuống Frontend để UI khóa nút
+            dto.setSalesOrderId(so.getId());
+            dto.setApprovalStatus(so.getStatus());
+            dto.setPaymentStatus(so.getPaymentStatus());
+
+            // 👉 THÊM DÒNG NÀY
+            dto.setPaymentMethod(so.getPaymentMethod());
+
             dto.setProductId(item.getProductId());
-            dto.setRequiredQty(item.getQuantity());
+            // 👉 THÊM GIÁ BÁN TỪ SALES ORDER ITEM
+            dto.setPrice(item.getUnitPrice());
+            BigDecimal requiredQty = remainingDemand;
+            dto.setRequiredQty(requiredQty);
 
-            List<InventoryLocationBalance> stocks = balanceRepository.findAvailableStock(item.getProductId());
+            List<InventoryLocationBalanceRepository.PickingStockProjection> stocks =
+                    balanceRepository.findAvailableStockForPicking(item.getProductId());
 
-            List<OutboundPickingSuggestionDTO.LocationSuggestion> locations = stocks.stream().map(s -> {
+            List<OutboundPickingSuggestionDTO.LocationSuggestion> locations = new java.util.ArrayList<>();
+            BigDecimal remaining = requiredQty;
+            int fifoRank = 1;
+
+            for (InventoryLocationBalanceRepository.PickingStockProjection s : stocks) {
+                if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+                    break;
+                }
+
+                BigDecimal availableQty = s.getAvailableQty() != null ? s.getAvailableQty() : BigDecimal.ZERO;
+                if (availableQty.compareTo(BigDecimal.ZERO) <= 0) {
+                    continue;
+                }
+
+                BigDecimal suggestedPickQty = availableQty.min(remaining);
                 OutboundPickingSuggestionDTO.LocationSuggestion loc = new OutboundPickingSuggestionDTO.LocationSuggestion();
                 loc.setLocationId(s.getLocationId());
+                loc.setLocationCode(s.getLocationCode());
                 loc.setBatchId(s.getBatchId());
-                loc.setAvailableQty(s.getQty());
-                return loc;
-            }).collect(Collectors.toList());
+                loc.setLotCode(s.getLotCode());
+                loc.setAvailableQty(availableQty);
+                loc.setSuggestedPickQty(suggestedPickQty);
+                loc.setFifoRank(fifoRank++);
+                locations.add(loc);
+
+                remaining = remaining.subtract(suggestedPickQty);
+            }
+
+            dto.setAllocatedQty(requiredQty.subtract(remaining));
+            dto.setShortageQty(remaining.max(BigDecimal.ZERO));
 
             dto.setSuggestedLocations(locations);
-            return dto;
-        }).collect(Collectors.toList());
+            suggestions.add(dto);
+        }
+
+        if (suggestions.isEmpty()) {
+            throw new RuntimeException("Đơn hàng đã được xuất đủ, không còn số lượng cần lấy.");
+        }
+
+        return suggestions;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OutboundReceipt confirmOutbound(OutboundRequestDTO request, Long userId) {
+
+        String idempotencyKey = request.getIdempotencyKey() != null ? request.getIdempotencyKey().trim() : "";
+        boolean hasIdempotencyKey = !idempotencyKey.isEmpty();
+
+        if (hasIdempotencyKey) {
+            int claimed = outboundIdempotencyRepository.claimKey(idempotencyKey);
+
+            if (claimed == 0) {
+                OutboundIdempotencyRecord existing = outboundIdempotencyRepository.findByIdempotencyKey(idempotencyKey)
+                        .orElseThrow(() -> new RuntimeException("Yêu cầu trùng đang được xử lý, vui lòng thử lại."));
+
+                if ("COMPLETED".equalsIgnoreCase(existing.getStatus()) && existing.getOutboundReceiptId() != null) {
+                    return outboundReceiptRepository.findById(existing.getOutboundReceiptId())
+                            .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu xuất từ yêu cầu trước đó."));
+                }
+
+                throw new RuntimeException("Yêu cầu trùng đang được xử lý, vui lòng thử lại sau.");
+            }
+        }
+
+        SalesOrder order = null;
+        Map<Long, SalesOrderItem> soItemByProduct = new HashMap<>();
+        Map<Long, BigDecimal> requestQtyByProduct = new HashMap<>();
+
+        // 👉 LUẬT 2: CHỐT CHẶN BẢO MẬT TỪ KẾ TOÁN (Chưa nộp tiền -> Chặn lưu kho)
+        // 👉 CẬP NHẬT LUẬT 2: Chỉ khóa nếu chưa trả tiền VÀ không phải là đơn COD
+        if (request.getSalesOrderId() != null) {
+            order = salesOrderRepository.findById(request.getSalesOrderId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy thông tin đơn hàng!"));
+
+            // Nếu chưa PAID và cũng không phải là COD -> Chặn!
+            if (!"PAID".equalsIgnoreCase(order.getPaymentStatus()) && !"COD".equalsIgnoreCase(order.getPaymentMethod())) {
+                throw new RuntimeException("LỖI TÀI CHÍNH: Đơn hàng chưa thanh toán và không phải đơn Thu hộ (COD). Hệ thống khóa xuất kho!");
+            }
+
+            if (order.getItems() == null || order.getItems().isEmpty()) {
+                throw new RuntimeException("Đơn hàng không có dòng sản phẩm để xuất kho!");
+            }
+
+            for (SalesOrderItem soItem : order.getItems()) {
+                soItemByProduct.put(soItem.getProductId(), soItem);
+            }
+        }
+
         OutboundReceipt receipt = new OutboundReceipt();
         receipt.setOutboundReceiptCode("PX-" + System.currentTimeMillis());
         receipt.setWarehouseId(request.getWarehouseId());
@@ -151,56 +268,130 @@ public class OutboundServiceImpl implements OutboundService {
         OutboundReceipt savedReceipt = outboundReceiptRepository.save(receipt);
 
         for (OutboundItemDTO itemDto : request.getItems()) {
-            BigDecimal qty = BigDecimal.valueOf(itemDto.getActualQty() != null ? itemDto.getActualQty() : 1.0);
+            BigDecimal requestedQty = itemDto.getRequestedQty() != null
+                    ? BigDecimal.valueOf(itemDto.getRequestedQty())
+                    : BigDecimal.ZERO;
+            BigDecimal actualQty = itemDto.getActualQty() != null
+                    ? BigDecimal.valueOf(itemDto.getActualQty())
+                    : BigDecimal.ZERO;
+            BigDecimal qty = actualQty.compareTo(BigDecimal.ZERO) > 0 ? actualQty : requestedQty;
 
             if (qty.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            if (order != null) {
+                SalesOrderItem soItem = soItemByProduct.get(itemDto.getProductId());
+                if (soItem == null) {
+                    throw new RuntimeException("Sản phẩm ID " + itemDto.getProductId() + " không thuộc đơn hàng hiện tại!");
+                }
+
+                BigDecimal orderedQty = soItem.getQuantity() != null ? soItem.getQuantity() : BigDecimal.ZERO;
+                BigDecimal shippedQty = soItem.getShippedQty() != null ? soItem.getShippedQty() : BigDecimal.ZERO;
+                BigDecimal remainingQty = orderedQty.subtract(shippedQty);
+
+                if (remainingQty.compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new RuntimeException("Sản phẩm ID " + itemDto.getProductId() + " đã được xuất đủ trước đó, không thể xuất thêm!");
+                }
+
+                BigDecimal cumulatedRequestQty = requestQtyByProduct
+                        .getOrDefault(itemDto.getProductId(), BigDecimal.ZERO)
+                        .add(qty);
+
+                if (cumulatedRequestQty.compareTo(remainingQty) > 0) {
+                    throw new RuntimeException("Sản phẩm ID " + itemDto.getProductId() + " chỉ còn thiếu " + remainingQty + " để hoàn tất đơn, không thể xuất " + qty + "!");
+                }
+
+                requestQtyByProduct.put(itemDto.getProductId(), cumulatedRequestQty);
+            }
 
             InventoryLocationBalance balance = balanceRepository.findFirstByWarehouseIdAndProductIdAndBatchId(
                     request.getWarehouseId(),
                     itemDto.getProductId(),
                     itemDto.getBatchId()
-            ).orElseThrow(() -> new RuntimeException("Từ chối: Sản phẩm ID " + itemDto.getProductId() + " hoàn toàn KHÔNG CÓ trên kệ!"));
+            ).orElse(null);
 
-            if (balance.getQty().compareTo(qty) < 0) {
-                throw new RuntimeException("TỪ CHỐI XUẤT KHO: Sản phẩm ID " + itemDto.getProductId() +
-                        " chỉ còn " + balance.getQty() + " cái trên kệ. Không đủ để xuất " + qty + " cái!");
+            BigDecimal availableQty = (balance != null && balance.getQty() != null) ? balance.getQty() : BigDecimal.ZERO;
+            BigDecimal shippedQty = availableQty.min(qty);
+            BigDecimal shortageQty = qty.subtract(shippedQty).max(BigDecimal.ZERO);
+
+            if (balance != null && shippedQty.compareTo(BigDecimal.ZERO) > 0) {
+                balance.setQty(availableQty.subtract(shippedQty));
+                balanceRepository.save(balance);
             }
 
-            balance.setQty(balance.getQty().subtract(qty));
-            balanceRepository.save(balance);
-
             if (request.getSalesOrderId() != null) {
-                salesOrderItemRepository.updateShippedQty(request.getSalesOrderId(), itemDto.getProductId(), qty);
+                salesOrderItemRepository.updateShippedQty(request.getSalesOrderId(), itemDto.getProductId(), shippedQty);
             }
 
             OutboundReceiptItem receiptItem = new OutboundReceiptItem();
             receiptItem.setOutboundReceipt(savedReceipt);
             receiptItem.setProductId(itemDto.getProductId());
             receiptItem.setBatchId(itemDto.getBatchId());
-            receiptItem.setPickedLocationId(balance.getLocationId());
+            receiptItem.setPickedLocationId(balance != null ? balance.getLocationId() : itemDto.getLocationId());
 
-            // 🛠 SỬA LỖI TẠI ĐÂY: Ưu tiên lấy sellingPrice từ Web gửi xuống
             Double finalPrice = itemDto.getSellingPrice() != null ? itemDto.getSellingPrice() :
                     (itemDto.getPrice() != null ? itemDto.getPrice() : 0.0);
             receiptItem.setPrice(finalPrice);
 
-            Double reqQty = itemDto.getRequestedQty();
-            receiptItem.setRequestedQty(reqQty != null ? BigDecimal.valueOf(reqQty) : qty);
+            receiptItem.setRequestedQty(qty);
 
-            receiptItem.setActualQty(qty);
+            receiptItem.setActualQty(shippedQty);
 
             outboundItemRepository.save(receiptItem);
 
-            InventoryHistory history = new InventoryHistory();
-            history.setTransactionType("OUTBOUND");
-            history.setQtyChange(qty.negate());
-            history.setWarehouseId(request.getWarehouseId());
-            history.setFromLocationId(balance.getLocationId());
-            history.setBatchId(itemDto.getBatchId());
-            history.setProductId(itemDto.getProductId());
-            historyRepository.save(history);
+            if (shortageQty.compareTo(BigDecimal.ZERO) > 0) {
+                System.out.println("[OUTBOUND][SHORTAGE] productId=" + itemDto.getProductId()
+                        + ", batchId=" + itemDto.getBatchId()
+                        + ", requested=" + qty
+                        + ", shipped=" + shippedQty
+                        + ", shortage=" + shortageQty);
+            }
+
+            if (shippedQty.compareTo(BigDecimal.ZERO) > 0) {
+                InventoryHistory history = new InventoryHistory();
+                history.setTransactionType("OUTBOUND");
+                history.setQtyChange(shippedQty.negate());
+                history.setWarehouseId(request.getWarehouseId());
+                history.setFromLocationId(balance != null ? balance.getLocationId() : itemDto.getLocationId());
+                history.setBatchId(itemDto.getBatchId());
+                history.setProductId(itemDto.getProductId());
+                historyRepository.save(history);
+            }
+        }
+
+        if (order != null) {
+            List<SalesOrderItem> refreshedItems = salesOrderItemRepository.findBySalesOrderId(order.getId());
+            boolean hasAnyShipment = false;
+            boolean fullyShipped = true;
+
+            for (SalesOrderItem soItem : refreshedItems) {
+                BigDecimal orderedQty = soItem.getQuantity() != null ? soItem.getQuantity() : BigDecimal.ZERO;
+                BigDecimal shippedQty = soItem.getShippedQty() != null ? soItem.getShippedQty() : BigDecimal.ZERO;
+
+                if (shippedQty.compareTo(BigDecimal.ZERO) > 0) {
+                    hasAnyShipment = true;
+                }
+
+                if (shippedQty.compareTo(orderedQty) < 0) {
+                    fullyShipped = false;
+                }
+            }
+
+            if (fullyShipped) {
+                order.setStatus("SHIPPED");
+            } else if (hasAnyShipment) {
+                order.setStatus("PARTIAL");
+            } else {
+                order.setStatus("PENDING");
+            }
+            order.setUpdatedAt(LocalDateTime.now());
+            salesOrderRepository.save(order);
+        }
+
+        if (hasIdempotencyKey) {
+            outboundIdempotencyRepository.markCompleted(idempotencyKey, "COMPLETED", savedReceipt.getId());
         }
 
         return savedReceipt;
     }
 }
+
