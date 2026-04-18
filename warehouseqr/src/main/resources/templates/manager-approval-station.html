@@ -3,12 +3,57 @@
       th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
 <head>
     <title>Tram Truong | Xac Nhan Don</title>
+    <link rel="stylesheet" th:href="@{/css/outbound-theme.css}">
     <style>
+        :root {
+            --out-primary: #4f46e5;
+            --out-border: #e5e7eb;
+            --out-bg: #f8fafc;
+            --out-shadow: 0 12px 35px rgba(15, 23, 42, 0.06);
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #eef2ff 0%, #f8fafc 45%, #f8fafc 100%);
+        }
+
         .station-card { border: none; border-radius: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06); }
+        .station-card {
+            border: 1px solid var(--out-border);
+            box-shadow: var(--out-shadow);
+        }
+
+        .table thead th {
+            color: #475569;
+            background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        #approvalTableBody tr { transition: all 0.2s ease; }
+        #approvalTableBody tr:hover {
+            background: rgba(79, 70, 229, 0.08);
+            transform: translateX(1px);
+        }
+
         .status-badge { padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
         .bg-draft { background: rgba(245, 158, 11, 0.15); color: #b45309; }
         .bg-pending { background: rgba(16, 185, 129, 0.15); color: #047857; }
         .bg-other { background: rgba(107, 114, 128, 0.15); color: #374151; }
+
+        #searchKeyword,
+        #statusFilter {
+            border: 1px solid var(--out-border);
+            border-radius: 12px;
+        }
+
+        .pagination .page-link {
+            color: #334155;
+            border-color: var(--out-border);
+        }
+        .pagination .page-item.active .page-link {
+            background: linear-gradient(135deg, var(--out-primary) 0%, #6366f1 100%);
+            border-color: var(--out-primary);
+        }
 
         .so-qr-panel {
             position: fixed;
@@ -28,7 +73,7 @@
     </style>
 </head>
 <body>
-<div id="mainContent">
+<div id="mainContent" class="outbound-theme">
     <div class="container-fluid py-4 px-md-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
@@ -42,8 +87,8 @@
 
         <div class="card station-card mb-3 p-3">
             <div class="d-flex gap-2 align-items-center">
-                <input id="searchKeyword" class="form-control" placeholder="Tim theo ma SO / khach hang..." oninput="renderOrders()">
-                <select id="statusFilter" class="form-select" style="max-width: 220px;" onchange="renderOrders()">
+                <input id="searchKeyword" class="form-control" placeholder="Tim theo ma SO / khach hang..." oninput="renderOrders(true)">
+                <select id="statusFilter" class="form-select" style="max-width: 220px;" onchange="renderOrders(true)">
                     <option value="ALL">Tat ca trang thai</option>
                     <option value="DRAFT">Chi don cho xac nhan (DRAFT)</option>
                     <option value="PENDING">Chi don da xac nhan (PENDING)</option>
@@ -70,6 +115,14 @@
                         <tr><td colspan="7" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white border-top-0 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small fw-bold" id="pageInfo">Hien thi 0 ket qua</span>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginationControls"></ul>
+                    </nav>
                 </div>
             </div>
         </div>
@@ -99,6 +152,8 @@
     <script th:inline="javascript">
         let allOrders = [];
         let currentSoCode = '';
+        let currentPage = 0;
+        const pageSize = 10;
 
         document.addEventListener('DOMContentLoaded', () => {
             loadOrders();
@@ -129,16 +184,20 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Khong tai duoc danh sach don.');
                 allOrders = Array.isArray(data) ? data : [];
-                renderOrders();
+                renderOrders(true);
             } catch (err) {
                 tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-danger">${err.message}</td></tr>`;
+                document.getElementById('pageInfo').innerText = 'Hien thi 0 ket qua';
+                document.getElementById('paginationControls').innerHTML = '';
             }
         }
 
-        function renderOrders() {
+        function renderOrders(resetPage = false) {
             const tbody = document.getElementById('approvalTableBody');
             const keyword = (document.getElementById('searchKeyword').value || '').trim().toLowerCase();
             const filterStatus = document.getElementById('statusFilter').value;
+
+            if (resetPage) currentPage = 0;
 
             const rows = allOrders.filter(item => {
                 if (filterStatus !== 'ALL' && String(item.status || '').toUpperCase() !== filterStatus) return false;
@@ -150,10 +209,17 @@
 
             if (rows.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">Khong co don phu hop.</td></tr>';
+                document.getElementById('pageInfo').innerText = 'Hien thi 0 ket qua';
+                document.getElementById('paginationControls').innerHTML = '';
                 return;
             }
 
-            tbody.innerHTML = rows.map((order, idx) => {
+            const totalPages = Math.max(Math.ceil(rows.length / pageSize), 1);
+            if (currentPage >= totalPages) currentPage = totalPages - 1;
+            const start = currentPage * pageSize;
+            const pageRows = rows.slice(start, start + pageSize);
+
+            tbody.innerHTML = pageRows.map((order, idx) => {
                 const canApprove = String(order.status || '').toUpperCase() === 'DRAFT';
                 const soCode = String(order.soCode || '');
                 const safeSoCode = soCode.replace(/'/g, "\\'");
@@ -176,7 +242,7 @@
 
                 return `
                     <tr>
-                        <td class="text-center">${idx + 1}</td>
+                        <td class="text-center">${start + idx + 1}</td>
                         <td class="fw-bold text-primary">${order.soCode || ''}</td>
                         <td>${order.customerName || 'Khach le'}</td>
                         <td class="text-end fw-bold">${formatMoney(order.totalAmount)}</td>
@@ -186,6 +252,24 @@
                     </tr>
                 `;
             }).join('');
+
+            document.getElementById('pageInfo').innerText = `Tong cong ${rows.length} ma phieu (Trang ${currentPage + 1}/${totalPages})`;
+            renderPagination(totalPages, currentPage);
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderOrders(false);
+        }
+
+        function renderPagination(totalPages, current) {
+            let html = '';
+            html += `<li class="page-item ${current === 0 ? 'disabled' : ''}"><button class="page-link text-dark fw-bold" onclick="goToPage(${current - 1})">Truoc</button></li>`;
+            for (let i = 0; i < totalPages; i++) {
+                html += `<li class="page-item ${current === i ? 'active' : ''}"><button class="page-link" onclick="goToPage(${i})">${i + 1}</button></li>`;
+            }
+            html += `<li class="page-item ${current === totalPages - 1 ? 'disabled' : ''}"><button class="page-link text-dark fw-bold" onclick="goToPage(${current + 1})">Sau</button></li>`;
+            document.getElementById('paginationControls').innerHTML = html;
         }
 
         function showSoQr(soCode) {

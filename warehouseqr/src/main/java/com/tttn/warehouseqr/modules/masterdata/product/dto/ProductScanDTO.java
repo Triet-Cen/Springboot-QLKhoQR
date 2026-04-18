@@ -1,6 +1,5 @@
 package com.tttn.warehouseqr.modules.masterdata.product.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -8,7 +7,6 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class ProductScanDTO {
     // 1. ID để lưu vào bảng InboundReceiptItem (Backend cần)
     private Long productId;
@@ -40,9 +38,17 @@ public class ProductScanDTO {
     //10. Giá nhập
     private Double importPrice;
 
-    //11. Id Nhà Cung Cấp
-    private Long supplierId;
-    //12. Id Mã kho
-    private Long warehouseId;
+    //11. Số lượng còn tồn tại kho hiện tại
+    private Double availableQty;
 
+    //12. Kho còn đủ hàng để quét/xuất hay không
+    private Boolean stockEnough;
+
+    //13. Thông báo trạng thái tồn kho để hiển thị trên UI
+    private String stockMessage;
+
+    //14. Id Nhà Cung Cấp
+    private Long supplierId;
+    //15. Id Mã kho
+    private Long warehouseId;
 }

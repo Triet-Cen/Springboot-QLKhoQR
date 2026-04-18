@@ -3,8 +3,8 @@ package com.tttn.warehouseqr.modules.Location.controller;
 import com.tttn.warehouseqr.modules.Location.entity.StorageLocation;
 import com.tttn.warehouseqr.modules.Location.repository.WarehouseZoneRepository;
 import com.tttn.warehouseqr.modules.Location.service.StorageLocationService;
-
 import com.tttn.warehouseqr.modules.masterdata.warehouse.services.WarehouseService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -94,5 +94,25 @@ public class StorageLocationPageController {
     public String update(@ModelAttribute("location") StorageLocation location) {
         storageLocationService.update(location.getLocationId(), location);
         return "redirect:/warehouses/locations";
+    }
+
+    @GetMapping("/trace-inventory-by-location-qr")
+    @ResponseBody
+    public ResponseEntity<?> traceInventoryByLocationQr(@RequestParam String qrContent) {
+        try {
+            return ResponseEntity.ok(storageLocationService.traceInventoryByLocationQr(qrContent));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/location-qr/{id}")
+    @ResponseBody
+    public ResponseEntity<?> getLocationQr(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(storageLocationService.getLocationQrInfo(id));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

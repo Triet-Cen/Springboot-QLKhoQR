@@ -1,5 +1,6 @@
 package com.tttn.warehouseqr.modules.inbound.service.impl;
 
+import com.tttn.warehouseqr.modules.auth.entity.User;
 import com.tttn.warehouseqr.modules.inbound.dto.InboundRequestDTO;
 import com.tttn.warehouseqr.modules.inbound.entity.InboundReceipt;
 import com.tttn.warehouseqr.modules.inbound.entity.InboundReceiptItem;
@@ -15,10 +16,14 @@ import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.ProductBatch;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
+import com.tttn.warehouseqr.modules.masterdata.supplier.entity.Supplier;
 import com.tttn.warehouseqr.modules.masterdata.supplier.repository.SupplierRepository;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseLocationRepository;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseRepository;
+import com.tttn.warehouseqr.modules.purchase.entity.PurchaseOrders;
 import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrderItemRepository;
+import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrdersRepository;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -52,7 +57,9 @@ public class InboundServiceImpl implements InboundService {
 
     private final WarehouseRepository warehouseRepository;
 
-    public InboundServiceImpl(InboundReceiptRepository receiptRepo, InboundReceiptItemRepository itemRepo, PurchaseOrderItemRepository poItemRepo, InventoryLocationBalanceRepository balanceRepo, InventoryHistoryRepository historyRepo, ProductRepository productRepo, ProductBatchRepository batchRepo, WarehouseLocationRepository warehouseLocationRepository, SupplierRepository supplierRepository, WarehouseRepository warehouseRepository) {
+    private final PurchaseOrdersRepository poRepository;
+
+    public InboundServiceImpl(InboundReceiptRepository receiptRepo, InboundReceiptItemRepository itemRepo, PurchaseOrderItemRepository poItemRepo, InventoryLocationBalanceRepository balanceRepo, InventoryHistoryRepository historyRepo, ProductRepository productRepo, ProductBatchRepository batchRepo, WarehouseLocationRepository warehouseLocationRepository, SupplierRepository supplierRepository, WarehouseRepository warehouseRepository, PurchaseOrdersRepository poRepository) {
         this.receiptRepo = receiptRepo;
         this.itemRepo = itemRepo;
         this.poItemRepo = poItemRepo;
@@ -63,6 +70,7 @@ public class InboundServiceImpl implements InboundService {
         this.warehouseLocationRepository = warehouseLocationRepository;
         this.supplierRepository = supplierRepository;
         this.warehouseRepository = warehouseRepository;
+        this.poRepository = poRepository;
     }
 
 
@@ -77,13 +85,36 @@ public class InboundServiceImpl implements InboundService {
         receipt.setInboundReceiptCode(dto.getInboundReceiptCode() != null ?
                 dto.getInboundReceiptCode() : "PN-" + System.currentTimeMillis());
 
-        receipt.setPurchaseOrderId(dto.getPurchaseOrderId()); // Có thể null khi quét lẻ
-        receipt.setSupplierId(dto.getSupplierId());
-        receipt.setWarehouseId(dto.getWarehouseId());
-        receipt.setStatus("COMPLETED");
+        if(dto.getPurchaseOrderId() != null)
+        {
+            PurchaseOrders po = new PurchaseOrders();
+            po.setId(dto.getPurchaseOrderId());
+            receipt.setPurchaseOrders(po);
+        }
+        if (dto.getSupplierId() != null)
+        {
+            Supplier supplier = new Supplier();
+            supplier.setSupplierId(dto.getSupplierId());
+            receipt.setSupplier(supplier);
+        }
+
+        if(dto.getWarehouseId() != null)
+        {
+            Warehouse warehouse = new Warehouse();
+            warehouse.setWarehouseId(dto.getWarehouseId());
+            receipt.setWarehouse(warehouse);
+        }
+
+        receipt.setStatus("PENDING");
         receipt.setCreatedAt(LocalDateTime.now());
-        receipt.setReceivedAt(LocalDateTime.now());
-        receipt.setCreatedBy(userId);
+        receipt.setReceivedAt(null);
+        User users = new User();
+        users.setUserId(userId);
+        receipt.setUser(users);
+        if (dto.getDeliveryNoteCode() != null) {
+            receipt.setDeliveryNoteCode(dto.getDeliveryNoteCode());
+        }
+
 
         InboundReceipt savedReceipt = receiptRepo.save(receipt);
 
@@ -126,46 +157,6 @@ public class InboundServiceImpl implements InboundService {
                 // Cập nhật số lượng thực nhận vào đơn mua
                 poItemRepo.updateReceivedQty(dto.getPurchaseOrderId(), itemDto.getProductId(), itemDto.getActualQty());
             }
-
-            // =================================================================
-            // Cập nhật tồn kho (Kiểm tra xem có chưa mới cộng dồn)
-            // =================================================================
-            var balanceOpt = balanceRepo.findByWarehouseIdAndLocationIdAndProductIdAndBatchId(
-                    dto.getWarehouseId(),
-                    itemDto.getLocationId(),
-                    itemDto.getProductId(),
-                    itemDto.getBatchId()
-            );
-
-            if (balanceOpt.isPresent()) {
-                InventoryLocationBalance existingBalance = balanceOpt.get();
-                existingBalance.setQty(existingBalance.getQty().add(actualQty));
-                existingBalance.setUpdateAt(LocalDateTime.now()); // Cập nhật thời gian
-                balanceRepo.save(existingBalance);
-            } else {
-                // NẾU CHƯA CÓ -> Tạo dòng mới tại vị trí này
-                InventoryLocationBalance newBalance = new InventoryLocationBalance();
-                newBalance.setWarehouseId(dto.getWarehouseId());
-                newBalance.setLocationId(itemDto.getLocationId());
-                newBalance.setProductId(itemDto.getProductId());
-                newBalance.setBatchId(itemDto.getBatchId());
-                newBalance.setQty(actualQty);
-                newBalance.setStatus("AVAILABLE");
-                // THÊM DÒNG NÀY: Ghi lại thời gian tạo
-                newBalance.setUpdateAt(LocalDateTime.now());
-                balanceRepo.save(newBalance);
-            }
-            // =================================================================
-
-            // Ghi lịch sử kho
-            InventoryHistory history = new InventoryHistory();
-            history.setTransactionType("INBOUND");
-            history.setProductId(itemDto.getProductId());
-            history.setBatchId(itemDto.getBatchId());
-            history.setQtyChange(actualQty);
-            history.setToLocationId(itemDto.getLocationId());
-            history.setWarehouseId(dto.getWarehouseId());
-            historyRepo.save(history);
         }
         return savedReceipt;
     }
@@ -281,4 +272,102 @@ public class InboundServiceImpl implements InboundService {
         }
         return dtos;
     }
+
+    @Override
+    @Transactional
+    public void approveInboundReceipt(Long receiptId, String adminNote) {
+        InboundReceipt receipt = receiptRepo.findById(receiptId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu"));
+
+        if (!"PENDING".equals(receipt.getStatus())) {
+            throw new RuntimeException("Phiếu này đã được xử lý rồi!");
+        }
+
+        // Duyệt qua từng item trong phiếu để cộng kho
+        for (InboundReceiptItem item : receipt.getItems()) {
+
+            // Cập nhật số dư (Balance)
+            var balance = balanceRepo.findByWarehouseIdAndLocationIdAndProductIdAndBatchId(
+                    receipt.getWarehouse().getWarehouseId(),
+                    item.getPutawayLocationId(),
+                    item.getProduct().getProduct_id(),
+                    item.getBatch() != null ? item.getBatch().getBatchId() : null
+            ).orElse(new InventoryLocationBalance());
+
+            // Nếu là dòng mới thì set thông tin cơ bản
+            if (balance.getId() == null) {
+                balance.setWarehouseId(receipt.getWarehouse().getWarehouseId());
+                balance.setLocationId(item.getPutawayLocationId());
+                balance.setProductId(item.getProduct().getProduct_id());
+                balance.setBatchId(item.getBatch() != null ? item.getBatch().getBatchId() : null);
+                balance.setQty(BigDecimal.ZERO);
+                balance.setStatus("AVAILABLE");
+            }
+
+            // Cộng dồn thực tế
+            balance.setQty(balance.getQty().add(item.getActualQty()));
+            balance.setUpdateAt(LocalDateTime.now());
+            balanceRepo.save(balance);
+
+            // Ghi lịch sử kho (History)
+            InventoryHistory history = new InventoryHistory();
+            history.setTransactionType("INBOUND");
+            history.setProductId(item.getProduct().getProduct_id());
+            history.setQtyChange(item.getActualQty());
+            history.setToLocationId(item.getPutawayLocationId());
+            history.setWarehouseId(receipt.getWarehouse().getWarehouseId());
+            history.setCreatedAt(LocalDateTime.now());
+            historyRepo.save(history);
+        }
+
+        // Cập nhật trạng thái phiếu
+        receipt.setStatus("COMPLETED");
+        receipt.setReceivedAt(LocalDateTime.now());
+
+        receiptRepo.save(receipt);
+
+        if (receipt.getPurchaseOrders() != null) {
+            poRepository.findById(receipt.getPurchaseOrders().getId()).ifPresent(po -> {
+                po.setStatus("COMPLETED");
+                poRepository.save(po);
+            });
+        }
+    }
+
+    @Override
+    @Transactional
+    public void rejectInboundReceipt(Long receiptId, String adminNote) {
+        InboundReceipt receipt = receiptRepo.findById(receiptId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu"));
+
+        if (!"PENDING".equals(receipt.getStatus())) {
+            throw new RuntimeException("Chỉ có thể từ chối phiếu đang chờ duyệt!");
+        }
+
+        // Đổi trạng thái thành REJECTED (Từ chối)
+        receipt.setStatus("REJECTED");
+        receipt.setReceivedAt(LocalDateTime.now());
+
+        if (receipt.getPurchaseOrders() != null) {
+            for (InboundReceiptItem item : receipt.getItems()) {
+                // Lấy số lượng thực tế đã nhập, chuyển thành số ÂM để trừ đi
+                // Tùy thuộc vào hàm updateReceivedQty của bạn nhận kiểu Double hay BigDecimal
+                // Ví dụ nếu nó nhận Double:
+                double qtyToRollback = -item.getActualQty().doubleValue();
+
+                poItemRepo.updateReceivedQty(
+                        receipt.getPurchaseOrders().getId(),
+                        item.getProduct().getProduct_id(),
+                        qtyToRollback
+                );
+            }
+        }
+        receiptRepo.save(receipt);
+    }
+
+    @Override
+    public List<InboundReceipt> getHistoryReceipts() {
+        return receiptRepo.findByStatusInOrderByCreatedAtDesc(List.of("COMPLETED", "REJECTED"));
+    }
+
 }

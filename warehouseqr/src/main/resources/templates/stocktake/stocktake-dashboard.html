@@ -76,44 +76,50 @@
                 </div>
 
                 <!-- 4 thẻ thống kê -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card-stat">
-                            <div>
+                <div class="row mb-4 align-items-stretch">
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100">
+                            <div class="flex-grow-1">
                                 <div class="title">Tổng sản phẩm</div>
                                 <div class="value" th:text="${dashboard != null ? dashboard.totalProducts : 0}">0</div>
+                                <div class="small mt-1" style="visibility: hidden;">-</div>
                             </div>
-                            <div class="icon-box icon-blue"><i class="bi bi-box-seam"></i></div>
+                            <div class="icon-box icon-blue flex-shrink-0"><i class="bi bi-box-seam"></i></div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card-stat">
-                            <div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100">
+                            <div class="flex-grow-1">
                                 <div class="title">Đã quét</div>
                                 <div class="value" th:text="${dashboard != null ? dashboard.totalScanned : 0}">0</div>
+                                <div class="small fw-bold mt-1 text-success" th:text="${dashboard != null ? dashboard.completionPercent : 0} + '% hoàn thành'">0% hoàn thành</div>
                             </div>
-                            <div class="icon-box icon-green"><i class="bi bi-upc-scan"></i></div>
+                            <div class="icon-box icon-green flex-shrink-0"><i class="bi bi-upc-scan"></i></div>
                         </div>
-                        <div class="mt-2 small text-success" th:text="${dashboard != null ? dashboard.completionPercent : 0} + '% hoàn thành'">0%</div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card-stat">
-                            <div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100">
+                            <div class="flex-grow-1">
                                 <div class="title">Chênh lệch</div>
                                 <div class="value text-danger" th:text="${dashboard != null ? dashboard.varianceCount : 0}">0</div>
+                                <div class="small fw-bold mt-1 text-danger">Cần xử lý</div>
                             </div>
-                            <div class="icon-box icon-red"><i class="bi bi-exclamation-triangle"></i></div>
+                            <div class="icon-box icon-red flex-shrink-0"><i class="bi bi-exclamation-triangle"></i></div>
                         </div>
-                        <div class="mt-2 small text-muted">Cần xử lý</div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="card-stat text-center">
-                            <a th:href="@{/admin/stocktake/scan(sessionId=${sessionId})}" class="btn btn-primary rounded-pill w-100 py-2">
-                                <i class="bi bi-qr-code-scan"></i> Quét mã QR
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100 d-flex flex-column justify-content-center align-items-center" style="padding: 15px;">
+                            <a th:href="@{/admin/stocktake/scan(sessionId=${sessionId})}" class="btn btn-primary rounded-pill w-100 py-2 mb-2 fw-bold shadow-sm">
+                                <i class="bi bi-qr-code-scan me-1"></i> Quét mã QR
                             </a>
-                            <div class="mt-2 small text-muted">Quét sản phẩm / vị trí</div>
+                            <div class="small text-muted fw-semibold">Quét sản phẩm / vị trí</div>
                         </div>
                     </div>
+
                 </div>
 
                 <!-- Bảng đối soát -->
@@ -162,37 +168,6 @@
                     </table>
                 </div>
 
-                <!-- Hai cột cảnh báo (tồn thấp, hết hạn) -->
-                <div class="row mt-4">
-                    <div class="col-md-6">
-                        <div class="bg-white rounded-3 shadow-sm p-3">
-                            <h6 class="fw-bold">Tồn kho thấp <span class="badge bg-secondary" th:text="${lowStockList != null ? lowStockList.size() : 0} + ' sản phẩm'"></span></h6>
-                            <div class="mt-2">
-                                <div th:each="item : ${lowStockList}" class="mb-3">
-                                    <div class="fw-bold" th:text="${item.sku}">-</div>
-                                    <div class="small text-muted" th:text="${item.productName}">-</div>
-                                    <div class="small mt-1" th:text="${item.currentQty} + ' / ' + ${item.minStock} + ' tối thiểu'">0/0</div>
-                                </div>
-                                <div th:if="${lowStockList == null or lowStockList.empty}" class="text-muted">Không có cảnh báo</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="bg-white rounded-3 shadow-sm p-3">
-                            <h6 class="fw-bold">Sắp hết hạn (&lt;30 ngày) <span class="badge bg-secondary" th:text="${expiryList != null ? expiryList.size() : 0} + ' sản phẩm'"></span></h6>
-                            <div class="mt-2">
-                                <div th:each="exp : ${expiryList}" class="mb-3">
-                                    <div class="fw-bold" th:text="${exp.sku} + ' - ' + ${exp.productName}">-</div>
-                                    <div class="small text-muted">Batch: <span th:text="${exp.batchCode}">-</span></div>
-                                    <div class="small text-danger" th:text="${exp.daysRemaining} + ' ngày'">-</div>
-                                </div>
-                                <div th:if="${expiryList == null or expiryList.empty}" class="text-muted">Không có lô sắp hết hạn</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Footer -->
         <div th:replace="fragments/footer"></div>

@@ -53,39 +53,41 @@ public class StocktakeServiceImpl implements StocktakeService {
 
     @Override
     public void processScan(ScanRequest request) {
-        String qr = request.getQrContent();
-        String[] parts = qr.split("\\|");
+        // 1. Phân tách mã Sản phẩm
+        String[] parts = request.getProductQr().split("\\|");
         String sku = parts[0];
         String lotCode = parts.length > 1 ? parts[1] : null;
 
-        // 1. Tìm Product
         Product product = productRepository.findProductBySku(sku)
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
 
-        // 2. Tìm Batch (Fix lỗi ở đây)
         ProductBatch batch = null;
         if (lotCode != null && !lotCode.trim().isEmpty()) {
-            // Thay vì findByLotCode, dùng findByLotCodeAndProduct
             batch = batchRepository.findByLotCodeAndProduct(lotCode, product).orElse(null);
         }
 
-        // 3. Gán vị trí (Tạm thời hardcode, xem lưu ý bên dưới)
-        Long locationId = 1L;
-
-        // Lúc này log sẽ in ra bình thường vì không còn bị crash ở bước tìm Batch nữa
-        log.info("Searching stocktake item with sessionId={}, productId={}, batchId={}, locationId={}",
-                request.getSessionId(), product.getProduct_id(),
-                batch != null ? batch.getBatchId() : null, locationId);
-
-        // 4. Tìm StocktakeItem
-        StocktakeItem item = stocktakeItemRepository.findStocktakeItemWithoutLocation(
+        // 2. Tìm dòng kiểm kê theo CẢ SESSION, PRODUCT VÀ LOCATION
+        // Lưu ý: Bạn cần viết thêm hàm này trong StocktakeItemRepository
+        StocktakeItem item = stocktakeItemRepository.findItemByLocationAndProduct(
                         request.getSessionId(),
+                        request.getLocationQr(), // Tìm đích danh mã kệ này
                         product.getProduct_id(),
                         batch != null ? batch.getBatchId() : null)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy mặt hàng này trong danh sách kiểm kê!"));
+                .orElseThrow(() -> new RuntimeException("Mặt hàng này không có trên Kệ " + request.getLocationQr() + " theo dữ liệu hệ thống!"));
 
-        // Cập nhật số lượng
-        BigDecimal newActual = (item.getActualQty() == null ? BigDecimal.ZERO : item.getActualQty()).add(BigDecimal.ONE);
+        BigDecimal scanQty = (request.getQty() != null) ? request.getQty() : BigDecimal.ONE;
+        BigDecimal currentActual = (item.getActualQty() == null) ? BigDecimal.ZERO : item.getActualQty();
+        BigDecimal newActual = currentActual.add(scanQty);
+
+        // 3. LOGIC CẢNH BÁO CHÊNH LỆCH
+        // Nếu số đếm mới KHÁC số hệ thống VÀ nhân viên chưa gửi cờ xác nhận
+        if (newActual.compareTo(item.getSystemQty()) != 0 && !request.isConfirmVariance()) {
+            // Ném ra một lỗi đặc biệt để Frontend nhận biết
+            throw new RuntimeException("VARIANCE_WARNING|" +
+                    "Phát hiện chênh lệch! Số lượng bạn đếm đang khác với dự kiến. Bạn có chắc chắn muốn ghi nhận " + newActual + " sản phẩm?");
+        }
+
+        // 4. Lưu dữ liệu nếu khớp, hoặc nếu lệch nhưng đã có cờ xác nhận
         item.setActualQty(newActual);
         item.setVarianceQty(newActual.subtract(item.getSystemQty()));
         stocktakeItemRepository.save(item);

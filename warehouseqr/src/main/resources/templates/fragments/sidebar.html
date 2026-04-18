@@ -10,17 +10,14 @@
         </div>
     </div>
 
-    <ul class="nav flex-column px-3 gap-1 mb-4">
+    <ul class="nav flex-column px-3 gap-1 mb-4" id="sidebarMenu">
         <li class="nav-item">
-            <a href="/admin/dashboard" class="nav-link active d-flex align-items-center gap-2 text-white" style="background-color: #0d6efd; border-radius: 6px; padding: 10px 16px;">
+            <a th:href="@{/admin/dashboard}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
                 <i class="fa-solid fa-border-all" style="width: 24px; text-align: center;"></i> Dashboard
             </a>
         </li>
-         <li class="nav-item">
-            <a th:href="@{/admin/users}"
-               class="nav-link d-flex align-items-center gap-2 text-secondary"
-               th:classappend="${#execInfo.templateName.contains('user-list') ? 'active text-white' : ''}"
-               style="padding: 10px 16px;">
+        <li class="nav-item">
+            <a th:href="@{/admin/users}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
                 <i class="bi bi-people" style="width: 24px; text-align: center;"></i>
                 <span>Quản lý người dùng</span>
             </a>
@@ -59,9 +56,7 @@
             </a>
         </li>
         <li class="nav-item">
-            <a th:href="@{/units}" class="nav-link d-flex align-items-center gap-2 text-secondary"
-               th:classappend="${#execInfo.templateName.contains('unit-') ? 'active text-white' : ''}"
-               style="padding: 10px 16px;">
+            <a th:href="@{/units}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
                 <i class="bi bi-bookmark" style="width: 24px; text-align: center;"></i> Units
             </a>
         </li>
@@ -71,9 +66,36 @@
             </a>
         </li>
         <li class="nav-item">
-            <a th:href="@{/scan-station}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
-                <i class="bi bi-box-arrow-in-down-right" style="width: 24px; text-align: center;"></i> Inbound
+            <a class="nav-link d-flex align-items-center gap-2 text-secondary" data-bs-toggle="collapse" href="#inboundMenu" role="button" aria-expanded="false" aria-controls="inboundMenu" style="padding: 10px 16px;">
+                <i class="bi bi-box-arrow-in-down-right" style="width: 24px; text-align: center;"></i>
+                <span>Inbound</span>
+                <i class="bi bi-chevron-down ms-auto" style="font-size: 12px;"></i>
             </a>
+
+            <div class="collapse" id="inboundMenu">
+                <ul class="nav flex-column sub-menu gap-1">
+                    <li class="nav-item">
+                        <a th:href="@{/manager/purchase-orders}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-cart3"></i> Danh sách PO
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/scan-station/inbound}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-upc-scan"></i> Scan Inbound
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/manager/inbound/approval-list}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-check2-square"></i> Manager Approval
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/manager/inbound/history}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-check2-square"></i> Inbound Receipts History
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </li>
 
         <li class="nav-item">
@@ -85,7 +107,21 @@
 
             <div class="collapse" id="outboundMenu">
                 <ul class="nav flex-column sub-menu gap-1">
-
+                    <li class="nav-item">
+                        <a th:href="@{/manager/sales-orders/list}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-list-ul"></i> Danh sách đơn bán
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/manager/sales-orders/create}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-cart-plus"></i> Tạo đơn bán hàng
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/scan-station/outbound}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-upc-scan"></i> Scan Outbound
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a th:href="@{/manager/approvals}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
                             <i class="bi bi-person-check"></i> Tram truong xac nhan don
@@ -105,11 +141,6 @@
                     </li>
                 </ul>
             </div>
-        </li>
-        <li class="nav-item">
-            <a href="#" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
-                <i class="bi bi-truck" style="width: 24px; text-align: center;"></i> Tranfer
-            </a>
         </li>
         <li class="nav-item">
             <a th:href="@{/admin/inventory}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
@@ -132,7 +163,7 @@
                 <i class="bi bi-file" style="width: 24px; text-align: center;"></i> Report
             </a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item mt-3 pt-3 border-top border-secondary border-opacity-25">
             <form th:action="@{/logout}" method="post" id="logoutForm">
                 <button type="submit" class="nav-link d-flex align-items-center gap-2 text-danger w-100 border-0 bg-transparent" style="padding: 10px 16px;">
                     <i class="bi bi-box-arrow-right" style="width: 24px; text-align: center;"></i>
@@ -141,6 +172,37 @@
             </form>
         </li>
     </ul>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            let currentPath = window.location.pathname;
+            let navLinks = document.querySelectorAll('#sidebarMenu .nav-link');
+
+            navLinks.forEach(link => {
+                let href = link.getAttribute('href');
+
+                // Nếu URL hiện tại bắt đầu bằng link của Menu (bỏ qua # và / root)
+                if (href && href !== '#' && href !== '/' && currentPath.startsWith(href)) {
+                    // Tô màu xanh
+                    link.classList.add('active', 'bg-primary', 'text-white');
+                    link.classList.remove('text-secondary');
+                    link.style.borderRadius = '6px';
+
+                    // Nếu menu này nằm trong menu con (Dropdown), thì tự động mở menu cha ra
+                    let parentCollapse = link.closest('.collapse');
+                    if (parentCollapse) {
+                        parentCollapse.classList.add('show');
+                        // Chữ Outbound của menu cha cũng sáng lên cho đẹp
+                        let parentBtn = document.querySelector('[href="#' + parentCollapse.id + '"]');
+                        if (parentBtn) {
+                            parentBtn.classList.remove('text-secondary');
+                            parentBtn.classList.add('text-white');
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 </aside>
 </body>
 </html>

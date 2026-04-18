@@ -15,4 +15,10 @@ public interface InboundService {
     InboundReceipt getById(Long id);
 
     public List<ProductScanDTO> parseCsvToDTO(MultipartFile file);
+
+    public void approveInboundReceipt(Long receiptId, String adminNote);
+
+    public void rejectInboundReceipt(Long receiptId, String adminNote);
+
+    public List<InboundReceipt> getHistoryReceipts ();
 }

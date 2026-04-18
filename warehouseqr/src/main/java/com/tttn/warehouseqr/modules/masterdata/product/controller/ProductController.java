@@ -1,11 +1,15 @@
 package com.tttn.warehouseqr.modules.masterdata.product.controller;
 
+import com.tttn.warehouseqr.modules.auth.entity.User;
+import com.tttn.warehouseqr.modules.auth.repository.UserRepository;
 import com.tttn.warehouseqr.modules.masterdata.category.entity.ProductCategory;
 import com.tttn.warehouseqr.modules.masterdata.category.service.impl.CategoryService;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductDTO;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductPageResponse;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductQrDTO;
 import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.TempImportData;
+import com.tttn.warehouseqr.modules.masterdata.product.repository.TempImportDataRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ImportQrService;
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductBatchService;
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductService;
@@ -21,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.security.Principal;
 import java.util.List;
 
 @Controller
@@ -33,14 +38,17 @@ public class ProductController {
     private final ProductBatchService productBatchService;
     private final SupplierService supplierService;
     private final WarehouseService warehouseService;
-
+    private final TempImportDataRepository tempImportDataRepository;
+    private final UserRepository userRepository;
     public ProductController(ProductService productService,
                              CategoryService categoryService,
                              UnitService unitService,
                              ImportQrService importQrService,
                              ProductBatchService productBatchService,
                              SupplierService supplierService,
-                             WarehouseService warehouseService) {
+                             WarehouseService warehouseService,
+                             TempImportDataRepository tempImportDataRepository,
+                             UserRepository userRepository) {
         this.productService = productService;
         this.categoryService = categoryService;
         this.unitService = unitService;
@@ -48,22 +56,60 @@ public class ProductController {
         this.productBatchService = productBatchService;
         this.supplierService = supplierService;
         this.warehouseService=warehouseService;
+        this.tempImportDataRepository = tempImportDataRepository;
+        this.userRepository = userRepository;
     }
 
+    // Bước 1: Nhận file, lưu bảng tạm và Validate
     @PostMapping("/import-csv")
-    public String importCsv(@RequestParam("files")MultipartFile file,
-                            RedirectAttributes redirectAttributes){
+    public String importCsv(@RequestParam("files") MultipartFile file, RedirectAttributes redirectAttributes){
         if(file.isEmpty()){
             redirectAttributes.addFlashAttribute("error", "Vui lòng chọn file CSV!");
             return "redirect:/products";
         }
         try {
-            importQrService.importCsvAndGenerateQr(file);
-            redirectAttributes.addFlashAttribute("success", "Đã Import dữ liệu và tự động sinh mã QR thành công!");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error","Lỗi kji Import: " + e.getMessage());
-        }
+            String sessionId = importQrService.importCsvToTemp(file);
 
+            importQrService.ValidateTempData(sessionId);
+
+            return "redirect:/products/import-preview?sessionId=" + sessionId;
+
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error","Lỗi khi đọc file: " + e.getMessage());
+            return "redirect:/products";
+        }
+    }
+
+    @GetMapping("/import-preview")
+    public String previewImportData(@RequestParam("sessionId") String sessionId, Model model) {
+        List<TempImportData> tempList = tempImportDataRepository.findByImportSessionId(sessionId);
+
+        model.addAttribute("tempList", tempList);
+        model.addAttribute("sessionId", sessionId);
+
+        return "productAndQr/products/product-list/preview_import";
+    }
+
+
+    @PostMapping("/import-confirm")
+    public String confirmImport(@RequestParam("sessionId") String sessionId, Principal principal, RedirectAttributes redirectAttributes) {
+        try {
+            Long currentUserId;
+            if (principal != null){
+                String username = principal.getName();
+                User currentUser = userRepository.findByUsername(username)
+                        .orElseThrow(() -> new RuntimeException("Không xác định được người dùng hiện tại"));
+                currentUserId = currentUser.getUserId();
+            } else {
+                throw new RuntimeException("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại");
+            }
+
+            String resultMessage = importQrService.confirmImport(sessionId, currentUserId);
+
+            redirectAttributes.addFlashAttribute("success", resultMessage);
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
         return "redirect:/products";
     }
 
@@ -85,6 +131,7 @@ public class ProductController {
         model.addAttribute("categoryId", categoryId);
         model.addAttribute("categories",categoryService.getAllCategory());
         model.addAttribute("suppliers", supplierService.getAllSuppliers());
+        model.addAttribute("units", unitService.getAllUnit());
         model.addAttribute("warehouses", warehouseService.getAllWarehouse());
 
         return "productAndQr/products/product-list/list";

@@ -156,12 +156,16 @@
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <form th:action="@{/products/import-csv}" method="post" enctype="multipart/form-data">
-                    <div class="modal-header">
-                        <h5 class="modal-title fw-bold">Import File CSV & Xem trước</h5>
+                    <div class="modal-header bg-light">
+                        <h5 class="modal-title fw-bold text-primary">Bước 1: Tải lên & Quét dữ liệu CSV</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
 
                     <div class="modal-body bg-light">
+                        <div class="alert alert-info py-2 small">
+                            <i class="bi bi-info-circle-fill me-1"></i> Dữ liệu sẽ <strong>không được lưu ngay</strong> vào kho. Hệ thống sẽ quét file để phân loại "Thêm Mới", "Cộng Dồn" hoặc "Lỗi" ở bước tiếp theo.
+                        </div>
+
                         <div class="row">
                             <div class="col-md-5 border-end">
                                 <h6 class="text-primary fw-bold mb-3"><i class="bi bi-1-circle"></i> Chuẩn bị dữ liệu</h6>
@@ -172,7 +176,7 @@
                                 </a>
 
                                 <h6 class="text-primary fw-bold mb-2"><i class="bi bi-2-circle"></i> Tải file lên</h6>
-                                <input class="form-control" type="file" name="files" id="csvFileInput" accept=".csv" required>
+                                <input class="form-control border-primary" type="file" name="files" id="csvFileInput" accept=".csv" required>
 
                                 <div class="accordion mt-4 shadow-sm" id="referenceAccordion">
                                     <div class="accordion-item border-0">
@@ -186,6 +190,9 @@
                                                 <ul class="nav nav-tabs nav-justified" id="refTab" role="tablist">
                                                     <li class="nav-item" role="presentation">
                                                         <button class="nav-link active py-1 rounded-0" data-bs-toggle="tab" data-bs-target="#refCat" type="button">Danh Mục</button>
+                                                    </li>
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link py-1 rounded-0" data-bs-toggle="tab" data-bs-target="#refUnit" type="button">Đơn Vị</button>
                                                     </li>
                                                     <li class="nav-item" role="presentation">
                                                         <button class="nav-link py-1 rounded-0" data-bs-toggle="tab" data-bs-target="#refSup" type="button">NCC</button>
@@ -202,6 +209,13 @@
                                                             </li>
                                                         </ul>
                                                     </div>
+                                                    <div class="tab-pane fade" id="refUnit">
+                                                        <ul class="list-unstyled mb-0">
+                                                            <li th:each="unit : ${units}" class="mb-1">
+                                                                <span class="badge bg-secondary me-1" th:text="${unit.unitId}"></span> <span th:text="${unit.unitName}"></span>
+                                                            </li>
+                                                        </ul>
+                                                    </div>
                                                     <div class="tab-pane fade" id="refSup">
                                                         <ul class="list-unstyled mb-0">
                                                             <li th:each="sup : ${suppliers}" class="mb-1">
@@ -210,11 +224,34 @@
                                                         </ul>
                                                     </div>
                                                     <div class="tab-pane fade" id="refWare">
-                                                        <ul class="list-unstyled mb-0">
-                                                            <li th:each="ware : ${warehouses}" class="mb-1">
-                                                                <span class="badge bg-secondary me-1" th:text="${ware.warehouseId}"></span> <span th:text="${ware.warehouseName}"></span>
-                                                            </li>
-                                                        </ul>
+                                                        <div class="accordion accordion-flush" id="accordionWarehouses">
+                                                            <div class="accordion-item border-0 mb-1" th:each="ware : ${warehouses}">
+                                                                <h2 class="accordion-header">
+                                                                    <button class="accordion-button collapsed py-1 px-2 rounded bg-light border shadow-sm" type="button"
+                                                                            data-bs-toggle="collapse" th:data-bs-target="'#collapseWare' + ${ware.warehouseId}" style="font-size: 13px;">
+                                                                        <div>
+                                                                            <span class="badge bg-secondary me-1" th:text="${ware.warehouseId}"></span>
+                                                                            <span th:text="${ware.warehouseName}" class="fw-bold text-dark"></span>
+                                                                        </div>
+                                                                    </button>
+                                                                </h2>
+
+                                                                <div th:id="'collapseWare' + ${ware.warehouseId}" class="accordion-collapse collapse" data-bs-parent="#accordionWarehouses">
+                                                                    <div class="accordion-body p-1 pt-2 bg-white border-start border-2 border-primary ms-2 mt-1">
+
+                                                                        <ul class="list-unstyled mb-0 ms-2" th:if="${ware.locations != null and !ware.locations.isEmpty()}">
+                                                                            <li th:each="loc : ${ware.locations}" class="mb-1" style="font-size: 12px;">
+                                                                                <i class="bi bi-arrow-return-right text-muted me-1"></i>
+                                                                                Mã Kệ: <strong class="text-primary" th:text="${loc.locationCode}"></strong>
+                                                                            </li>
+                                                                        </ul>
+
+                                                                        <span th:if="${ware.locations == null or ware.locations.isEmpty()}" class="text-muted fst-italic ms-2" style="font-size: 12px;">
+                                                                                    (Kho này chưa có vị trí kệ nào)</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -224,7 +261,7 @@
                             </div>
 
                             <div class="col-md-7">
-                                <h6 class="text-success fw-bold mb-3"><i class="bi bi-3-circle"></i> Xem trước Dữ liệu</h6>
+                                <h6 class="text-success fw-bold mb-3"><i class="bi bi-3-circle"></i> Xem trước Dữ liệu Thô (Từ file)</h6>
                                 <div id="csvPreviewArea" class="table-responsive border rounded bg-white shadow-sm" style="height: 380px; overflow-y: auto;">
                                     <div class="text-center p-5 text-muted mt-5">
                                         <i class="bi bi-file-earmark-spreadsheet display-4 text-light"></i><br>
@@ -237,8 +274,8 @@
 
                     <div class="modal-footer border-top-0 bg-white">
                         <button type="button" class="btn btn-secondary border" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" id="btnConfirmImport" class="btn btn-success px-4" disabled>
-                            <i class="bi bi-check2-circle"></i> Xác nhận Lưu vào Hệ thống
+                        <button type="submit" id="btnConfirmImport" class="btn btn-primary px-4" disabled>
+                            Tiếp tục: Quét & Phân loại dữ liệu <i class="bi bi-arrow-right-circle ms-1"></i>
                         </button>
                     </div>
                 </form>
@@ -308,6 +345,8 @@
                 }
             });
         }
+
+        // SCRIPT PREVIEW FILE CSV CỦA BẠN (Cực kì tốt)
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             const previewArea = document.getElementById('csvPreviewArea');
@@ -319,11 +358,9 @@
                 return;
             }
 
-            // Dùng FileReader của JS để đọc file ngay trên trình duyệt
             const reader = new FileReader();
             reader.onload = function(event) {
                 const text = event.target.result;
-                // Cắt file thành từng dòng, bỏ qua các dòng rỗng
                 const rows = text.split('\n').filter(row => row.trim() !== '');
 
                 if(rows.length <= 1) {
@@ -332,17 +369,16 @@
                     return;
                 }
 
-                // Vẽ bảng HTML
                 let tableHtml = '<table class="table table-sm table-bordered table-hover mb-0" style="font-size: 13px; white-space: nowrap;">';
 
                 rows.forEach((row, index) => {
-                    const cols = row.split(','); // Tách các cột bằng dấu phẩy
+                    const cols = row.split(',');
 
-                    if (index === 0) { // Dòng tiêu đề
+                    if (index === 0) {
                         tableHtml += '<thead class="table-dark sticky-top"><tr>';
                         cols.forEach(col => tableHtml += `<th>${col.trim()}</th>`);
                         tableHtml += '</tr></thead><tbody>';
-                    } else { // Các dòng dữ liệu
+                    } else {
                         tableHtml += '<tr>';
                         cols.forEach(col => tableHtml += `<td>${col.trim()}</td>`);
                         tableHtml += '</tr>';
@@ -351,12 +387,10 @@
 
                 tableHtml += '</tbody></table>';
 
-                // In bảng ra màn hình và mở khóa nút Xác nhận
                 previewArea.innerHTML = tableHtml;
                 submitBtn.disabled = false;
             };
 
-            // Đọc file dưới dạng chữ UTF-8 để không lỗi font tiếng Việt
             reader.readAsText(file, 'UTF-8');
         });
     </script>

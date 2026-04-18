@@ -1,0 +1,184 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Danh Sách Đơn Bán Hàng | WMS Pro</title>
+    <style th:inline="css">
+        body { background: #f8fafc; }
+        .page-title {
+            font-weight: 800;
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-soft {
+            border: 0;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        }
+        .status-badge, .payment-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .status-DRAFT { background: #f3f4f6; color: #374151; }
+        .status-PENDING { background: #dbeafe; color: #1d4ed8; }
+        .status-PARTIAL { background: #ffedd5; color: #c2410c; }
+        .status-SHIPPED { background: #dcfce7; color: #15803d; }
+        .status-CANCELLED { background: #fee2e2; color: #b91c1c; }
+        .payment-UNPAID { background: #fef3c7; color: #b45309; }
+        .payment-PAID { background: #dcfce7; color: #15803d; }
+        .table thead th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .doc-status-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 10px 12px;
+            min-width: 260px;
+        }
+        .doc-status-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .doc-status-line:last-child { margin-bottom: 0; }
+        .doc-status-label { color: #334155; font-weight: 600; white-space: nowrap; }
+        .doc-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+        .doc-pill-success {
+            color: #15803d;
+            background: #dcfce7;
+            border-color: #86efac;
+        }
+        .doc-pill-waiting {
+            color: #b45309;
+            background: #fef3c7;
+            border-color: #fcd34d;
+        }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4 px-md-5">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-4 flex-wrap">
+            <div>
+                <span class="badge bg-info bg-opacity-10 text-info px-3 py-2 rounded-pill fw-bold mb-2">OUTBOUND / SALES</span>
+                <h2 class="page-title mb-1">Danh Sách Đơn Bán Hàng</h2>
+                <p class="text-muted mb-0">Theo dõi đơn bán, trạng thái xử lý và thanh toán.</p>
+            </div>
+            <a th:href="@{/manager/sales-orders/create}" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+                <i class="bi bi-cart-plus me-2"></i>Tạo đơn bán hàng
+            </a>
+        </div>
+
+        <div class="card card-soft">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">#</th>
+                            <th>Mã SO</th>
+                            <th>Khách hàng</th>
+                            <th>Trạng thái chứng từ</th>
+                            <th>Trạng thái</th>
+                            <th>Thanh toán</th>
+                            <th class="text-end">Tổng tiền</th>
+                            <th>Ngày tạo</th>
+                            <th>Ngày cập nhật</th>
+                            <th class="text-center pe-4">Thao tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:if="${#lists.isEmpty(salesOrders)}">
+                            <td colspan="10" class="text-center text-muted py-5">Chưa có đơn bán hàng nào.</td>
+                        </tr>
+
+                        <tr th:each="so, iter : ${salesOrders}">
+                            <td class="ps-4" th:text="${iter.count}">1</td>
+                            <td class="fw-bold text-dark" th:text="${so.soCode}">SO-001</td>
+                            <td>
+                                <div class="fw-semibold" th:text="${so.customerName ?: 'Khách lẻ'}">Khách hàng</div>
+                                <small class="text-muted" th:text="${so.customerId != null ? 'Customer ID: ' + so.customerId : 'Không gắn khách hàng'}"></small>
+                            </td>
+                            <td>
+                                <div class="doc-status-box">
+                                    <div class="doc-status-line">
+                                        <span class="doc-status-label">Quản lý trưởng:</span>
+                                        <span class="doc-pill"
+                                              th:classappend="${so.status != null and so.status != 'DRAFT'} ? ' doc-pill-success' : ' doc-pill-waiting'"
+                                              th:text="${so.status != null and so.status != 'DRAFT'} ? 'Đã Duyệt' : 'Chờ Duyệt'">Đã Duyệt</span>
+                                    </div>
+                                    <div class="doc-status-line">
+                                        <span class="doc-status-label">Kế toán:</span>
+                                        <span class="doc-pill"
+                                              th:classappend="${so.paymentStatus == 'PAID'} ? ' doc-pill-success' : ' doc-pill-waiting'"
+                                              th:text="${so.paymentStatus == 'PAID'} ? 'Đã Thanh Toán' : 'Chưa Thanh Toán'">Đã Thanh Toán</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge" th:classappend="'status-' + ${so.status}" th:text="${so.status}">DRAFT</span>
+                            </td>
+                            <td>
+                                <span class="payment-badge" th:classappend="'payment-' + ${so.paymentStatus}" th:text="${so.paymentStatus}">UNPAID</span>
+                            </td>
+                            <td class="text-end fw-bold text-primary" th:text="${#numbers.formatDecimal(so.totalAmount != null ? so.totalAmount : 0, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</td>
+                            <td th:text="${so.createdAt != null ? #temporals.format(so.createdAt, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
+                            <td th:text="${so.updatedAt != null ? #temporals.format(so.updatedAt, 'dd/MM/yyyy HH:mm') : '-'}">-</td>
+                            <td class="text-center pe-4">
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 me-1"
+                                        th:attr="data-so=${so.soCode}"
+                                        onclick="copySoCode(this.getAttribute('data-so'))">
+                                    <i class="bi bi-clipboard me-1"></i>Copy
+                                </button>
+                                <a th:href="@{/outbound/history}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                    <i class="bi bi-clock-history me-1"></i>History
+                                </a>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function copySoCode(soCode) {
+            try {
+                await navigator.clipboard.writeText(soCode);
+                alert('Đã sao chép mã đơn: ' + soCode);
+            } catch (e) {
+                alert('Không thể sao chép mã đơn');
+            }
+        }
+    </script>
+</div>
+</body>
+</html>
+
