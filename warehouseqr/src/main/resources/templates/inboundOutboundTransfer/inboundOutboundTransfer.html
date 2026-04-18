@@ -310,7 +310,7 @@
         // [Toàn bộ logic Javascript cũ của bạn được giữ nguyên ở đây...]
         const OP_CONFIG = {
             'INBOUND': {
-                api: '/api/inbound/confirm',
+                api: '/manager/inbound/api/confirm',
                 parseApi: '/api/inbound/parse-csv',
                 title: 'NHẬP KHO THÀNH CÔNG',
                 docName: 'PHIẾU NHẬP KHO',
@@ -543,14 +543,47 @@
                     checkAndAddRow(data, "QUÉT LẺ");
                 } else {
                     if (currentMode === "INBOUND") {
-                        const poId = parseInt(text);
-                        window.currentPurchaseOrderId = poId;
-                        const resp = await fetch(`/api/purchase-orders/${poId}/items`);
-                        const items = await resp.json();
+                        const poCode = text.trim(); // Dùng chuỗi mã PO, không dùng parseInt
+                        if (!poCode) return;
+
+                        // Gọi đúng API của Controller
+                        const resp = await fetch(`/manager/inbound/api/purchase-orders/${poCode}/items`);
+
+                        if (!resp.ok) {
+                            const err = await resp.text();
+                            throw new Error(err || "Không tìm thấy thông tin đơn hàng PO này!");
+                        }
+
+                        // Lấy dữ liệu dạng Object {poId, supplierId, warehouseId, items}
+                        const responseData = await resp.json();
+                        window.currentPurchaseOrderId = responseData.poId;
+
+                        // Tự động chọn NCC & Kho
+                        if (responseData.supplierId) {
+                            const supplierSelect = document.getElementById('supplierSelect');
+                            if (supplierSelect) supplierSelect.value = responseData.supplierId;
+                        }
+                        if (responseData.warehouseId) {
+                            const warehouseSelect = document.getElementById('warehouseSelect');
+                            if (warehouseSelect) warehouseSelect.value = responseData.warehouseId;
+                        }
+
                         dom.scannedList.innerHTML = "";
-                        items.forEach(item => {
-                            const n = normalizeItemData(item);
-                            renderProductToUI(n.productId, n.productName, n.actualQty, poId, n.lotCode, n.batchId, n.locationId, n.locationCode, n.price);
+
+                        // Render UI
+                        responseData.items.forEach(item => {
+                            renderProductToUI(
+                                item.productId,
+                                item.productName,
+                                0,
+                                responseData.poId,
+                                item.lotCode || "Chờ nhập",
+                                item.batchId || null,
+                                item.locationId || null,
+                                item.locationCode || "CHỜ XẾP KỆ",
+                                item.importPrice || item.price || 0,
+                                item.expectedQty
+                            );
                         });
                     } else if (currentMode === "OUTBOUND") {
                         const response = await fetch(`${OP_CONFIG.OUTBOUND.suggestionApi}${text}`);
@@ -677,13 +710,20 @@
             const row = input.closest('.scanned-item');
             const expected = parseFloat(row.getAttribute('data-expected-qty'));
             const actual = parseFloat(input.value);
+            const badge = row.querySelector('.badge.bg-danger'); // Tìm cái badge "Sai lệch số lượng"
 
-            if (actual !== expected) {
-                row.style.borderLeftColor = "#f59e0b"; // Màu cam cảnh báo
-                row.classList.add('border-warning');
+            if (actual === expected) {
+                // TRƯỜNG HỢP KHỚP: Đổi sang màu xanh lá
+                row.style.borderLeftColor = "#10b981";
+                row.classList.remove('border-warning', 'border-danger');
+                row.classList.add('border-success');
+                if (badge) badge.style.display = 'none'; // Ẩn chữ cảnh báo đi
             } else {
-                row.style.borderLeftColor = "#10b981"; // Màu xanh chuẩn
-                row.classList.remove('border-warning');
+                // TRƯỜNG HỢP SAI LỆCH: Đổi sang màu cam/đỏ
+                row.style.borderLeftColor = "#f59e0b";
+                row.classList.remove('border-success');
+                row.classList.add('border-warning');
+                if (badge) badge.style.display = 'inline-block'; // Hiện chữ cảnh báo lên
             }
         }
 
@@ -797,8 +837,16 @@
             try {
                 const response = await fetch(config.api, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) throw new Error(await response.text());
-                renderReceiptModal(config, items);
-                document.getElementById('receiptModal').addEventListener('hidden.bs.modal', () => location.reload());
+
+                // --- CHỈ SỬA Ở ĐÂY: Rẽ nhánh riêng cho Nhập kho ---
+                if (currentMode === "INBOUND") {
+                    alert("Đã gửi phiếu nhập kho lên hệ thống. Chuyển sang trang xét duyệt...");
+                    window.location.href = "/manager/inbound/approval-list";
+                } else {
+                    // Giữ nguyên logic Hóa đơn cũ cho Xuất kho và Điều chuyển
+                    renderReceiptModal(config, items);
+                    document.getElementById('receiptModal').addEventListener('hidden.bs.modal', () => location.reload());
+                }
             } catch (err) { alert("Lỗi: " + err.message); }
             finally { dom.btnSubmit.disabled = false; dom.btnSubmit.innerText = config.btnText; }
         }
