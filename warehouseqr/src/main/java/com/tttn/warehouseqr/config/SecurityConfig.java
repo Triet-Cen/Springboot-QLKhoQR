@@ -19,6 +19,8 @@ public class SecurityConfig {
                         .requestMatchers("/css/**", "/js/**", "/img/**").permitAll()
                         .requestMatchers("/auth/login").permitAll()
                         .requestMatchers("/admin/users/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/manager/approvals", "/api/manager/orders/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/api/sales-orders/*/approve", "/api/sales-orders/*/rollback-payment").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/products/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
                         .requestMatchers("/categories/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
                         .requestMatchers("/units/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")

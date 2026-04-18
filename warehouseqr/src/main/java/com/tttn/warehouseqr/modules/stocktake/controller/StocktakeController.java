@@ -3,6 +3,10 @@ package com.tttn.warehouseqr.modules.stocktake.controller;
 
 import com.tttn.warehouseqr.modules.inventory.entity.InventoryLocationBalance;
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
+import com.tttn.warehouseqr.modules.masterdata.product.entity.ProductBatch;
+import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
+import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseRepository;
 import com.tttn.warehouseqr.modules.stocktake.dto.*;
@@ -31,6 +35,8 @@ public class StocktakeController {
     private final WarehouseRepository warehouseRepository;
     private final InventoryLocationBalanceRepository balanceRepository;
     private final StocktakeItemRepository stocktakeItemRepository;
+    private final ProductBatchRepository batchRepository;
+    private final ProductRepository productRepository;
 
     @GetMapping
     public String dashboard(@RequestParam(required = false) Long sessionId,
@@ -130,5 +136,39 @@ public class StocktakeController {
         }
 
         return ResponseEntity.ok(Map.of("sessionId", session.getId(), "sessionCode", session.getSessionCode()));
+    }
+
+
+    @GetMapping("/verify-item")
+    public ResponseEntity<?> verifyItemOnLocation(
+            @RequestParam Long sessionId,
+            @RequestParam String locationQr,
+            @RequestParam String productQr) {
+        try {
+            // 1. Phân tách mã Sản phẩm giống hệt lúc quét
+            String[] parts = productQr.split("\\|");
+            String sku = parts[0];
+            String lotCode = parts.length > 1 ? parts[1] : null;
+
+            Product product = productRepository.findProductBySku(sku)
+                    .orElseThrow(() -> new RuntimeException("Sản phẩm không tồn tại."));
+
+            ProductBatch batch = null;
+            if (lotCode != null && !lotCode.trim().isEmpty()) {
+                batch = batchRepository.findByLotCodeAndProduct(lotCode, product).orElse(null);
+            }
+
+            // 2. Tìm kiếm xem CÓ tồn tại dòng dữ liệu nào nối giữa Sản phẩm này và Kệ này không
+            stocktakeItemRepository.findItemByLocationAndProduct(
+                            sessionId, locationQr, product.getProduct_id(), batch != null ? batch.getBatchId() : null)
+                    .orElseThrow(() -> new RuntimeException("Mặt hàng này KHÔNG CÓ trên Kệ " + locationQr));
+
+            // Nếu code chạy đến đây nghĩa là có tồn tại -> Trả về OK
+            return ResponseEntity.ok().build();
+
+        } catch (Exception e) {
+            // Trả về lỗi 400 Bad Request kèm câu thông báo
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

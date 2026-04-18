@@ -136,20 +136,20 @@ public class StorageLocationServiceImpl implements StorageLocationService {
             throw new RuntimeException("Không tìm thấy vị trí đang chứa sản phẩm cho QR này.");
         }
 
-        return rows.stream()
-                .map(r -> new ProductScanDTO(
-                        r.getProductId(),
-                        r.getProductName(),
-                        r.getBatchId(),
-                        r.getLotCode(),
-                        r.getSku(),
-                        r.getQty() != null ? r.getQty().doubleValue() : 0.0,
-                        r.getLocationId(),
-                        r.getLocationCode(),
-                        0.0
-                ))
-                .collect(Collectors.toList());
+        return rows.stream().map(r -> {
+            ProductScanDTO dto = new ProductScanDTO();
+            dto.setProductId(r.getProductId());
+            dto.setProductName(r.getProductName());
+            dto.setBatchId(r.getBatchId());
+            dto.setLotCode(r.getLotCode());
+            dto.setSku(r.getSku());
+            dto.setActualQty(r.getQty() != null ? r.getQty().doubleValue() : 0.0);
+            dto.setLocationId(r.getLocationId());
+            dto.setLocationCode(r.getLocationCode());
+            return dto;
+        }).collect(Collectors.toList());
     }
+
     @Override
     public List<LocationInventoryScanDTO> traceInventoryByLocationQr(String qrContent) {
         if (qrContent == null || qrContent.isBlank()) {
@@ -165,30 +165,32 @@ public class StorageLocationServiceImpl implements StorageLocationService {
 
         StorageLocationRepository.LocationInventoryView first = rows.get(0);
 
-        // Có vị trí nhưng chưa có sản phẩm nào
-        if (first.getProductId() == null) {
-            throw new RuntimeException(
-                    "Vị trí " + first.getLocationCode() + " hiện chưa có sản phẩm nào."
-            );
+        if (first.getLocationId() == null) {
+            throw new RuntimeException("Không tìm thấy vị trí kho từ mã QR này.");
         }
 
-        return rows.stream()
-                .map(r -> new LocationInventoryScanDTO(
-                        r.getLocationId(),
-                        r.getLocationCode(),
-                        r.getAisleCode(),
-                        r.getRackCode(),
-                        r.getBinCode(),
-                        r.getZoneName(),
-                        r.getProductId(),
-                        r.getProductName(),
-                        r.getSku(),
-                        r.getBatchId(),
-                        r.getLotCode(),
-                        r.getQty() != null ? r.getQty().doubleValue() : 0.0
-                ))
-                .toList();
+        if (first.getProductId() == null) {
+            throw new RuntimeException("Vị trí " + first.getLocationCode() + " hiện chưa có sản phẩm nào.");
+        }
+
+        return rows.stream().map(r -> {
+            LocationInventoryScanDTO dto = new LocationInventoryScanDTO();
+            dto.setLocationId(r.getLocationId());
+            dto.setLocationCode(r.getLocationCode());
+            dto.setAisleCode(r.getAisleCode());
+            dto.setRackCode(r.getRackCode());
+            dto.setBinCode(r.getBinCode());
+            dto.setZoneName(r.getZoneName());
+            dto.setProductId(r.getProductId());
+            dto.setProductName(r.getProductName());
+            dto.setSku(r.getSku());
+            dto.setBatchId(r.getBatchId());
+            dto.setLotCode(r.getLotCode());
+            dto.setQty(r.getQty() != null ? r.getQty().doubleValue() : 0.0);
+            return dto;
+        }).collect(Collectors.toList());
     }
+
     @Override
     public Map<String, Object> getLocationQrInfo(Long locationId) {
         StorageLocation location = storageLocationRepository.findById(locationId)

@@ -89,7 +89,7 @@
         </div>
     </form>
 
-    <!-- CHỈ 1 KHỐI QUÉT QR VỊ TRÍ KHO -->
+    <!-- CHỈ GIỮ CAMERA QUÉT QR VỊ TRÍ KHO -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white">
             <h5 class="mb-0 fw-bold text-primary">
@@ -99,24 +99,19 @@
         <div class="card-body">
             <div class="row g-2 align-items-end mb-3">
                 <div class="col-lg-6">
-                    <label class="form-label fw-bold">Nhập / quét QR vị trí kho</label>
-                    <input type="text" id="locationQrInput" class="form-control"
-                           placeholder="Ví dụ: A5-S5-B5">
+                    <div class="alert alert-info mb-0">
+                        Bấm <b>Mở camera</b>, đưa QR vị trí kho vào giữa khung.
+                        Hệ thống sẽ tự động hiển thị vị trí, zone, lối đi, kệ, ngăn, sản phẩm và số lượng.
+                    </div>
                 </div>
 
-                <div class="col-lg-2">
-                    <button type="button" class="btn btn-success w-100" onclick="traceInventoryByLocationQr()">
-                        <i class="bi bi-search me-1"></i> Xem sản phẩm
-                    </button>
-                </div>
-
-                <div class="col-lg-2">
+                <div class="col-lg-3">
                     <button type="button" class="btn btn-primary w-100" onclick="startLocationCameraScan()">
                         <i class="bi bi-camera me-1"></i> Mở camera
                     </button>
                 </div>
 
-                <div class="col-lg-2">
+                <div class="col-lg-3">
                     <button type="button" class="btn btn-outline-danger w-100" onclick="stopLocationCameraScan()">
                         <i class="bi bi-x-circle me-1"></i> Tắt camera
                     </button>
@@ -130,7 +125,7 @@
                     </div>
                     <div class="col-lg-6">
                         <div class="alert alert-info mb-2">
-                            Đưa QR vị trí kho vào giữa khung. Sau khi quét, hệ thống sẽ hiển thị vị trí, zone, kệ, ngăn, sản phẩm và số lượng.
+                            Đưa QR vị trí kho vào giữa khung. Sau khi quét, hệ thống sẽ tự hiển thị vị trí, zone, kệ, ngăn, sản phẩm và số lượng.
                         </div>
                         <div class="small text-muted">
                             Camera hoạt động tốt nhất trên Chrome hoặc Edge, chạy bằng localhost hoặc https.
@@ -235,19 +230,18 @@
         let locationQrScanner = null;
         let locationCameraRunning = false;
 
-        async function traceInventoryByLocationQr() {
-            const qrContent = document.getElementById("locationQrInput").value.trim();
+        async function traceInventoryByLocationQr(qrContent) {
             const resultBox = document.getElementById("locationInventoryResult");
 
-            if (!qrContent) {
-                resultBox.innerHTML = '<div class="alert alert-warning mb-0">Vui lòng nhập QR vị trí kho.</div>';
+            if (!qrContent || !qrContent.trim()) {
+                resultBox.innerHTML = '<div class="alert alert-warning mb-0">Không đọc được QR vị trí kho.</div>';
                 return;
             }
 
             resultBox.innerHTML = '<div class="text-muted">Đang truy xuất tồn kho theo vị trí...</div>';
 
             try {
-                const response = await fetch(`/warehouses/locations/trace-inventory-by-location-qr?qrContent=${encodeURIComponent(qrContent)}`);
+                const response = await fetch(`/warehouses/locations/trace-inventory-by-location-qr?qrContent=${encodeURIComponent(qrContent.trim())}`);
                 const text = await response.text();
 
                 let data;
@@ -368,10 +362,9 @@
                     cameraId,
                     { fps: 10, qrbox: { width: 250, height: 250 } },
                     (decodedText, decodedResult) => {
-                        document.getElementById("locationQrInput").value = decodedText;
                         status.innerText = "Đã quét được QR vị trí: " + decodedText;
                         stopLocationCameraScan();
-                        traceInventoryByLocationQr();
+                        traceInventoryByLocationQr(decodedText);
                     },
                     (errorMessage) => {}
                 );

@@ -1,6 +1,8 @@
 package com.tttn.warehouseqr.modules.auth.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
@@ -24,6 +26,29 @@ public class User {
     @Column(length = 20)
     private String phone;
 
+    // 👉 CÁC CỘT MỚI BỔ SUNG ĐỂ KHỚP VỚI DATABASE
+    @Column(name = "cccd", length = 20)
+    private String cccd;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "avatar", length = 255)
+    private String avatar;
+
+    @Column(name = "status", length = 50)
+    private String status = "ACTIVE"; // ACTIVE, INACTIVE, LOCKED
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+    // 👈 KẾT THÚC PHẦN BỔ SUNG
+
     @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;
@@ -39,7 +64,7 @@ public class User {
         this.phone = phone;
     }
 
-    // --- GETTER & SETTER ---
+    // --- GETTER & SETTER CŨ CỦA BẠN (GIỮ NGUYÊN) ---
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
 
@@ -60,4 +85,26 @@ public class User {
 
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+
+    // --- GETTER & SETTER MỚI BỔ SUNG ---
+    public String getCccd() { return cccd; }
+    public void setCccd(String cccd) { this.cccd = cccd; }
+
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

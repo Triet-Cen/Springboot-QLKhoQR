@@ -7,11 +7,21 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface InventoryLocationBalanceRepository extends JpaRepository<InventoryLocationBalance, Long> {
+    interface PickingStockProjection {
+        Long getLocationId();
+        String getLocationCode();
+        Long getBatchId();
+        String getLotCode();
+        BigDecimal getAvailableQty();
+        LocalDate getExpiryDate();
+    }
+
     java.util.Optional<InventoryLocationBalance> findFirstByWarehouseIdAndProductIdAndBatchId(Long warehouseId, Long productId, Long batchId);
     Optional<InventoryLocationBalance> findFirstByWarehouseIdAndProductIdAndBatchIdAndQtyGreaterThan(
             Long warehouseId, Long productId, Long batchId, BigDecimal qty);
@@ -34,6 +44,24 @@ public interface InventoryLocationBalanceRepository extends JpaRepository<Invent
             "WHERE b.productId = :productId AND b.qty > 0 " +
             "ORDER BY b.updateAt ASC")
     List<InventoryLocationBalance> findAvailableStock(@Param("productId") Long productId);
+
+    @Query(value = "SELECT " +
+            "b.location_id AS locationId, " +
+            "wl.location_code AS locationCode, " +
+            "b.batch_id AS batchId, " +
+            "pb.lot_code AS lotCode, " +
+            "b.qty AS availableQty, " +
+            "pb.expiry_date AS expiryDate " +
+            "FROM inventory_location_balances b " +
+            "LEFT JOIN product_batches pb ON pb.batch_id = b.batch_id " +
+            "LEFT JOIN warehouse_locations wl ON wl.location_id = b.location_id " +
+            "WHERE b.product_id = :productId AND b.qty > 0 " +
+            "ORDER BY " +
+            "CASE WHEN pb.expiry_date IS NULL THEN 1 ELSE 0 END ASC, " +
+            "pb.expiry_date ASC, " +
+            "b.update_at ASC",
+            nativeQuery = true)
+    List<PickingStockProjection> findAvailableStockForPicking(@Param("productId") Long productId);
 
     /**
      * TRỪ KHO AN TOÀN (Atomic Update)
