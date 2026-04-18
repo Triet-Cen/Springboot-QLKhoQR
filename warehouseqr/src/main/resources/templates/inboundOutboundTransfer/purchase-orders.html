@@ -1,0 +1,352 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Quản lý Đơn Mua Hàng (PO) | WMS Pro</title>
+    <style th:inline="css">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .dashboard-title {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+        .op-card { border: none; border-radius: 20px; background: var(--glass-bg); box-shadow: var(--card-shadow); }
+
+        /* Dropzone Styling */
+        .csv-dropzone {
+            border: 2px dashed #cbd5e1;
+            background-color: #f8fafc;
+            border-radius: 16px;
+            padding: 30px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .csv-dropzone:hover { border-color: #4f46e5; background-color: #eef2ff; }
+        .csv-dropzone input[type="file"] {
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer;
+        }
+
+        /* Status Badge Colors */
+        .status-badge { padding: 6px 14px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .status-DRAFT { background-color: #f3f4f6; color: #374151; }
+        .status-OPEN { background-color: #e0e7ff; color: #4f46e5; }
+        .status-PARTIAL { background-color: #ffedd5; color: #ea580c; }
+        .status-COMPLETED { background-color: #dcfce7; color: #16a34a; }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4 px-md-5">
+
+        <div th:if="${success}" class="alert alert-success alert-dismissible fade show rounded-pill px-4 border-0 shadow-sm mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${success}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show rounded-pill px-4 border-0 shadow-sm mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <span th:text="${error}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill mb-2 fw-bold">PROCUREMENT</span>
+                <h2 class="dashboard-title mb-0">Đơn Mua Hàng (PO)</h2>
+            </div>
+            <button class="btn btn-primary rounded-pill fw-bold px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#createPoModal">
+                <i class="bi bi-plus-lg me-2"></i>Tạo PO Mới (Import CSV)
+            </button>
+        </div>
+
+        <div class="card op-card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                        <tr>
+                            <th class="py-3 px-4">Mã PO</th>
+                            <th>Nhà Cung Cấp</th>
+                            <th>Kho Nhận</th>
+                            <th>Tổng Tiền</th>
+                            <th>Ngày Tạo</th>
+                            <th class="text-center">Trạng Thái</th>
+                            <th class="text-center">Xem QR</th>
+                            <th class="text-center">Thao Tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="po : ${purchaseOrders}">
+                            <td class="px-4 fw-bold text-dark" th:text="${po.poCode}">PO-123</td>
+                            <td th:text="${po.supplier?.supplierName}">NCC</td>
+                            <td th:text="${po.warehouse?.warehouseName}">Kho</td>
+                            <td class="fw-bold text-primary" th:text="${#numbers.formatDecimal(po.totalAmount, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</td>
+                            <td th:text="${#temporals.format(po.orderDate, 'dd/MM/yyyy HH:mm')}">17/04/2026</td>
+                            <td class="text-center">
+                                <span class="status-badge" th:classappend="'status-' + ${po.status}" th:text="${po.status}">DRAFT</span>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                        th:data-code="${po.poCode}"
+                                        onclick="showQrPreview(this.getAttribute('data-code'))">
+                                    <i class="bi bi-eye me-1"></i>Xem QR
+                                </button>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                        th:data-code="${po.poCode}"
+                                        onclick="printPoQr(this.getAttribute('data-code'))">
+                                    <i class="bi bi-printer me-1"></i>In QR
+                                </button>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(purchaseOrders)}">
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox display-4 d-block mb-3 opacity-25"></i>
+                                Chưa có dữ liệu đơn mua hàng nào.
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="previewQrModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-header border-0 pb-0">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-5">
+                    <div id="qrLoading" class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div id="qrContainer" style="display: none;">
+                        <img id="qrPreviewImg" src="" class="img-fluid mb-4" style="width: 300px; height: 300px; border: 1px solid #eee; padding: 10px; border-radius: 15px;">
+                        <h3 id="qrPoCode" class="fw-bold text-dark mb-1"></h3>
+                        <p class="text-muted small mb-4 text-uppercase">Mã QR Đơn Mua Hàng</p>
+
+                        <button type="button" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm" onclick="printFromPreview()">
+                            <i class="bi bi-printer me-2"></i>In mã này ngay
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="createPoModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <form th:action="@{/manager/purchase-orders/import}" method="post" enctype="multipart/form-data">
+                    <div class="modal-header border-0 pb-0 px-4 pt-4">
+                        <h5 class="fw-bold mb-0">Khởi tạo Đơn mua hàng (PO)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Nhà Cung Cấp</label>
+                            <select class="form-select bg-light border-0 py-2" name="supplierId" required>
+                                <option value="">-- Chọn Nhà cung cấp --</option>
+                                <option th:each="s : ${suppliers}"
+                                        th:value="${s.supplierId}"
+                                        th:text="${s.supplierName}"></option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small text-muted text-uppercase">Kho Tiếp Nhận</label>
+                            <select class="form-select bg-light border-0 py-2" name="warehouseId" required>
+                                <option value="">-- Chọn Kho nhận hàng --</option>
+                                <option th:each="w : ${warehouses}"
+                                        th:value="${w.warehouseId}"
+                                        th:text="${w.warehouseName}"></option>
+                            </select>
+                        </div>
+
+                        <label class="form-label fw-bold small text-muted text-uppercase">Danh sách sản phẩm (CSV)</label>
+                        <div class="csv-dropzone" id="poDropzone">
+                            <input type="file" name="file" accept=".csv" required onchange="updateFileName(this)">
+                            <i class="bi bi-cloud-arrow-up display-4 text-primary mb-2 d-block"></i>
+                            <h6 class="fw-bold text-dark mb-1" id="fileNameDisplay">Kéo thả file CSV vào đây</h6>
+                            <p class="text-muted small mb-0">Chỉ chấp nhận file .csv định dạng SKU, Qty, Price</p>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer border-0 px-4 pb-4 pt-0">
+                        <button type="button" class="btn btn-light fw-bold rounded-pill px-4" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary fw-bold rounded-pill px-5 shadow-sm">Xác nhận tạo PO</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script th:inline="javascript">
+        // Cập nhật tên file khi chọn
+        function updateFileName(input) {
+            if (input.files && input.files[0]) {
+                const name = input.files[0].name;
+                document.getElementById('fileNameDisplay').innerHTML = `<span class="text-success fw-bold"><i class="bi bi-file-earmark-check me-1"></i>${name}</span>`;
+                document.getElementById('poDropzone').style.backgroundColor = "#f0fdf4";
+                document.getElementById('poDropzone').style.borderColor = "#22c55e";
+            }
+        }
+
+        // Hàm in QR Code qua Base64
+        async function printPoQr(poCode) {
+            try {
+                const response = await fetch(`/manager/api/purchase-orders/qr-base64/${poCode}`);
+                if (!response.ok) throw new Error("Lỗi máy chủ không thể tạo QR");
+                const base64Data = await response.text();
+
+                const printWin = window.open('', '_blank', 'width=450,height=550');
+                printWin.document.write(`
+            <html>
+                <head>
+                    <title>Print QR - ${poCode}</title>
+                    <style>
+                        /* 1. Xóa bỏ lề trang in để căn giữa tuyệt đối */
+                        @page {
+                            size: auto;
+                            margin: 0;
+                        }
+
+                        /* 2. Căn giữa toàn bộ nội dung vào chính giữa tờ giấy */
+                        body {
+                            margin: 0;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            height: 100vh; /* Chiều cao toàn bộ trang */
+                            font-family: 'Inter', -apple-system, sans-serif;
+                            background-color: white;
+                        }
+
+                        /* 3. Khung chứa mã QR */
+                        .qr-card {
+                            text-align: center;
+                            padding: 40px;
+                            border: 2px solid #000;
+                            border-radius: 20px;
+                        }
+
+                        /* 4. Tăng kích thước ảnh QR to hơn */
+                        img {
+                            width: 450px; /* Tăng từ 350px lên 450px */
+                            height: 450px;
+                            object-fit: contain;
+                            margin-bottom: 20px;
+                        }
+
+                        h1 {
+                            font-size: 48px; /* Mã PO cực to */
+                            margin: 0;
+                            color: #000;
+                            font-weight: 900;
+                            letter-spacing: 3px;
+                        }
+
+                        p {
+                            font-size: 20px;
+                            color: #333;
+                            margin-top: 10px;
+                            text-transform: uppercase;
+                            font-weight: 600;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="qr-card">
+                        <img src="data:image/png;base64,${base64Data}" onload="setTimeout(() => { window.print(); window.close(); }, 500);">
+                        <h1>${poCode}</h1>
+                        <p>WMS - QUÉT ĐỂ NHẬP KHO</p>
+                    </div>
+                </body>
+            </html>
+        `);
+                printWin.document.close();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        // 2. Hàm HIỆN MODAL xem trước QR
+        async function showQrPreview(poCode) {
+            const modal = new bootstrap.Modal(document.getElementById('previewQrModal'));
+            const container = document.getElementById('qrContainer');
+            const loading = document.getElementById('qrLoading');
+            const img = document.getElementById('qrPreviewImg');
+            const text = document.getElementById('qrPoCode');
+
+            loading.style.display = 'inline-block';
+            container.style.display = 'none';
+            modal.show();
+
+            try {
+                // Lưu ý: Đảm bảo đường dẫn này khớp với @RequestMapping trong Controller
+                const response = await fetch(`/manager/api/purchase-orders/qr-base64/${poCode}`);
+                if (!response.ok) throw new Error("Không thể tải mã QR");
+                const base64Data = await response.text();
+
+                currentBase64 = base64Data;
+                currentPoCode = poCode;
+
+                img.src = `data:image/png;base64,${base64Data}`;
+                text.innerText = poCode;
+
+                loading.style.display = 'none';
+                container.style.display = 'block';
+            } catch (err) {
+                alert("Lỗi: " + err.message);
+                modal.hide();
+            }
+        }
+
+        // 3. Hàm IN từ Modal (Căn giữa và To rõ như bạn muốn)
+        function printFromPreview() {
+            if (!currentBase64) return;
+
+            const printWin = window.open('', '_blank', 'width=600,height=800');
+            printWin.document.write(`
+            <html>
+                <head>
+                    <title>Print QR - ${currentPoCode}</title>
+                    <style>
+                        @page { size: auto; margin: 0; }
+                        body {
+                            margin: 0; display: flex; flex-direction: column;
+                            align-items: center; justify-content: center;
+                            height: 100vh; font-family: sans-serif;
+                        }
+                        .qr-card { text-align: center; padding: 40px; border: 2px solid #000; border-radius: 20px; }
+                        img { width: 450px; height: 450px; margin-bottom: 20px; object-fit: contain; }
+                        h1 { font-size: 48px; margin: 0; font-weight: 900; letter-spacing: 2px; }
+                        p { font-size: 18px; color: #555; margin-top: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="qr-card">
+                        <img src="data:image/png;base64,${currentBase64}" onload="setTimeout(() => { window.print(); window.close(); }, 500);">
+                        <h1>${currentPoCode}</h1>
+                        <p>WMS - QUÉT ĐỂ NHẬP KHO</p>
+                    </div>
+                </body>
+            </html>
+        `);
+            printWin.document.close();
+        }
+    </script>
+</div>
+</body>
+</html>

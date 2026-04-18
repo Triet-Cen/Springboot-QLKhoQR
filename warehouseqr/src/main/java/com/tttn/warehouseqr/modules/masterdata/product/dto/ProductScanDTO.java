@@ -8,7 +8,6 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class ProductScanDTO {
     // 1. ID để lưu vào bảng InboundReceiptItem (Backend cần)
     private Long productId;
@@ -45,4 +44,27 @@ public class ProductScanDTO {
     //12. Id Mã kho
     private Long warehouseId;
 
+    public ProductScanDTO(Long productId, String productName, Long batchId, String lotCode, String sku, Double expectedQty, Double actualQty, Long locationId, String locationCode, Double importPrice) {
+        this.productId = productId;
+        this.productName = productName;
+        this.batchId = batchId;
+        this.lotCode = lotCode;
+        this.sku = sku;
+        this.expectedQty = expectedQty;
+        this.actualQty = actualQty;
+        this.locationId = locationId;
+        this.locationCode = locationCode;
+        this.importPrice = importPrice;
+    }
+
+    public ProductScanDTO(Long productId, String productName, Long batchId, String lotCode, String sku, double v, Long locationId, String locationCode, double v1) {
+        this.productId = productId;
+        this.productName = productName;
+        this.batchId = batchId;
+        this.lotCode = lotCode;
+        this.sku = sku;
+        this.locationId = locationId;
+        this.locationCode = locationCode;
+
+    }
 }

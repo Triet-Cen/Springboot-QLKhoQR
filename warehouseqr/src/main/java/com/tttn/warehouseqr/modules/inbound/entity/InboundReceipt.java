@@ -1,5 +1,9 @@
 package com.tttn.warehouseqr.modules.inbound.entity;
 
+import com.tttn.warehouseqr.modules.auth.entity.User;
+import com.tttn.warehouseqr.modules.masterdata.supplier.entity.Supplier;
+import com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse;
+import com.tttn.warehouseqr.modules.purchase.entity.PurchaseOrders;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -23,14 +27,17 @@ public class InboundReceipt {
     @Column(name = "inbound_receipt_code", unique = true, nullable = false, length = 50)
     private String inboundReceiptCode;
 
-    @Column(name = "purchase_order_id")
-    private Long purchaseOrderId;
+    @ManyToOne
+    @JoinColumn(name = "purchase_order_id")
+    private PurchaseOrders purchaseOrders;
 
-    @Column(name = "supplier_id")
-    private Long supplierId;
+    @ManyToOne
+    @JoinColumn(name = "supplier_id")
+    private Supplier supplier;
 
-    @Column(name = "warehouse_id", nullable = false)
-    private Long warehouseId;
+    @ManyToOne
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
 
     @Column(name = "delivery_note_code", length = 100)
     private String deliveryNoteCode;
@@ -38,8 +45,9 @@ public class InboundReceipt {
     @Column(name = "status", length = 50)
     private String status;
 
-    @Column(name = "created_by")
-    private Long createdBy;
+    @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User user;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

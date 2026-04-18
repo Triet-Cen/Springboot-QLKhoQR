@@ -71,9 +71,36 @@
             </a>
         </li>
         <li class="nav-item">
-            <a th:href="@{/scan-station}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
-                <i class="bi bi-box-arrow-in-down-right" style="width: 24px; text-align: center;"></i> Inbound
+            <a class="nav-link d-flex align-items-center gap-2 text-secondary" data-bs-toggle="collapse" href="#inboundMenu" role="button" aria-expanded="false" aria-controls="inboundMenu" style="padding: 10px 16px;">
+                <i class="bi bi-box-arrow-in-down-right" style="width: 24px; text-align: center;"></i>
+                <span>Inbound</span>
+                <i class="bi bi-chevron-down ms-auto" style="font-size: 12px;"></i>
             </a>
+
+            <div class="collapse" id="inboundMenu">
+                <ul class="nav flex-column sub-menu gap-1">
+                    <li class="nav-item">
+                        <a th:href="@{/manager/purchase-orders}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-cart3"></i> Purchase Orders
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/scan-station}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-upc-scan"></i> Scan Station
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/manager/inbound/approval-list}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-check2-square"></i> Manager Approval
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/manager/inbound/history}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-check2-square"></i> Inbound Receipts History
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </li>
 
         <li class="nav-item">
