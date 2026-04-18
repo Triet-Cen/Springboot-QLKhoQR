@@ -1,0 +1,450 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Tạo Đơn Bán Hàng | WMS Pro</title>
+    <style th:inline="css">
+        body { background: #f8fafc; }
+        .page-title {
+            font-weight: 800;
+            background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-soft {
+            border: 0;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        }
+        .form-label.small-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+            font-weight: 700;
+        }
+        .csv-dropzone {
+            border: 2px dashed #cbd5e1;
+            border-radius: 18px;
+            background: #f8fafc;
+            padding: 28px 20px;
+            text-align: center;
+            position: relative;
+        }
+        .csv-dropzone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .format-table th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+        }
+        .preview-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .preview-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .preview-empty {
+            border: 1px dashed #cbd5e1;
+            border-radius: 14px;
+            background: #f8fafc;
+            text-align: center;
+            padding: 24px;
+            color: #64748b;
+        }
+        .preview-table th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+            white-space: nowrap;
+        }
+        .preview-table td {
+            vertical-align: middle;
+            font-size: 14px;
+        }
+        .preview-table .sku-cell {
+            font-weight: 700;
+            color: #0f172a;
+            white-space: nowrap;
+        }
+        .preview-table .name-cell {
+            min-width: 180px;
+        }
+        .preview-total-box {
+            display: none;
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-weight: 700;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4 px-md-5">
+        <div th:if="${success}" class="alert alert-success alert-dismissible fade show shadow-sm border-0 rounded-4 mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i><span th:text="${success}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show shadow-sm border-0 rounded-4 mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${error}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-4 flex-wrap">
+            <div>
+                <span class="badge bg-info bg-opacity-10 text-info px-3 py-2 rounded-pill fw-bold mb-2">OUTBOUND / SALES</span>
+                <h2 class="page-title mb-1">Tạo Đơn Bán Hàng</h2>
+                <p class="text-muted mb-0">Chọn khách hàng và import danh sách sản phẩm từ file CSV.</p>
+            </div>
+            <a th:href="@{/manager/sales-orders/list}" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold">
+                <i class="bi bi-list-ul me-2"></i>Danh sách đơn bán
+            </a>
+        </div>
+
+        <form th:action="@{/manager/sales-orders/create}" method="post" enctype="multipart/form-data">
+            <div class="row g-4">
+                <div class="col-12 col-xl-4">
+                    <div class="card card-soft h-100">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-3">Thông tin đơn bán</h5>
+
+                            <div class="mb-3">
+                                <label for="customerId" class="form-label small-label">Khách hàng <span class="text-danger">*</span></label>
+                                <select class="form-select" id="customerId" name="customerId" required>
+                                    <option value="">-- Chọn khách hàng --</option>
+                                    <option th:each="c : ${customers}"
+                                            th:value="${c.customerId}"
+                                            th:text="${c.customerCode + ' - ' + c.customerName}"></option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small-label">File CSV <span class="text-danger">*</span></label>
+                                <div class="csv-dropzone" id="csvDropzone">
+                                    <input type="file" name="file" accept=".csv" required onchange="updateFileName(this); parseCsvPreview(this)">
+                                    <i class="bi bi-cloud-arrow-up display-4 text-primary d-block mb-2"></i>
+                                    <h6 class="fw-bold text-dark mb-1" id="fileNameDisplay">Kéo thả file CSV vào đây</h6>
+                                    <p class="text-muted small mb-0">Mỗi dòng là 1 sản phẩm của đơn bán</p>
+                                </div>
+                            </div>
+
+                            <div class="rounded-4 p-3 bg-light border">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted small fw-semibold text-uppercase">Trạng thái tạo mới</span>
+                                    <span class="badge bg-warning text-dark">DRAFT</span>
+                                </div>
+                                <small class="text-muted">Đơn sẽ được lưu ở trạng thái nháp để trạm trưởng duyệt sau.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-8">
+                    <div class="card card-soft mb-4">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                <div>
+                                    <h5 class="fw-bold mb-1">Sản phẩm trong đơn đặt</h5>
+                                    <p class="text-muted mb-0">Thứ tự cột trong CSV có thể thay đổi, chỉ cần đúng tên cột bắt buộc.</p>
+                                </div>
+                            </div>
+
+                            <div class="preview-summary mb-3" id="previewSummary" style="display: none;">
+                                <span class="preview-pill" id="previewLineCount">0 dòng</span>
+                                <span class="preview-pill" id="previewQtySum">0 sản phẩm</span>
+                                <span class="preview-pill" id="previewAmountSum">0 đ</span>
+                            </div>
+
+                            <div class="preview-empty" id="previewEmptyState">
+                                <i class="bi bi-card-list fs-2 d-block mb-2"></i>
+                                Chưa có dữ liệu xem trước. Hãy chọn file CSV để hiển thị danh sách sản phẩm.
+                            </div>
+
+                            <div class="table-responsive" id="previewTableWrap" style="display: none;">
+                                <table class="table table-bordered align-middle preview-table mb-0">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 44px;">#</th>
+                                        <th>SKU</th>
+                                        <th>Tên sản phẩm</th>
+                                        <th class="text-end">Số lượng</th>
+                                        <th class="text-end">Đơn giá</th>
+                                        <th class="text-end">Thành tiền</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="previewTableBody"></tbody>
+                                </table>
+                            </div>
+
+                            <div id="previewTotalBox" class="preview-total-box">
+                                Tổng tiền đơn: <span id="previewTotalBoxValue">0 đ</span>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2 mt-4">
+                                <a th:href="@{/manager/sales-orders/create}" class="btn btn-light rounded-pill px-4">Làm lại</a>
+                                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold">
+                                    <i class="bi bi-check2-circle me-2"></i>Tạo đơn bán hàng
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card card-soft">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-2">Định dạng CSV</h6>
+                            <p class="text-muted mb-3">Cần tối thiểu các cột: SKU, Quantity (hoặc Qty), UnitPrice (hoặc Price). Thứ tự cột tùy ý.</p>
+
+                            <div class="table-responsive mb-3">
+                                <table class="table table-bordered align-middle format-table mb-0">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th>SKU</th>
+                                        <th>Số lượng</th>
+                                        <th>Đơn giá</th>
+                                        <th>Tên sản phẩm (tùy chọn)</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <td>LAP-001</td>
+                                        <td>2</td>
+                                        <td>35000000</td>
+                                        <td>Laptop Dell Vostro</td>
+                                    </tr>
+                                    <tr>
+                                        <td>ACC-020</td>
+                                        <td>5</td>
+                                        <td>2500000</td>
+                                        <td>Chuột Logitech MX</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="alert alert-info border-0 rounded-4 mb-0">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Có thể dùng thêm các tiêu đề thay thế như <strong>Qty</strong>, <strong>Price</strong>, <strong>Giá Bán</strong>, <strong>Tên SP</strong>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const CSV_HEADER_ALIASES = {
+            sku: ["sku", "ma sp", "ma san pham", "product sku", "productsku"],
+            quantity: ["quantity", "qty", "so luong", "so luong ban", "soluong"],
+            unitPrice: ["unitprice", "price", "gia", "gia ban", "don gia", "giaban"],
+            productName: ["productname", "name", "ten san pham", "ten sp", "product name"]
+        };
+
+        function updateFileName(input) {
+            if (input.files && input.files[0]) {
+                const name = input.files[0].name;
+                document.getElementById('fileNameDisplay').innerHTML = `<span class="text-success fw-bold"><i class="bi bi-file-earmark-check me-1"></i>${name}</span>`;
+                document.getElementById('csvDropzone').style.borderColor = '#0ea5e9';
+                document.getElementById('csvDropzone').style.backgroundColor = '#eff6ff';
+            }
+        }
+
+        function normalizeHeader(value) {
+            return (value || "")
+                .toString()
+                .trim()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[_\-]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        function parseCsvLine(line) {
+            const result = [];
+            let current = "";
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                const nextChar = line[i + 1];
+
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                    continue;
+                }
+
+                if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = "";
+                    continue;
+                }
+
+                current += char;
+            }
+
+            result.push(current.trim());
+            return result;
+        }
+
+        function findHeaderIndex(headers, aliases) {
+            const normalizedAliases = aliases.map(normalizeHeader);
+            return headers.findIndex(h => normalizedAliases.includes(normalizeHeader(h)));
+        }
+
+        function toNumber(value) {
+            if (value === undefined || value === null) return 0;
+            const normalized = value.toString().replace(/[^\d.-]/g, "");
+            const n = Number(normalized);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function formatMoney(value) {
+            return (value || 0).toLocaleString("vi-VN") + " đ";
+        }
+
+        function escapeHtml(value) {
+            return (value || "")
+                .toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function resetPreview() {
+            document.getElementById("previewSummary").style.display = "none";
+            document.getElementById("previewTableWrap").style.display = "none";
+            document.getElementById("previewEmptyState").style.display = "block";
+            document.getElementById("previewTableBody").innerHTML = "";
+            document.getElementById("previewTotalBox").style.display = "none";
+            document.getElementById("previewTotalBoxValue").textContent = formatMoney(0);
+        }
+
+        function renderPreview(items) {
+            const emptyState = document.getElementById("previewEmptyState");
+            const summary = document.getElementById("previewSummary");
+            const tableWrap = document.getElementById("previewTableWrap");
+            const tbody = document.getElementById("previewTableBody");
+
+            if (!items.length) {
+                resetPreview();
+                return;
+            }
+
+            emptyState.style.display = "none";
+            summary.style.display = "flex";
+            tableWrap.style.display = "block";
+
+            const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
+            const totalAmount = items.reduce((sum, i) => sum + i.subtotal, 0);
+
+            document.getElementById("previewLineCount").textContent = items.length + " dòng";
+            document.getElementById("previewQtySum").textContent = totalQty.toLocaleString("vi-VN") + " sản phẩm";
+            document.getElementById("previewAmountSum").textContent = formatMoney(totalAmount);
+            document.getElementById("previewTotalBox").style.display = "block";
+            document.getElementById("previewTotalBoxValue").textContent = formatMoney(totalAmount);
+
+            tbody.innerHTML = items.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td class="sku-cell">${escapeHtml(item.sku)}</td>
+                    <td class="name-cell">${escapeHtml(item.productName || "-")}</td>
+                    <td class="text-end">${item.quantity.toLocaleString("vi-VN")}</td>
+                    <td class="text-end">${formatMoney(item.unitPrice)}</td>
+                    <td class="text-end fw-semibold text-primary">${formatMoney(item.subtotal)}</td>
+                </tr>
+            `).join("");
+        }
+
+        function parseCsvText(text) {
+            const normalizedText = (text || "").replace(/^\uFEFF/, "").trim();
+            if (!normalizedText) return [];
+
+            const lines = normalizedText.split(/\r?\n/).filter(line => line.trim() !== "");
+            if (lines.length < 2) return [];
+
+            const headers = parseCsvLine(lines[0]);
+            const skuIdx = findHeaderIndex(headers, CSV_HEADER_ALIASES.sku);
+            const qtyIdx = findHeaderIndex(headers, CSV_HEADER_ALIASES.quantity);
+            const priceIdx = findHeaderIndex(headers, CSV_HEADER_ALIASES.unitPrice);
+            const nameIdx = findHeaderIndex(headers, CSV_HEADER_ALIASES.productName);
+
+            if (skuIdx < 0 || qtyIdx < 0 || priceIdx < 0) return [];
+
+            const items = [];
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCsvLine(lines[i]);
+                const sku = (cols[skuIdx] || "").trim();
+                if (!sku) continue;
+
+                const quantity = toNumber(cols[qtyIdx]);
+                const unitPrice = toNumber(cols[priceIdx]);
+                if (quantity <= 0) continue;
+
+                const productName = nameIdx >= 0 ? (cols[nameIdx] || "").trim() : "";
+                items.push({
+                    sku,
+                    productName,
+                    quantity,
+                    unitPrice,
+                    subtotal: quantity * unitPrice
+                });
+            }
+
+            return items;
+        }
+
+        function parseCsvPreview(input) {
+            const file = input && input.files ? input.files[0] : null;
+            if (!file) {
+                resetPreview();
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const text = e.target && e.target.result ? e.target.result.toString() : "";
+                const items = parseCsvText(text);
+                renderPreview(items);
+            };
+            reader.onerror = function () {
+                resetPreview();
+            };
+            reader.readAsText(file, "UTF-8");
+        }
+    </script>
+</div>
+</body>
+</html>
+

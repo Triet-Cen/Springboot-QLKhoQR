@@ -25,7 +25,6 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -76,9 +75,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
             // CÁCH HIỂN THỊ MÃ LÔ ĐÃ ĐƯỢC LÀM SẠCH:
             if (item.getBatchId() != null) {
-                productBatchRepo.findById(item.getBatchId()).ifPresent(batch -> {
-                    dto.setLotCode(batch.getLotCode());
-                });
+                productBatchRepo.findById(item.getBatchId()).ifPresent(batch -> dto.setLotCode(batch.getLotCode()));
             } else {
                 // Nếu item không có batchId -> Chắc chắn là file CSV lúc tạo PO không có cột Mã Lô
                 dto.setLotCode("Chờ nhập");
@@ -90,7 +87,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public PurchaseOrders createPoFromCsv(MultipartFile file, Long supplierId, Long warehouseId, Long userId) {
+    public void createPoFromCsv(MultipartFile file, Long supplierId, Long warehouseId, Long userId) {
         // 1. Khởi tạo PO trong bộ nhớ (Chưa lưu DB ngay)
         PurchaseOrders po = new PurchaseOrders();
         po.setPoCode("PO-" + System.currentTimeMillis());
@@ -180,6 +177,140 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         po.setTotalAmount(totalAmount);
 
         // 2. LƯU DUY NHẤT 1 LẦN: Hibernate tự động INSERT PO trước, lấy ID, rồi INSERT toàn bộ Items
-        return poRepo.save(po);
+        poRepo.save(po);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void createManualPurchaseOrder(Long supplierId,
+                                          Long warehouseId,
+                                          LocalDateTime expectedDeliveryDate,
+                                          String notes,
+                                          List<String> productIds,
+                                          List<String> orderedQtys,
+                                          List<String> unitPrices,
+                                          List<String> batchIds,
+                                          Long userId) {
+        if (supplierId == null) {
+            throw new RuntimeException("Vui lòng chọn nhà cung cấp");
+        }
+        if (warehouseId == null) {
+            throw new RuntimeException("Vui lòng chọn kho nhận hàng");
+        }
+
+        PurchaseOrders po = new PurchaseOrders();
+        po.setPoCode("PO-" + System.currentTimeMillis());
+
+        Supplier supplier = new Supplier();
+        supplier.setSupplierId(supplierId);
+        po.setSupplier(supplier);
+
+        Warehouse warehouse = new Warehouse();
+        warehouse.setWarehouseId(warehouseId);
+        po.setWarehouse(warehouse);
+
+        if (userId != null) {
+            User user = new User();
+            user.setUserId(userId);
+            po.setCreatedBy(user);
+        }
+
+        po.setOrderDate(LocalDateTime.now());
+        po.setExpectedDeliveryDate(expectedDeliveryDate);
+        po.setNotes(notes);
+        po.setStatus("DRAFT");
+
+        int rowCount = Math.max(
+                Math.max(productIds != null ? productIds.size() : 0, orderedQtys != null ? orderedQtys.size() : 0),
+                Math.max(unitPrices != null ? unitPrices.size() : 0, batchIds != null ? batchIds.size() : 0)
+        );
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+
+        for (int i = 0; i < rowCount; i++) {
+            String productIdRaw = safeGet(productIds, i);
+            String qtyRaw = safeGet(orderedQtys, i);
+            String priceRaw = safeGet(unitPrices, i);
+            String batchIdRaw = safeGet(batchIds, i);
+
+            if (productIdRaw == null || productIdRaw.trim().isEmpty()) {
+                continue;
+            }
+
+            Long productId = parseLongOrNull(productIdRaw);
+            if (productId == null) {
+                throw new RuntimeException("Dòng " + (i + 1) + ": mã sản phẩm không hợp lệ");
+            }
+
+            Product product = productRepo.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm ID: " + productId));
+
+            BigDecimal orderedQty = parseOrderedQty(qtyRaw);
+            if (orderedQty.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new RuntimeException("Dòng " + (i + 1) + ": số lượng phải lớn hơn 0");
+            }
+
+            BigDecimal unitPrice = parseUnitPrice(priceRaw);
+            if (unitPrice.compareTo(BigDecimal.ZERO) < 0) {
+                throw new RuntimeException("Dòng " + (i + 1) + ": đơn giá không được âm");
+            }
+
+            PurchaseOrderItem item = new PurchaseOrderItem();
+            item.setProduct(product);
+            item.setOrderedQty(orderedQty);
+            item.setReceivedQty(BigDecimal.ZERO);
+            item.setUnitPrice(unitPrice);
+            item.setBatchId(parseLongOrNull(batchIdRaw));
+
+            po.addItem(item);
+            totalAmount = totalAmount.add(unitPrice.multiply(orderedQty));
+        }
+
+        if (po.getItems().isEmpty()) {
+            throw new RuntimeException("Vui lòng thêm ít nhất một sản phẩm hợp lệ");
+        }
+
+        po.setTotalAmount(totalAmount);
+        poRepo.save(po);
+    }
+
+    private String safeGet(List<String> values, int index) {
+        if (values == null || index < 0 || index >= values.size()) {
+            return null;
+        }
+        return values.get(index);
+    }
+
+    private Long parseLongOrNull(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value.trim());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private BigDecimal parseOrderedQty(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new RuntimeException("Thiếu số lượng đặt");
+        }
+        try {
+            return new BigDecimal(value.trim());
+        } catch (Exception e) {
+            throw new RuntimeException("Giá trị số lượng đặt không hợp lệ: " + value);
+        }
+    }
+
+    private BigDecimal parseUnitPrice(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        try {
+            return new BigDecimal(value.trim());
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
+        }
     }
 }

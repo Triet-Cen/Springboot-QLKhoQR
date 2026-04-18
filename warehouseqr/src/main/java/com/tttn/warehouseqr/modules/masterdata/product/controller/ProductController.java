@@ -94,15 +94,14 @@ public class ProductController {
     @PostMapping("/import-confirm")
     public String confirmImport(@RequestParam("sessionId") String sessionId, Principal principal, RedirectAttributes redirectAttributes) {
         try {
-
-            Long currentUserId = 1L;
+            Long currentUserId;
             if (principal != null){
                 String username = principal.getName();
-                User currentUser = userRepository.findByUsername(username).get();
-
-                if(currentUser != null){
-                    currentUserId = currentUser.getUserId();
-                }
+                User currentUser = userRepository.findByUsername(username)
+                        .orElseThrow(() -> new RuntimeException("Không xác định được người dùng hiện tại"));
+                currentUserId = currentUser.getUserId();
+            } else {
+                throw new RuntimeException("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại");
             }
 
             String resultMessage = importQrService.confirmImport(sessionId, currentUserId);

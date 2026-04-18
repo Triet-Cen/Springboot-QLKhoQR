@@ -18,7 +18,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -128,13 +127,21 @@ public class ProductService {
         Optional<InventoryLocationBalance> balanceOpt = balanceRepo.findFirstByWarehouseIdAndProductIdAndBatchId(
                 warehouseId, product.getProduct_id(), batch.getBatchId());
 
-        Long locationId = 1L;
-        String locationCode = "Vị trí mặc định";
+        Long locationId = null;
+        String locationCode = "Chưa có vị trí gợi ý";
 
         if (balanceOpt.isPresent()) {
             locationId = balanceOpt.get().getLocationId();
             locationCode = "Kệ cũ: " + locationId;
         }
+
+        double availableQty = balanceOpt
+                .map(balance -> balance.getQty() != null ? balance.getQty().doubleValue() : 0.0)
+                .orElse(0.0);
+        boolean stockEnough = availableQty > 0;
+        String stockMessage = stockEnough
+                ? "Tồn kho hiện tại: " + availableQty
+                : "Kho không đủ hàng. Tồn kho hiện tại: 0";
 
         // 4. Trả về DTO hoàn chỉnh (Đủ 10 tham số cho đối soát Phương án A)
         // 4. Khởi tạo DTO bằng Setter (Tránh lỗi Constructor Parameter)
@@ -154,6 +161,9 @@ public class ProductService {
         dto.setWarehouseId(warehouseId); // Truyền luôn kho hiện tại vào
 
         dto.setImportPrice(batch.getCostPrice() != null ? batch.getCostPrice().doubleValue() : 0.0);
+        dto.setAvailableQty(availableQty);
+        dto.setStockEnough(stockEnough);
+        dto.setStockMessage(stockMessage);
 
         return dto;
     }
