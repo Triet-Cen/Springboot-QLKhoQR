@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="'In Phiếu Nhập - ' + ${receipt.inboundReceiptCode}">In Phiếu</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { padding: 0; margin: 0; }
+      .page-a4 { border: none !important; box-shadow: none !important; margin: 0 !important; }
+    }
+    body { background-color: #f0f2f5; font-family: 'Times New Roman', Times, serif; }
+    .page-a4 {
+      background-color: white;
+      width: 210mm;
+      min-height: 297mm;
+      margin: 20px auto;
+      padding: 20mm;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border: 1px solid #ddd;
+    }
+    .header-info p { margin-bottom: 2px; font-size: 14px; }
+    .receipt-title {
+      text-align: center;
+      text-transform: uppercase;
+      font-weight: bold;
+      font-size: 22px;
+      margin: 30px 0;
+    }
+    .signature-space { margin-top: 50px; }
+    .table th { background-color: #f8f9fa !important; }
+  </style>
+</head>
+<body>
+
+<div class="no-print text-center py-3">
+  <button class="btn btn-primary px-4 shadow" onclick="window.print()">
+    <i class="bi bi-printer"></i> XÁC NHẬN IN PHIẾU
+  </button>
+  <button class="btn btn-secondary px-4" onclick="window.close()">ĐÓNG TAB</button>
+</div>
+
+<div class="page-a4">
+  <div class="d-flex justify-content-between header-info">
+    <div>
+      <h5 class="fw-bold">TECHSTORE WMS</h5>
+      <p>Địa chỉ: Trường Đại học Công nghệ Sài Gòn (STU)</p>
+      <p>Điện thoại: 0123.456.789</p>
+    </div>
+    <div class="text-end">
+      <p>Mã phiếu: <strong th:text="${receipt.inboundReceiptCode}">PN-12345</strong></p>
+      <p>Ngày tạo: <span th:text="${#temporals.format(receipt.createdAt, 'dd/MM/yyyy HH:mm')}"></span></p>
+      <p>Trạng thái: <span class="badge bg-dark" th:text="${receipt.status}">COMPLETED</span></p>
+    </div>
+  </div>
+
+  <div class="receipt-title">PHIẾU NHẬP KHO</div>
+
+  <div class="row mb-4">
+    <div class="col-6">
+      <p>Người tạo: <strong th:text="${receipt.user.username}">Admin</strong></p>
+      <p>Kho nhập: <strong th:text="${receipt.warehouse.warehouseName}">Kho chính</strong></p>
+    </div>
+    <div class="col-6">
+      <p>Mã Đơn mua (PO): <strong th:text="${receipt.purchaseOrders != null ? receipt.purchaseOrders.id : 'Nhập lẻ'}"></strong></p>
+      <p>Nhà cung cấp: <strong th:text="${receipt.supplier.supplierName}">NCC A</strong></p>
+    </div>
+  </div>
+
+  <table class="table table-bordered border-dark">
+    <thead>
+    <tr class="text-center">
+      <th>STT</th>
+      <th>Tên sản phẩm</th>
+      <th>Lô hàng</th>
+      <th>Vị trí kệ</th>
+      <th>SL thực nhập</th>
+      <th>Đơn giá</th>
+      <th>Thành tiền</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="item, state : ${receipt.items}">
+      <td class="text-center" th:text="${state.count}">1</td>
+      <td th:text="${item.product.productName}">iPhone 15</td>
+      <td class="text-center" th:text="${item.batch != null ? item.batch.lotCode : '---'}">LOT-01</td>
+      <td class="text-center" th:text="${item.putawayLocationId}">15</td>
+      <td class="text-center fw-bold" th:text="${item.actualQty}">10</td>
+      <td class="text-end" th:text="${#numbers.formatDecimal(item.importPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"></td>
+      <td class="text-end fw-bold" th:text="${#numbers.formatDecimal(item.actualQty * item.importPrice, 0, 'COMMA', 0, 'POINT')} + ' đ'"></td>
+    </tr>
+    </tbody>
+  </table>
+
+  <div class="row signature-space text-center">
+    <div class="col-4">
+      <p class="fw-bold">Người lập phiếu</p>
+      <small>(Ký, họ tên)</small>
+    </div>
+    <div class="col-4">
+      <p class="fw-bold">Người giao hàng</p>
+      <small>(Ký, họ tên)</small>
+    </div>
+    <div class="col-4">
+      <p class="fw-bold">Thủ kho</p>
+      <small>(Ký, họ tên)</small>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

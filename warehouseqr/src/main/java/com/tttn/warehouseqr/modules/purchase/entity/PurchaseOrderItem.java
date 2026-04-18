@@ -1,5 +1,6 @@
 package com.tttn.warehouseqr.modules.purchase.entity;
 
+import com.tttn.warehouseqr.modules.masterdata.product.entity.Product;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -19,11 +20,13 @@ public class PurchaseOrderItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "po_id", nullable = false)
-    private Long purchaseOrderId;
+    @ManyToOne
+    @JoinColumn(name = "po_id")
+    private PurchaseOrders purchaseOrders;
 
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
+    @ManyToOne
+    @JoinColumn(name = "product_id")
+    private Product product;
 
     @Column(name = "ordered_qty", precision = 15, scale = 2)
     private BigDecimal orderedQty; // Số lượng đặt mua

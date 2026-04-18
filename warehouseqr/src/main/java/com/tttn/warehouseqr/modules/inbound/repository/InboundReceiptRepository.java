@@ -10,7 +10,8 @@ import java.util.Optional;
 public interface InboundReceiptRepository extends JpaRepository<InboundReceipt,Long> {
     Optional<InboundReceipt> findByInboundReceiptCode(String code);
 
-    List<InboundReceipt> findByPurchaseOrderId (Long purchaseOrderId);
+    List<InboundReceipt> findByPurchaseOrders_Id(Long purchaseOrderId);
 
+    List<InboundReceipt> findByStatusInOrderByCreatedAtDesc(List<String> statuses);
 
 }
