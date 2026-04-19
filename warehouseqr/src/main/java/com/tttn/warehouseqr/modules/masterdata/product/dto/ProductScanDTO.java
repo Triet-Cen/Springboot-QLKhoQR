@@ -1,6 +1,5 @@
 package com.tttn.warehouseqr.modules.masterdata.product.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -39,32 +38,17 @@ public class ProductScanDTO {
     //10. Giá nhập
     private Double importPrice;
 
-    //11. Id Nhà Cung Cấp
+    //11. Số lượng còn tồn tại kho hiện tại
+    private Double availableQty;
+
+    //12. Kho còn đủ hàng để quét/xuất hay không
+    private Boolean stockEnough;
+
+    //13. Thông báo trạng thái tồn kho để hiển thị trên UI
+    private String stockMessage;
+
+    //14. Id Nhà Cung Cấp
     private Long supplierId;
-    //12. Id Mã kho
+    //15. Id Mã kho
     private Long warehouseId;
-
-    public ProductScanDTO(Long productId, String productName, Long batchId, String lotCode, String sku, Double expectedQty, Double actualQty, Long locationId, String locationCode, Double importPrice) {
-        this.productId = productId;
-        this.productName = productName;
-        this.batchId = batchId;
-        this.lotCode = lotCode;
-        this.sku = sku;
-        this.expectedQty = expectedQty;
-        this.actualQty = actualQty;
-        this.locationId = locationId;
-        this.locationCode = locationCode;
-        this.importPrice = importPrice;
-    }
-
-    public ProductScanDTO(Long productId, String productName, Long batchId, String lotCode, String sku, double v, Long locationId, String locationCode, double v1) {
-        this.productId = productId;
-        this.productName = productName;
-        this.batchId = batchId;
-        this.lotCode = lotCode;
-        this.sku = sku;
-        this.locationId = locationId;
-        this.locationCode = locationCode;
-
-    }
 }

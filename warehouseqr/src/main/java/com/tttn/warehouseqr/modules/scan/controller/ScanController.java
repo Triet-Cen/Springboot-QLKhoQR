@@ -34,18 +34,30 @@ public class ScanController {
         this.warehouseServicesImp = warehouseServicesImp;
         this.transferOrderServices = transferOrderServices;
     }
-    @GetMapping
-    public String showScanStation(Model model) {
-        // 1. Lấy dữ liệu thực tế từ Database
-        List<Supplier> suppliers = supplierService.getAllSuppliers();
 
-        // 2. Gán vào Model để Thymeleaf có thể đọc được
+    private void loadScanStationData(Model model) {
+        List<Supplier> suppliers = supplierService.getAllSuppliers();
         model.addAttribute("suppliers", suppliers);
         List<Warehouse> warehouses = warehouseServicesImp.getAllWarehouse();
         model.addAttribute("warehouses", warehouses);
+    }
 
-        // 3. Trả về đúng tên file giao diện
-        return "inboundOutboundTransfer/inboundOutboundTransfer";
+    @GetMapping
+    public String showScanStation(Model model) {
+        loadScanStationData(model);
+        return "inboundOutboundTransfer/scan-inbound";
+    }
+
+    @GetMapping("/inbound")
+    public String showInboundStation(Model model) {
+        loadScanStationData(model);
+        return "inboundOutboundTransfer/scan-inbound";
+    }
+
+    @GetMapping("/outbound")
+    public String showOutboundStation(Model model) {
+        loadScanStationData(model);
+        return "inboundOutboundTransfer/scan-outbound";
     }
 
     // 2. Hàm AJAX: Nhận dữ liệu ngầm từ Javascript Fetch API để không bị load lại trang làm tắt Camera
@@ -53,8 +65,8 @@ public class ScanController {
     @ResponseBody
     public ResponseEntity<?> submitOutbound(@RequestBody ScanSubmitDTO request) {
         try {
-            // Tạm fix cứng userId = 1
-            outboundService.processOutboundList(request, 1L);
+            Long userId = com.tttn.warehouseqr.common.util.SecurityUtils.getCurrentUserId();
+            outboundService.processOutboundList(request, userId);
             return ResponseEntity.ok("Xác nhận xuất kho thành công!");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -66,8 +78,8 @@ public class ScanController {
     @ResponseBody // Quan trọng: để trả về JSON cho Fetch API thay vì trả về trang web
     public ResponseEntity<?> submitTransfer(@RequestBody TransferRequestDTO request) {
         try {
-            // Tạm fix userId = 1, request chứa thông tin fromWarehouseId, toWarehouseId và items
-            transferOrderServices.processTransfer(request, 1L);
+            Long userId = com.tttn.warehouseqr.common.util.SecurityUtils.getCurrentUserId();
+            transferOrderServices.processTransfer(request, userId);
             return ResponseEntity.ok("Xác nhận điều chuyển hàng hóa thành công!");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
@@ -91,12 +103,11 @@ public class ScanController {
     public String showStocktakeScan(@RequestParam("sessionId") Long sessionId,
                                     @RequestParam(value = "returnUrl", required = false) String returnUrl,
                                     Model model) {
+        loadScanStationData(model);
         model.addAttribute("sessionId", sessionId);
         model.addAttribute("returnUrl", returnUrl != null ? returnUrl : "/admin/stocktake");
-        // Tái sử dụng cùng giao diện inboundOutboundTransfer nhưng có thể hiển thị chế độ kiểm kê
-        // Bạn có thể truyền thêm flag "mode=stocktake" để giao diện điều chỉnh hành vi
         model.addAttribute("mode", "stocktake");
-        return "inboundOutboundTransfer/inboundOutboundTransfer";
+        return "inboundOutboundTransfer/scan-inbound";
     }
 
 }

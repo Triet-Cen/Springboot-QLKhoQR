@@ -15,6 +15,7 @@ import com.tttn.warehouseqr.modules.outbound.repository.OutboundReceiptItemRepos
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductBatchRepository;
 import com.tttn.warehouseqr.modules.masterdata.customer.repository.CustomerRepository;
+import com.tttn.warehouseqr.modules.salesorder.repository.SalesOrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ public class OutboundController {
     @Autowired private ProductBatchRepository batchRepo;
     @Autowired private CustomerRepository customerRepo;
     @Autowired private UserRepository userRepo;
+    @Autowired private SalesOrderRepository salesOrderRepo;
 
     public OutboundController(OutboundServiceImpl outboundServiceImpl) {
         this.outboundServiceImpl = outboundServiceImpl;
@@ -43,6 +45,26 @@ public class OutboundController {
     public ResponseEntity<?> getSuggestions(@PathVariable String soCode) {
         try { return ResponseEntity.ok(outboundServiceImpl.getPickingSuggestions(soCode)); }
         catch (Exception e) { return ResponseEntity.badRequest().body(e.getMessage()); }
+    }
+
+    @GetMapping("/order/{soCode}")
+    public ResponseEntity<?> getOrderInfo(@PathVariable String soCode) {
+        try {
+            var order = salesOrderRepo.findBySoCode(soCode)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + soCode));
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("salesOrderId", order.getId());
+            response.put("soCode", order.getSoCode());
+            response.put("customerId", order.getCustomerId());
+            response.put("customerName", order.getCustomerName());
+            response.put("status", order.getStatus());
+            response.put("paymentStatus", order.getPaymentStatus());
+            response.put("paymentMethod", order.getPaymentMethod());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/confirm")

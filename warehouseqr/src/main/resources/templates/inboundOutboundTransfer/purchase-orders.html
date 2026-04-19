@@ -59,9 +59,14 @@
                 <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill mb-2 fw-bold">PROCUREMENT</span>
                 <h2 class="dashboard-title mb-0">Đơn Mua Hàng (PO)</h2>
             </div>
-            <button class="btn btn-primary rounded-pill fw-bold px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#createPoModal">
-                <i class="bi bi-plus-lg me-2"></i>Tạo PO Mới (Import CSV)
-            </button>
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <a th:href="@{/manager/purchase-orders/create}" class="btn btn-outline-primary rounded-pill fw-bold px-4 shadow-sm">
+                    <i class="bi bi-pencil-square me-2"></i>Tạo PO thủ công
+                </a>
+                <button class="btn btn-primary rounded-pill fw-bold px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#createPoModal">
+                    <i class="bi bi-plus-lg me-2"></i>Tạo PO Mới (Import CSV)
+                </button>
+            </div>
         </div>
 
         <div class="card op-card">
@@ -177,7 +182,8 @@
                             <input type="file" name="file" accept=".csv" required onchange="updateFileName(this)">
                             <i class="bi bi-cloud-arrow-up display-4 text-primary mb-2 d-block"></i>
                             <h6 class="fw-bold text-dark mb-1" id="fileNameDisplay">Kéo thả file CSV vào đây</h6>
-                            <p class="text-muted small mb-0">Chỉ chấp nhận file .csv định dạng SKU, Qty, Price</p>
+                            <p class="text-muted small mb-1">Chỉ chấp nhận file .csv với cột <strong>SKU</strong>, <strong>ExpectedQty</strong>, <strong>UnitPrice</strong>.</p>
+                            <p class="text-muted small mb-0">Cột <strong>Mã Lô Hàng</strong> là tùy chọn nếu bạn muốn gắn batch ngay khi tạo PO.</p>
                         </div>
                     </div>
 
