@@ -13,9 +13,30 @@
             </h2>
             <p class="text-muted mb-0">Danh sách vị trí lưu trữ hàng hóa trong hệ thống kho</p>
         </div>
-        <a th:href="@{/warehouses/locations/create}" class="btn btn-primary d-flex align-items-center gap-2">
-            <i class="bi bi-plus-circle"></i> Thêm mới
-        </a>
+
+        <div class="d-flex gap-2">
+            <a th:href="@{/warehouses/manage/create}" class="btn btn-outline-primary d-flex align-items-center gap-2">
+                <i class="bi bi-plus-circle"></i> Thêm kho
+            </a>
+
+            <a th:href="@{/warehouses/manage/zones/create}" class="btn btn-outline-primary d-flex align-items-center gap-2">
+                <i class="bi bi-plus-circle"></i> Thêm zone
+            </a>
+
+            <a th:href="@{/warehouses/locations/create}" class="btn btn-primary d-flex align-items-center gap-2">
+                <i class="bi bi-plus-circle"></i> Thêm vị trí
+            </a>
+        </div>
+    </div>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 
     <div class="row g-3 mb-4">
@@ -60,7 +81,9 @@
         <div class="row g-2">
             <div class="col-md-5">
                 <div class="input-group">
-                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <span class="input-group-text bg-white">
+                        <i class="bi bi-search"></i>
+                    </span>
                     <input type="text"
                            name="keyword"
                            class="form-control"
@@ -89,13 +112,13 @@
         </div>
     </form>
 
-    <!-- CHỈ GIỮ CAMERA QUÉT QR VỊ TRÍ KHO -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white">
             <h5 class="mb-0 fw-bold text-primary">
                 <i class="bi bi-qr-code-scan me-2"></i>Quét mã vị trí kho để xem sản phẩm bên trong
             </h5>
         </div>
+
         <div class="card-body">
             <div class="row g-2 align-items-end mb-3">
                 <div class="col-lg-6">
@@ -123,6 +146,7 @@
                     <div class="col-lg-6">
                         <div id="location-qr-reader" class="border rounded p-2 bg-white" style="min-height: 320px;"></div>
                     </div>
+
                     <div class="col-lg-6">
                         <div class="alert alert-info mb-2">
                             Đưa QR vị trí kho vào giữa khung. Sau khi quét, hệ thống sẽ tự hiển thị vị trí, zone, kệ, ngăn, sản phẩm và số lượng.
@@ -156,6 +180,7 @@
                         <th class="text-center pe-4">Hành động</th>
                     </tr>
                     </thead>
+
                     <tbody>
                     <tr th:if="${#lists.isEmpty(locations)}">
                         <td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu vị trí kho</td>
@@ -195,6 +220,7 @@
                                         th:onclick="'showLocationQr(' + ${loc.locationId} + ')'">
                                     <i class="bi bi-qr-code"></i> QR
                                 </button>
+
                                 <a th:href="@{/warehouses/locations/edit/{id}(id=${loc.locationId})}"
                                    class="btn btn-sm btn-outline-warning">
                                     <i class="bi bi-pencil"></i> Sửa
@@ -215,6 +241,7 @@
                     <h5 class="modal-title">QR vị trí kho</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
+
                 <div class="modal-body text-center">
                     <h6 id="locationQrCodeText" class="mb-3"></h6>
                     <img id="locationQrImage" src="" alt="QR Location" class="img-fluid border rounded p-2"/>

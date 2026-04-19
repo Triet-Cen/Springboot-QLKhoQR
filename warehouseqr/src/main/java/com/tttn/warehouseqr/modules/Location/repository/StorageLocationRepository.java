@@ -20,6 +20,9 @@ public interface StorageLocationRepository extends JpaRepository<StorageLocation
 
     Optional<StorageLocation> findByLocationCode(String locationCode);
 
+    boolean existsByLocationCode(String locationCode);
+    boolean existsByLocationCodeAndLocationIdNot(String locationCode, Long locationId);
+
     @Query(value = """
         SELECT COALESCE(SUM(qty), 0)
         FROM inventory_location_balances
@@ -65,13 +68,11 @@ public interface StorageLocationRepository extends JpaRepository<StorageLocation
         String getRackCode();
         String getBinCode();
         String getZoneName();
-
         Long getProductId();
         String getProductName();
         String getSku();
         Long getBatchId();
         String getLotCode();
-
         BigDecimal getQty();
     }
 
@@ -83,7 +84,6 @@ public interface StorageLocationRepository extends JpaRepository<StorageLocation
             wl.rack_code AS rackCode,
             wl.bin_code AS binCode,
             wz.zone_name AS zoneName,
-
             p.product_id AS productId,
             p.product_name AS productName,
             p.sku AS sku,

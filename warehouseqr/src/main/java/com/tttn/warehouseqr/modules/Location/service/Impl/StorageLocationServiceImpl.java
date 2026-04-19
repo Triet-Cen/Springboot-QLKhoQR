@@ -71,13 +71,31 @@ public class StorageLocationServiceImpl implements StorageLocationService {
 
     @Override
     public StorageLocation save(StorageLocation location) {
+        if (location.getWarehouseId() == null) {
+            throw new RuntimeException("Vui lòng chọn kho.");
+        }
+
+        String code = location.getLocationCode() != null ? location.getLocationCode().trim() : "";
+        if (code.isBlank()) {
+            throw new RuntimeException("Mã vị trí không được để trống.");
+        }
+
+        if (storageLocationRepository.existsByLocationCode(code)) {
+            throw new RuntimeException("Mã vị trí đã tồn tại: " + code);
+        }
+
+        location.setLocationCode(code);
+        location.setQrCodeId(null); // luôn để hệ thống tự sinh
+
         if (location.getCapacity() == null) {
             location.setCapacity(0);
         }
 
         location.setUsedCapacity(0);
 
-        if (!"INACTIVE".equalsIgnoreCase(location.getStatus())) {
+        if (location.getStatus() == null || location.getStatus().isBlank()) {
+            location.setStatus("EMPTY");
+        } else if (!"INACTIVE".equalsIgnoreCase(location.getStatus())) {
             location.setStatus("EMPTY");
         }
 
@@ -91,9 +109,22 @@ public class StorageLocationServiceImpl implements StorageLocationService {
         StorageLocation oldLocation = storageLocationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy vị trí kho với id = " + id));
 
+        if (location.getWarehouseId() == null) {
+            throw new RuntimeException("Vui lòng chọn kho.");
+        }
+
+        String code = location.getLocationCode() != null ? location.getLocationCode().trim() : "";
+        if (code.isBlank()) {
+            throw new RuntimeException("Mã vị trí không được để trống.");
+        }
+
+        if (storageLocationRepository.existsByLocationCodeAndLocationIdNot(code, id)) {
+            throw new RuntimeException("Mã vị trí đã tồn tại: " + code);
+        }
+
         oldLocation.setWarehouseId(location.getWarehouseId());
         oldLocation.setZoneId(location.getZoneId());
-        oldLocation.setLocationCode(location.getLocationCode());
+        oldLocation.setLocationCode(code);
         oldLocation.setAisleCode(location.getAisleCode());
         oldLocation.setRackCode(location.getRackCode());
         oldLocation.setBinCode(location.getBinCode());
