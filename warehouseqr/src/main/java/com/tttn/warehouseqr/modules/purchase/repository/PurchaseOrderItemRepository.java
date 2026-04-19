@@ -14,6 +14,7 @@ public interface PurchaseOrderItemRepository extends JpaRepository<PurchaseOrder
     @Modifying
     @Query("UPDATE PurchaseOrderItem p SET p.receivedQty = p.receivedQty + :qty " +
             "WHERE p.purchaseOrders.id = :poId AND p.product.product_id = :productId")
+
     void updateReceivedQty(@Param("poId") Long poId,
                            @Param("productId") Long productId,
                            @Param("qty") Double qty);

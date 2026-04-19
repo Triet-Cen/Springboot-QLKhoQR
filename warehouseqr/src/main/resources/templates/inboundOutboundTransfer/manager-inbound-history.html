@@ -5,8 +5,6 @@
     <title>Lịch sử Nhập kho | WMS Pro</title>
     <style th:inline="css">
         :root {
-            --success-gradient: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-            --danger-gradient: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
             --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
         }
 
@@ -17,13 +15,11 @@
             font-weight: 800;
         }
 
-        .bg-success-gradient { background: var(--success-gradient); color: white; border: none; }
-        .bg-danger-gradient { background: var(--danger-gradient); color: white; border: none; }
-
         .op-card {
             border: none;
             border-radius: 20px;
             box-shadow: var(--card-shadow);
+            overflow: hidden;
         }
 
         .table-custom th {
@@ -33,13 +29,36 @@
             text-transform: uppercase;
             font-size: 0.8rem;
             padding: 15px;
+            border-bottom: 2px solid #e2e8f0;
         }
 
+        .table-custom td {
+            vertical-align: middle;
+            padding: 1rem 15px;
+        }
+
+        /* --- XU HƯỚNG SOFT BADGE MỚI NHẤT --- */
         .badge-status {
-            padding: 6px 12px;
-            border-radius: 30px;
-            font-size: 0.75rem;
-            font-weight: 700;
+            padding: 8px 16px;
+            border-radius: 8px; /* Đổi từ pill sang bo góc nhẹ */
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            border: 1px solid transparent;
+        }
+
+        /* Cập nhật màu xanh ngọc tươi sáng cho chữ Hoàn tất */
+        .badge-success-soft {
+            background-color: #d1fae5 !important;
+            color: #1e293b !important; /* Chữ màu Xám Than / Dark Slate */
+            border: 1px solid #a7f3d0;
+        }
+
+        /* Cập nhật màu đỏ hồng dịu mắt cho chữ Từ chối */
+        .badge-danger-soft {
+            background-color: #fee2e2 !important; /* Nền đỏ hồng */
+            color: #991b1b !important; /* Chữ màu Đỏ Đô / Mận chín (Thay cho màu trắng) */
+            border: 1px solid #fecaca;
         }
     </style>
 </head>
@@ -83,12 +102,13 @@
                             <td th:text="${#temporals.format(r.receivedAt, 'dd/MM/yyyy HH:mm')}"></td>
                             <td th:text="${r.warehouse.warehouseName}">Kho chính</td>
                             <td class="text-center">
-                                    <span th:if="${r.status == 'COMPLETED'}" class="badge badge-status bg-success-gradient">
-                                        <i class="bi bi-check-circle me-1"></i>HOÀN TẤT
-                                    </span>
-                                <span th:if="${r.status == 'REJECTED'}" class="badge badge-status bg-danger-gradient">
-                                        <i class="bi bi-x-circle me-1"></i>BỊ TỪ CHỐI
-                                    </span>
+                                <span th:if="${r.status == 'COMPLETED'}" class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-3 shadow-sm" style="font-size: 0.8rem;">
+                                    <i class="bi bi-check-circle-fill me-1"></i>HOÀN TẤT
+                                </span>
+
+                                <span th:if="${r.status == 'REJECTED'}" class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-3 shadow-sm" style="font-size: 0.8rem;">
+                                    <i class="bi bi-x-circle-fill me-1"></i>TỪ CHỐI
+                                </span>
                             </td>
                             <td class="text-center">
                                 <div class="btn-group shadow-sm rounded-3">

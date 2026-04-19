@@ -4,6 +4,7 @@ import com.tttn.warehouseqr.common.util.SecurityUtils;
 import com.tttn.warehouseqr.modules.masterdata.product.repository.ProductRepository;
 import com.tttn.warehouseqr.modules.masterdata.supplier.repository.SupplierRepository;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseRepository;
+import com.tttn.warehouseqr.modules.purchase.entity.PurchaseOrders;
 import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrderItemRepository;
 import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrdersRepository;
 import com.tttn.warehouseqr.modules.purchase.service.PurchaseOrderService;
@@ -47,6 +48,18 @@ public class PurchaseOrderController {
     // 1. Hiển thị trang danh sách và Form
     @GetMapping("/purchase-orders")
     public String showPurchaseOrderPage(Model model) {
+        // Lấy danh sách từ DB lên
+        List<PurchaseOrders> poList = poRepo.findAllByOrderByIdDesc();
+
+        // --- MÁY PHÁT HIỆN NÓI DỐI ---
+        System.out.println("========== BẮT ĐẦU KIỂM TRA PO ==========");
+        for (PurchaseOrders po : poList) {
+            System.out.println("Mã PO: " + po.getPoCode() + " | Trạng thái đang giữ trong Java: [" + po.getStatus() + "]");
+        }
+        System.out.println("===========================================");
+        // -----------------------------
+
+
         model.addAttribute("purchaseOrders", poRepo.findAllByOrderByIdDesc());
         model.addAttribute("suppliers", supplierRepo.findAll());
         model.addAttribute("warehouses", warehouseRepo.findAll());
