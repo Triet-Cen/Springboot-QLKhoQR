@@ -183,11 +183,19 @@
                                     <option th:each="s : ${suppliers}" th:value="${s.supplierId}" th:text="${s.supplierName}"></option>
                                 </select>
                             </div>
-                            <div class="col-12">
+
+                            <div class="col-md-6">
                                 <label class="form-label small fw-bold text-muted text-uppercase ms-1">Kho xử lý</label>
                                 <select id="warehouseSelect" class="form-select border-0 shadow-sm rounded-3 py-2 bg-light">
                                     <option value="" selected disabled>-- Chọn kho hàng --</option>
                                     <option th:each="w : ${warehouses}" th:value="${w.warehouseId}" th:text="${w.warehouseName}"></option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6" id="locationBlock">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1 text-success">Kệ hàng (Mặc định)</label>
+                                <select id="locationSelect" class="form-select border-success border-opacity-25 shadow-sm rounded-3 py-2 bg-white">
+                                    <option value="" selected disabled>-- Vui lòng chọn Kho trước --</option>
                                 </select>
                             </div>
                             <div class="col-md-6" id="targetWarehouseContainer" style="display: none;">
@@ -446,6 +454,13 @@
         function checkAndAddRow(rawData, source) {
             if (dom.noData) dom.noData.style.display = "none";
 
+            // --- CHÈN ĐOẠN NÀY VÀO ĐỂ LẤY ID KỆ TỪ DROPDOWN ---
+            const defaultLocSelect = document.getElementById('locationSelect');
+            if (defaultLocSelect && defaultLocSelect.value) {
+                rawData.locationId = parseInt(defaultLocSelect.value);
+                rawData.locationCode = defaultLocSelect.options[defaultLocSelect.selectedIndex].text;
+            }
+
             // 1. Tách logic chuẩn hóa dữ liệu dựa trên chế độ hiện tại
             let data;
             if (currentMode === "INBOUND") {
@@ -679,10 +694,6 @@
         </div>
     </div>
     <div class="d-flex align-items-center gap-2">
-        <div class="text-end">
-            <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">ID KỆ</label>
-            <input type="number" class="form-control form-control-sm loc-input" value="${locationId}" style="width: 60px; font-weight: bold;">
-        </div>
 
         <div class="text-end">
             <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px;">ĐƠN GIÁ</label>
@@ -882,6 +893,31 @@
             initCSVImport(); loadCustomers();
         }
 
+        //Sự kiện cho KHO XỬ LÝ (Mới thêm)
+        document.getElementById('warehouseSelect').addEventListener('change', async function() {
+            const warehouseId = this.value;
+            const locationSelect = document.getElementById('locationSelect');
+
+            if (!warehouseId) {
+                locationSelect.innerHTML = '<option value="" selected disabled>-- Vui lòng chọn Kho trước --</option>';
+                return;
+            }
+            try {
+                locationSelect.innerHTML = '<option value="" selected disabled>Đang tải dữ liệu...</option>';
+                const res = await fetch(`/scan-station/warehouses/${warehouseId}/locations`);
+                if (!res.ok) throw new Error("Không thể tải danh sách kệ hàng");
+
+                const data = await res.json();
+                locationSelect.innerHTML = '<option value="" selected disabled>-- Chọn kệ hàng --</option>';
+                data.forEach(loc => {
+                    locationSelect.appendChild(new Option(loc.locationCode, loc.locationId));
+                });
+            } catch (err) {
+                locationSelect.innerHTML = '<option value="" selected disabled>-- Lỗi tải dữ liệu --</option>';
+            }
+        });
+
+        //Sự kiện cho KHO ĐÍCH (Dùng cho tab Điều chuyển - Phải khôi phục lại)
         document.getElementById('targetWarehouseSelect').addEventListener('change', async function() {
             const res = await fetch(`/scan-station/warehouses/${this.value}/locations`);
             const data = await res.json();
@@ -890,6 +926,8 @@
             sel.innerHTML = '<option value="" selected disabled>-- Chọn vị trí --</option>';
             data.forEach(loc => sel.appendChild(new Option(loc.locationCode, loc.locationId)));
         });
+
+        document.addEventListener('DOMContentLoaded', initLayout);
 
         document.addEventListener('DOMContentLoaded', initLayout);
     </script>

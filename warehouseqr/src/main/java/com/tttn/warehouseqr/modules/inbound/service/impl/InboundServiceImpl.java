@@ -323,6 +323,7 @@ public class InboundServiceImpl implements InboundService {
         // Cập nhật trạng thái phiếu
         receipt.setStatus("COMPLETED");
         receipt.setReceivedAt(LocalDateTime.now());
+        receipt.setDeliveryNoteCode(adminNote);
 
         receiptRepo.save(receipt);
 
@@ -347,6 +348,7 @@ public class InboundServiceImpl implements InboundService {
         // Đổi trạng thái thành REJECTED (Từ chối)
         receipt.setStatus("REJECTED");
         receipt.setReceivedAt(LocalDateTime.now());
+        receipt.setDeliveryNoteCode(adminNote);
 
         if (receipt.getPurchaseOrders() != null) {
             for (InboundReceiptItem item : receipt.getItems()) {
