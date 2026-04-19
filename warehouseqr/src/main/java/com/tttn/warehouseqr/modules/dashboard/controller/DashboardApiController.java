@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -30,21 +31,33 @@ public class DashboardApiController {
 
     @GetMapping("/trends")
     public ResponseEntity<ChartDataDto> getInventoryTrends() {
+        // Lấy dữ liệu từ Repository (Ngày, Tổng Nhập, Tổng Xuất)
         List<Object[]> results = historyRepository.getInOutTrendLast7Days();
 
         List<String> labels = new ArrayList<>();
         List<Double> inboundData = new ArrayList<>();
         List<Double> outboundData = new ArrayList<>();
 
-        for (Object[] row : results) {
-            labels.add(row[0].toString());
-            inboundData.add(Double.parseDouble(row[1].toString()));
-            outboundData.add(Double.parseDouble(row[2].toString()));
+        for (Object[] res : results) {
+            // res[0]: Ngày, res[1]: Nhập, res[2]: Xuất
+            labels.add(res[0] != null ? res[0].toString() : "");
+
+            // Dùng Double.valueOf để an toàn hơn parseDouble
+            double inbound = (res[1] != null) ? Double.parseDouble(res[1].toString()) : 0.0;
+            double outbound = (res[2] != null) ? Double.parseDouble(res[2].toString()) : 0.0;
+
+            inboundData.add(inbound);
+            outboundData.add(outbound);
         }
 
-        ChartDataDto chartData = new ChartDataDto(labels, inboundData, outboundData);
+        ChartDataDto chartData = new ChartDataDto();
+        chartData.setLabels(labels);
+        chartData.setInboundData(inboundData);
+        chartData.setOutboundData(outboundData);
+
         return ResponseEntity.ok(chartData);
     }
+
 
     @GetMapping("/export-excel")
     public void exportToExcel(HttpServletResponse response) throws IOException {
