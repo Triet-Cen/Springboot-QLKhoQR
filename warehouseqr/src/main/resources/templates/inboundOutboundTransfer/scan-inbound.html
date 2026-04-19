@@ -552,7 +552,10 @@
                     }
                     if (responseData.warehouseId) {
                         const warehouseSelect = document.getElementById('warehouseSelect');
-                        if (warehouseSelect) warehouseSelect.value = responseData.warehouseId;
+                        if(warehouseSelect){
+                            warehouseSelect.value = responseData.warehouseId;
+                            warehouseSelect.dispatchEvent(new Event('change'));
+                        }
                     }
 
                     dom.scannedList.innerHTML = "";
@@ -739,17 +742,30 @@
             const warehouseId = document.getElementById('warehouseSelect').value;
             if (!warehouseId) return alert("Vui lòng chọn Kho xử lý!");
 
+
             const items = Array.from(scannedRows).map(row => {
                 const rawPriceString = row.querySelector('.price-input').value;
                 const priceVal = parseFloat(rawPriceString.replace(/[^0-9]/g, '')) || 0;
-                const locInput = row.querySelector('.loc-input');
-                const locId = locInput ? parseInt(locInput.value) : parseInt(row.getAttribute('data-location-id'));
-                const batchId = parseInt(row.getAttribute('data-batch-id'));
+
+                // 1. TÌM ID KỆ HÀNG CHUẨN XÁC (Phải nằm trong này vì 'row' chỉ sống ở đây)
+                let finalLocId = parseInt(row.getAttribute('data-location-id'));
+
+                // Nếu thẻ HTML không có ID kệ (bị NaN), bắt buộc lấy từ Dropdown trên màn hình
+                if (Number.isNaN(finalLocId) || finalLocId <= 0) {
+                    const locSelect = document.getElementById('locationSelect');
+                    finalLocId = (locSelect && locSelect.value) ? parseInt(locSelect.value) : null;
+                }
+
+                // 2. TÌM ID LÔ HÀNG (BATCH) AN TOÀN
+                const rawBatchId = row.getAttribute('data-batch-id');
+                const batchId = (rawBatchId && rawBatchId !== "null" && rawBatchId !== "undefined") ? parseInt(rawBatchId) : null;
+
                 return {
                     productId: parseInt(row.getAttribute('data-product-id')),
-                    locationId: locId,
-                    batchId: Number.isNaN(batchId) ? null : batchId,
-                    price: priceVal, exportPrice: priceVal,
+                    locationId: finalLocId, // <--- Gắn biến đã tính toán vào đây!
+                    batchId: batchId,
+                    price: priceVal,
+                    exportPrice: priceVal,
                     importPrice: priceVal,
                     unitPrice: priceVal,
                     sellingPrice: priceVal,
@@ -762,6 +778,12 @@
                     targetLocationId: currentMode === 'TRANSFER' ? parseInt(document.getElementById('targetLocationSelect').value) : null
                 };
             });
+
+            // 3. CHẶN ĐỨNG LỖI TỪ ĐẦU: Nếu quên chọn kệ, cấm Submit!
+            if (currentMode === 'INBOUND' && items.some(i => i.locationId === null || Number.isNaN(i.locationId))) {
+                alert("⛔ LỖI: Chưa có Kệ Hàng! Vui lòng chọn 'Kệ hàng' ở khu vực Trạm Quét trước khi Xác nhận.");
+                return; // Dừng hàm ngay lập tức
+            }
 
             if (items.some(i => i.price === 0)) {
                 if (!confirm("⚠️ Có sản phẩm giá bằng 0 đ. Vẫn tiếp tục?")) return;
