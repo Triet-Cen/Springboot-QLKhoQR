@@ -240,12 +240,32 @@
                                                                     <div class="accordion-body p-1 pt-2 bg-white border-start border-2 border-primary ms-2 mt-1">
 
                                                                         <ul class="list-unstyled mb-0 ms-2" th:if="${ware.locations != null and !ware.locations.isEmpty()}">
-                                                                            <li th:each="loc : ${ware.locations}" class="mb-1" style="font-size: 12px;">
-                                                                                <i class="bi bi-arrow-return-right text-muted me-1"></i>
-                                                                                Mã Kệ: <strong class="text-primary" th:text="${loc.locationCode}"></strong>
+                                                                            <li th:each="loc : ${ware.locations}" class="mb-1 d-flex justify-content-between align-items-center pe-3" style="font-size: 12px;">
+                                                                                <div>
+                                                                                    <i class="bi bi-arrow-return-right text-muted me-1"></i>
+                                                                                    Mã Kệ: <strong class="text-primary" th:text="${loc.locationCode}"></strong>
+                                                                                </div>
+
+                                                                                <div th:with="used=${loc.usedCapacity != null ? loc.usedCapacity : 0},
+                                                                                      cap=${loc.capacity != null ? loc.capacity : 0},
+                                                                                      percent=${cap > 0 ? (used * 100.0 / cap) : 0}"
+                                                                                     class="badge bg-light border fw-normal"
+                                                                                     title="Sức chứa: Đã dùng / Tổng">
+
+                                                                                    <i class="bi bi-box-seam text-secondary me-1"></i>
+
+                                                                                    <span th:text="${used}"
+                                                                                          class="fw-bold"
+                                                                                          th:classappend="${cap == 0 ? 'text-dark' : (percent < 50 ? 'text-success' : (percent < 70 ? 'text-warning' : 'text-danger'))}">
+                                                                                                0
+                                                                                            </span>
+
+                                                                                    <span class="text-secondary mx-1">/</span>
+
+                                                                                    <span th:text="${cap > 0 ? cap : '∞'}" class="text-secondary fw-medium">100</span>
+                                                                                </div>
                                                                             </li>
                                                                         </ul>
-
                                                                         <span th:if="${ware.locations == null or ware.locations.isEmpty()}" class="text-muted fst-italic ms-2" style="font-size: 12px;">
                                                                                     (Kho này chưa có vị trí kệ nào)</span>
                                                                     </div>
@@ -259,7 +279,6 @@
                                     </div>
                                 </div>
                             </div>
-
                             <div class="col-md-7">
                                 <h6 class="text-success fw-bold mb-3"><i class="bi bi-3-circle"></i> Xem trước Dữ liệu Thô (Từ file)</h6>
                                 <div id="csvPreviewArea" class="table-responsive border rounded bg-white shadow-sm" style="height: 380px; overflow-y: auto;">

@@ -252,15 +252,35 @@
 
         function rejectReceipt() {
             const note = document.getElementById('approvalNote').value;
+            const actionContainer = document.getElementById('rejectActionContainer');
+
+            // 1. Nếu khung chọn hướng xử lý PO đang ẩn, thì HIỆN NÓ LÊN và yêu cầu chọn
+            if (actionContainer.style.display === 'none') {
+                actionContainer.style.display = 'block';
+                document.getElementById('rejectActionSelect').focus();
+                // Đổi màu nút từ chối để gây chú ý
+                const btnReject = document.getElementById('btnReject') || document.querySelector('.btn-danger');
+                if(btnReject) {
+                    btnReject.innerHTML = `<i class="bi bi-x-circle me-2"></i>Xác nhận Từ chối & Xử lý PO`;
+                }
+                return; // Dừng lại chưa submit vội
+            }
+
+            // 2. Nếu khung đã hiện, kiểm tra xem đã nhập ghi chú chưa
             if(!note) {
                 alert("Vui lòng ghi rõ lý do từ chối vào ô Ghi chú!");
                 document.getElementById('approvalNote').focus();
                 return;
             }
-            if(confirm("Xác nhận TỪ CHỐI phiếu nhập này và yêu cầu Kho kiểm tra lại?")) {
+
+            // 3. Tiến hành submit
+            if(confirm("Xác nhận TỪ CHỐI phiếu nhập này?")) {
+                const rejectAction = document.getElementById('rejectActionSelect').value;
+
                 const form = document.getElementById('actionForm');
                 form.action = `/manager/inbound/${currentReceiptId}/reject`;
                 document.getElementById('formNote').value = note;
+                document.getElementById('formRejectAction').value = rejectAction; // Gửi giá trị này đi
                 form.submit();
             }
         }

@@ -10,4 +10,7 @@ public interface TransferOrderServices {
 
     public void processTransfer(TransferRequestDTO request, Long userId);
     public List<TransferItemDTO> parseTransferCsv(MultipartFile file);
+
+    void approveTransferOrder(Long transferOrderId, Long approverId);
+    void rejectTransferOrder(Long transferOrderId, String rejectReason, Long approverId);
 }
