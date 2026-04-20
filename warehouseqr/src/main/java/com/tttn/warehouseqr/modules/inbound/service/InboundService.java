@@ -18,7 +18,7 @@ public interface InboundService {
 
     public void approveInboundReceipt(Long receiptId, String adminNote);
 
-    public void rejectInboundReceipt(Long receiptId, String adminNote);
+    public void rejectInboundReceipt(Long receiptId, String adminNote,String rejectAction);
 
     public List<InboundReceipt> getHistoryReceipts ();
 }

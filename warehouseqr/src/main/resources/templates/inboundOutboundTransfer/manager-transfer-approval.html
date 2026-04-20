@@ -1,0 +1,162 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Phê Duyệt Điều Chuyển Kho | WMS Pro</title>
+    <style th:inline="css">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .dashboard-title {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+        .op-card { border: none; border-radius: 20px; background: var(--glass-bg); box-shadow: var(--card-shadow); }
+
+        .btn-approve { background-color: #10b981; color: white; transition: all 0.2s; }
+        .btn-approve:hover { background-color: #059669; color: white; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3); }
+
+        .btn-reject { background-color: #ef4444; color: white; transition: all 0.2s; }
+        .btn-reject:hover { background-color: #dc2626; color: white; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3); }
+
+        .status-badge { padding: 6px 14px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; }
+        .bg-pending { background-color: #fef08a; color: #854d0e; }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4 px-md-5">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill mb-2 fw-bold">MANAGER WORKSPACE</span>
+                <h2 class="dashboard-title mb-0">Phê Duyệt Lệnh Điều Chuyển Liên Kho</h2>
+                <p class="text-muted mt-1">Danh sách các yêu cầu chuyển hàng cần Quản lý xác nhận để xuất kho.</p>
+            </div>
+        </div>
+
+        <div class="card op-card overflow-hidden">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th class="py-4 px-4 text-center" width="5%">#</th>
+                            <th width="15%">MÃ LỆNH</th>
+                            <th width="15%">THỜI GIAN TẠO</th>
+                            <th width="15%">TỪ KHO (XUẤT)</th>
+                            <th width="15%">ĐẾN KHO (NHẬP)</th>
+                            <th class="text-center" width="15%">TRẠNG THÁI</th>
+                            <th class="text-center" width="20%">THAO TÁC</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="trf, stat : ${pendingTransfers}">
+                            <td class="text-center fw-bold text-muted px-4" th:text="${stat.count}">1</td>
+                            <td>
+                                <div class="fw-bold text-dark" th:text="${trf.transferCode}">TRF-123456</div>
+                                <small class="text-muted" th:text="'Bởi: ID ' + ${trf.creator?.userId}">Bởi: Admin</small>
+                            </td>
+                            <td th:text="${#temporals.format(trf.transferDate, 'dd/MM/yyyy HH:mm')}">20/04/2026</td>
+                            <td>
+                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 py-2 px-3"
+                                      th:text="'Kho ID: ' + ${trf.fromWarehouseId}">Kho Bình Dương</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 py-2 px-3"
+                                      th:text="'Kho ID: ' + ${trf.toWarehouseId}">Kho Quận 1</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="status-badge bg-pending"><i class="bi bi-hourglass-split me-1"></i>CHỜ DUYỆT</span>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-approve rounded-pill px-3 fw-bold me-1"
+                                        th:attr="data-id=${trf.id}, data-code=${trf.transferCode}"
+                                        onclick="approveTransfer(this)">
+                                    <i class="bi bi-check2-circle me-1"></i>Duyệt xuất kho
+                                </button>
+
+                                <button class="btn btn-sm btn-reject rounded-pill px-3 fw-bold"
+                                        th:attr="data-id=${trf.id}"
+                                        onclick="rejectTransfer(this)">
+                                    <i class="bi bi-x-circle me-1"></i>Từ chối
+                                </button>
+                            </td>
+                        </tr>
+
+                        <tr th:if="${#lists.isEmpty(pendingTransfers)}">
+                            <td colspan="7" class="text-center py-5">
+                                <i class="bi bi-check2-all display-1 text-success opacity-25 mb-3 d-block"></i>
+                                <h5 class="fw-bold text-muted">Tuyệt vời! Không có lệnh nào đang chờ duyệt.</h5>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        // 1. Hàm Xử lý Phê Duyệt
+        async function approveTransfer(buttonElement) {
+            // Lấy dữ liệu từ thẻ HTML
+            const id = buttonElement.getAttribute('data-id');
+            const code = buttonElement.getAttribute('data-code');
+
+            if (!confirm(`Bạn có chắc chắn muốn PHÊ DUYỆT xuất kho cho lệnh [${code}] không?\nHàng hóa sẽ lập tức bị trừ khỏi kho nguồn.`)) return;
+
+            try {
+                const response = await fetch(`/manager/transfer/api/${id}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert("✅ " + result.message);
+                    window.location.reload();
+                } else {
+                    throw new Error(result.error || "Có lỗi xảy ra trong quá trình duyệt.");
+                }
+            } catch (err) {
+                alert("❌ Lỗi: " + err.message);
+            }
+        }
+
+        // 2. Hàm Xử lý Từ chối
+        async function rejectTransfer(buttonElement) {
+            const id = buttonElement.getAttribute('data-id');
+
+            const reason = prompt("Vui lòng nhập lý do từ chối lệnh điều chuyển này:");
+            if (reason === null) return;
+
+            try {
+                const response = await fetch(`/manager/transfer/api/${id}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: reason })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert("✅ " + result.message);
+                    window.location.reload();
+                } else {
+                    throw new Error(result.error || "Có lỗi xảy ra trong quá trình từ chối.");
+                }
+            } catch (err) {
+                alert("❌ Lỗi: " + err.message);
+            }
+        }
+    </script>
+</div>
+</body>
+</html>

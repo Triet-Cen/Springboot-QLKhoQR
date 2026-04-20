@@ -1,0 +1,324 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Điều Chuyển Kho (Transfer) | WMS Pro</title>
+
+</head>
+<body>
+<div id="mainContent">
+    <style th:inline="css">
+        :root { --primary-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); --secondary-bg: #f8fafc; --glass-bg: rgba(255, 255, 255, 0.9); --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.04); }
+        body { background-color: var(--secondary-bg); font-family: 'Inter', sans-serif; }
+        .hub-title { background: linear-gradient(135deg, #1e293b 0%, #475569 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 2.5rem; letter-spacing: -1px; }
+        .op-card { border: none; border-radius: 24px; background: var(--glass-bg); backdrop-filter: blur(10px); box-shadow: var(--card-shadow); transition: transform 0.3s; }
+        .op-card:hover { transform: translateY(-5px); }
+        .scanner-viewport { position: relative; height: 320px; background: #0f172a; border-radius: 20px; overflow: hidden; border: 4px solid #fff; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); }
+        .scan-anim { position: absolute; width: 100%; height: 3px; background: #f59e0b; box-shadow: 0 0 20px #f59e0b, 0 0 40px #d97706; animation: scanning 2.5s infinite ease-in-out; z-index: 20; }
+        @keyframes scanning { 0%, 100% { top: 15%; opacity: 0.3; } 50% { top: 85%; opacity: 1; } }
+        .item-list-container { max-height: 550px; overflow-y: auto; padding: 10px; }
+        .scanned-item { border: 1px solid #f1f5f9 !important; background: #fff; margin-bottom: 12px; border-radius: 16px !important; transition: all 0.3s; border-left: 6px solid #f59e0b !important; }
+        .scanned-item:hover { box-shadow: 0 8px 15px rgba(0,0,0,0.05); transform: scale(1.01); }
+        .qty-input { border: 1px solid #e2e8f0 !important; background: #f8fafc !important; border-radius: 10px !important; padding: 8px !important; font-weight: 700 !important; }
+        #btnSubmitScan { height: 65px; font-size: 1.1rem; font-weight: 800; letter-spacing: 1px; border-radius: 18px; text-transform: uppercase; transition: all 0.3s; }
+        @media print { body * { visibility: hidden; } #receiptModal .modal-content, #receiptModal .modal-content * { visibility: visible; } #receiptModal .modal-content { position: absolute; left: 0; top: 0; width: 100%; border: none; } .modal-header, .modal-footer { display: none !important; } }
+    </style>
+    <div class="container-fluid py-5 px-md-5">
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill mb-3 fw-bold">TRANSFER OPERATIONS</span>
+                <h1 class="fw-bolder hub-title mb-2">Trạm Điều Chuyển Kho</h1>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="card op-card h-100 border-0 shadow-sm p-2">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="fw-bold text-dark mb-0"><i class="bi bi-qr-code-scan me-2 text-warning"></i>MÁY QUÉT</h5>
+                            <div class="form-check form-switch custom-switch">
+                                <input class="form-check-input" type="checkbox" id="cameraSwitch" />
+                                <label class="form-check-label small fw-bold text-muted" for="cameraSwitch">CAMERA</label>
+                            </div>
+                        </div>
+
+                        <div id="reader" class="scanner-viewport mb-4 shadow-lg">
+                            <video id="video" playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+                            <div class="scan-anim" id="scannerLine" style="display: none;"></div>
+                            <div class="text-center text-white opacity-25" id="placeholder">
+                                <i class="bi bi-camera-video-off display-4"></i>
+                                <p class="small mt-3 fw-bold">CAMERA ĐANG TẮT</p>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1 text-danger">Từ Kho (Xuất)</label>
+                                <select id="warehouseSelect" class="form-select border-danger border-opacity-25 shadow-sm rounded-3 py-2 bg-light">
+                                    <option value="" selected disabled>-- Chọn kho xuất --</option>
+                                    <option th:each="w : ${warehouses}" th:value="${w.warehouseId}" th:text="${w.warehouseName}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1 text-danger">Từ Kệ hàng</label>
+                                <select id="locationSelect" class="form-select border-danger border-opacity-25 shadow-sm rounded-3 py-2 bg-white">
+                                    <option value="" selected disabled>-- Vui lòng chọn Kho --</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 mt-4">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1 text-success">Đến Kho (Nhận)</label>
+                                <select id="targetWarehouseSelect" class="form-select border-success border-opacity-25 shadow-sm rounded-3 py-2 bg-white">
+                                    <option value="" selected disabled>-- Chọn kho nhận --</option>
+                                    <option th:each="w : ${warehouses}" th:value="${w.warehouseId}" th:text="${w.warehouseName}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mt-4">
+                                <label class="form-label small fw-bold text-muted text-uppercase ms-1 text-success">Đến Kệ hàng</label>
+                                <select id="targetLocationSelect" class="form-select border-success border-opacity-25 shadow-sm rounded-3 py-2 bg-white">
+                                    <option value="" selected disabled>-- Vui lòng chọn Kho --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="card op-card h-100 border-0 shadow-sm overflow-hidden">
+                    <div class="card-header bg-white border-0 py-4 px-4 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold text-dark mb-0">DANH SÁCH ĐIỀU CHUYỂN</h5>
+                        <span class="badge bg-warning text-dark rounded-pill px-3 py-2" id="itemCounter">0 mã hàng</span>
+                    </div>
+
+                    <div class="card-body p-0">
+                        <div class="item-list-container px-4">
+                            <div class="list-group list-group-flush gap-2" id="scannedList">
+                                <div class="text-center py-5 opacity-25" id="noData">
+                                    <i class="bi bi-box-seam display-1"></i>
+                                    <p class="mt-3 fw-bold">CHƯA CÓ DỮ LIỆU QUÉT</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-white border-0 p-4">
+                        <div class="d-grid gap-2">
+                            <button id="btnSubmitScan" class="btn btn-lg text-white shadow-lg" style="background: var(--primary-gradient);" onclick="submitDataToBackend()" disabled>
+                                XÁC NHẬN ĐIỀU CHUYỂN
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="receiptModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 25px;">
+                <div class="modal-header text-white border-0 py-4 px-4" style="background: var(--primary-gradient);">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-check-circle-fill me-2"></i>ĐIỀU CHUYỂN THÀNH CÔNG</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-5">
+                    <div class="text-center mb-5">
+                        <div class="bg-light d-inline-block p-4 rounded-circle mb-3"><i class="bi bi-arrow-left-right fs-1 text-warning"></i></div>
+                        <h3 class="fw-bolder text-dark text-uppercase mb-1">PHIẾU ĐIỀU CHUYỂN</h3>
+                        <p class="small text-muted" id="receiptTime"></p>
+                    </div>
+                    <div class="table-responsive rounded-4 border shadow-sm mb-4">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light"><tr><th class="text-center">#</th><th>SẢN PHẨM / LÔ HÀNG</th><th class="text-center">SỐ LƯỢNG CHUYỂN</th></tr></thead>
+                            <tbody id="receiptTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 py-3 px-4">
+                    <button type="button" class="btn btn-primary rounded-pill px-5 fw-bold shadow" onclick="window.print()"><i class="bi bi-printer me-2"></i>In Phiếu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="https://unpkg.com/@zxing/library@latest"></script>
+    <script th:inline="javascript">
+        const codeReader = new ZXing.BrowserQRCodeReader();
+        const beepSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+        let controls = null, lastScan = "", lastTime = 0;
+
+        let dom = {
+            cameraSwitch: document.getElementById("cameraSwitch"), placeholder: document.getElementById("placeholder"),
+            scannerLine: document.getElementById("scannerLine"), video: document.getElementById("video"),
+            scannedList: document.getElementById("scannedList"), noData: document.getElementById("noData"),
+            counter: document.getElementById("itemCounter"), btnSubmit: document.getElementById("btnSubmitScan")
+        };
+
+        async function startCamera() {
+            try {
+                dom.placeholder.style.display = "none"; dom.scannerLine.style.display = "block";
+                const devices = await codeReader.listVideoInputDevices();
+                const selectedId = devices.find(d => /back|sau|environment/i.test(d.label))?.deviceId || devices[0].deviceId;
+                controls = await codeReader.decodeFromVideoDevice(selectedId, dom.video, (result) => { if (result) handleScan(result.getText()); });
+            } catch (err) { alert("Lỗi: " + err.message); dom.cameraSwitch.checked = false; stopCamera(); }
+        }
+
+        function stopCamera() {
+            if (controls) { controls.stop(); controls = null; }
+            if (dom.video && dom.video.srcObject) dom.video.srcObject.getTracks().forEach(track => track.stop());
+            dom.scannerLine.style.display = "none"; dom.placeholder.style.display = "block";
+        }
+        dom.cameraSwitch.addEventListener("change", e => e.target.checked ? startCamera() : stopCamera());
+
+        function checkAndAddRow(rawData) {
+            if (dom.noData) dom.noData.style.display = "none";
+            const defaultLocSelect = document.getElementById('locationSelect');
+            if (defaultLocSelect && defaultLocSelect.value) {
+                rawData.locationId = parseInt(defaultLocSelect.value);
+                rawData.locationCode = defaultLocSelect.options[defaultLocSelect.selectedIndex].text;
+            }
+
+            const scannedRows = document.querySelectorAll('.scanned-item');
+            let existingRow = null;
+
+            for (let row of scannedRows) {
+                if (String(row.getAttribute('data-product-id')) === String(rawData.productId) &&
+                    String(row.getAttribute('data-lot-code')) === String(rawData.lotCode || 'Mặc định')) { existingRow = row; break; }
+            }
+
+            if (existingRow) {
+                const input = existingRow.querySelector('.qty-input');
+                input.value = (parseFloat(input.value) || 0) + 1;
+            } else {
+                renderProductToUI(rawData.productId, rawData.productName, 1, rawData.lotCode, rawData.batchId, rawData.locationId, rawData.locationCode);
+            }
+            updateCounter();
+        }
+
+        async function handleScan(text) {
+            const now = Date.now();
+            if (text === lastScan && now - lastTime < 2000) return;
+            lastScan = text; lastTime = now; beepSound.play().catch(() => {});
+
+            try {
+                if (text.includes('|')) {
+                    const warehouseId = document.getElementById('warehouseSelect').value;
+                    if (!warehouseId) { alert("Vui lòng chọn Kho Xuất trước!"); lastScan = ""; return; }
+
+                    const [sku, lotCode] = text.split('|');
+                    const response = await fetch(`/api/inbound/scan-item?sku=${sku}&lotCode=${lotCode}&warehouseId=${warehouseId}`);
+                    if (!response.ok) throw new Error(await response.text());
+
+                    const data = await response.json();
+                    data.productId = data.productId || data.product_id || data.id;
+                    data.productName = data.productName || data.name;
+                    checkAndAddRow(data);
+                } else {
+                    alert("Mã PO không dùng cho điều chuyển! Hãy quét mã QR sản phẩm.");
+                }
+            } catch (err) { alert("Lỗi: " + err.message); lastScan = ""; }
+        }
+
+        function renderProductToUI(productId, productName, actualQty, lotCode, batchId, locationId, locationCode) {
+            const newItem = document.createElement("div");
+            newItem.className = `list-group-item scanned-item border-0 p-4 mb-3 shadow-sm`;
+            newItem.setAttribute('data-product-id', productId); newItem.setAttribute('data-product-name', productName);
+            newItem.setAttribute('data-lot-code', lotCode); newItem.setAttribute('data-batch-id', batchId);
+            newItem.setAttribute('data-location-id', locationId);
+
+            newItem.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <div style="flex: 1;">
+                    <h6 class="fw-bold mb-1 text-dark">${productName}</h6>
+                    <span class="badge bg-light text-muted border fw-normal">Lô: ${lotCode}</span>
+                    <span class="badge bg-danger bg-opacity-10 text-danger fw-bold border">Kệ xuất: ${locationCode}</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="text-end">
+                        <label class="small text-muted d-block fw-bold mb-1" style="font-size: 9px; color: #f59e0b;">SỐ LƯỢNG CHUYỂN</label>
+                        <input type="number" class="form-control form-control-sm qty-input border-warning" value="${actualQty}" style="width: 80px;">
+                    </div>
+                    <button class="btn btn-light-danger btn-sm rounded-3 p-2 ms-2" onclick="removeRow(this)"><i class="bi bi-trash3 text-danger"></i></button>
+                </div>
+            </div>`;
+            dom.scannedList.prepend(newItem);
+        }
+
+        function removeRow(btn) { btn.closest('.list-group-item').remove(); updateCounter(); }
+
+        function updateCounter() {
+            const count = document.querySelectorAll(".scanned-item").length;
+            if (dom.counter) dom.counter.innerText = `${count} mã hàng`;
+            if (dom.noData) dom.noData.style.display = (count > 0) ? "none" : "block";
+            if (dom.btnSubmit) { dom.btnSubmit.disabled = (count === 0); dom.btnSubmit.style.opacity = (count === 0) ? "0.6" : "1"; }
+        }
+
+        async function submitDataToBackend() {
+            const scannedRows = document.querySelectorAll('.scanned-item');
+            if (scannedRows.length === 0) return alert("Danh sách trống!");
+
+            const fromWarehouseId = document.getElementById('warehouseSelect').value;
+            const toWarehouseId = document.getElementById('targetWarehouseSelect').value;
+            const targetLocationId = document.getElementById('targetLocationSelect').value;
+
+            if (!fromWarehouseId) return alert("Vui lòng chọn Kho Xuất!");
+            if (!toWarehouseId) return alert("Vui lòng chọn Kho Nhận!");
+            if (!targetLocationId) return alert("Vui lòng chọn Kệ Nhận (Đích)!");
+            // Nếu cùng một kho, bắt buộc Kệ xuất và Kệ đích phải KHÁC NHAU
+            if (fromWarehouseId === toWarehouseId) {
+                if (items.some(i => i.locationId === i.targetLocationId)) {
+                    return alert("LỖI: Chuyển nội bộ trong cùng 1 kho thì Kệ xuất và Kệ nhận không được giống nhau!");
+                }
+            }
+            const items = Array.from(scannedRows).map(row => ({
+                productId: parseInt(row.getAttribute('data-product-id')),
+                locationId: parseInt(row.getAttribute('data-location-id')) || parseInt(document.getElementById('locationSelect').value),
+                batchId: parseInt(row.getAttribute('data-batch-id')) || null,
+                actualQty: parseFloat(row.querySelector('.qty-input').value) || 0,
+                productName: row.getAttribute('data-product-name'),
+                lotCode: row.getAttribute('data-lot-code') || "Mặc định",
+                toWarehouseId: parseInt(toWarehouseId),
+                targetLocationId: parseInt(targetLocationId)
+            }));
+
+            const payload = { fromWarehouseId: parseInt(fromWarehouseId), toWarehouseId: parseInt(toWarehouseId), items };
+
+            dom.btnSubmit.disabled = true; dom.btnSubmit.innerText = "ĐANG CHUYỂN KHO...";
+            try {
+                const response = await fetch('/scan-station/transfer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(await response.text());
+
+                document.getElementById('receiptTime').innerText = new Date().toLocaleString('vi-VN');
+                document.getElementById('receiptTableBody').innerHTML = items.map((item, i) => `<tr><td class="text-center">${i+1}</td><td><div class="fw-bold">${item.productName}</div><small>Lô: ${item.lotCode}</small></td><td class="text-center"><span class="badge bg-warning text-dark">${item.actualQty}</span></td></tr>`).join('');
+                new bootstrap.Modal(document.getElementById('receiptModal')).show();
+                document.getElementById('receiptModal').addEventListener('hidden.bs.modal', () => location.reload());
+            } catch (err) { alert("Lỗi: " + err.message); }
+            finally { dom.btnSubmit.disabled = false; dom.btnSubmit.innerText = "XÁC NHẬN ĐIỀU CHUYỂN"; }
+        }
+
+        // Tự động tải danh sách Kệ Xuất
+        document.getElementById('warehouseSelect').addEventListener('change', async function() {
+            const locSelect = document.getElementById('locationSelect');
+            try {
+                const res = await fetch(`/scan-station/warehouses/${this.value}/locations`);
+                const data = await res.json();
+                locSelect.innerHTML = '<option value="" selected disabled>-- Chọn kệ xuất --</option>';
+                data.forEach(loc => locSelect.appendChild(new Option(loc.locationCode, loc.locationId)));
+            } catch (err) { locSelect.innerHTML = '<option value="">Lỗi</option>'; }
+        });
+
+        // Tự động tải danh sách Kệ Nhận (Đích)
+        document.getElementById('targetWarehouseSelect').addEventListener('change', async function() {
+            const locSelect = document.getElementById('targetLocationSelect');
+            try {
+                const res = await fetch(`/scan-station/warehouses/${this.value}/locations`);
+                const data = await res.json();
+                locSelect.innerHTML = '<option value="" selected disabled>-- Chọn kệ đích --</option>';
+                data.forEach(loc => locSelect.appendChild(new Option(loc.locationCode, loc.locationId)));
+            } catch (err) { locSelect.innerHTML = '<option value="">Lỗi</option>'; }
+        });
+    </script>
+</div>
+</body>
+</html>
