@@ -143,6 +143,33 @@
             </div>
         </li>
         <li class="nav-item">
+            <a class="nav-link d-flex align-items-center gap-2 text-secondary" data-bs-toggle="collapse" href="#transferMenu" role="button" aria-expanded="false" aria-controls="transferMenu" style="padding: 10px 16px;">
+                <i class="bi bi-arrow-left-right" style="width: 24px; text-align: center;"></i>
+                <span>Transfer</span>
+                <i class="bi bi-chevron-down ms-auto" style="font-size: 12px;"></i>
+            </a>
+
+            <div class="collapse" id="transferMenu">
+                <ul class="nav flex-column sub-menu gap-1">
+                    <li class="nav-item">
+                        <a th:href="@{/scan-station/transfer}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-upc-scan"></i> Scan Transfer
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/manager/transfer/approval-list}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-shield-check"></i> Manager Approval
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/manager/transfer/history}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-clock-history"></i> Transfer History
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </li>
+        <li class="nav-item">
             <a th:href="@{/admin/inventory}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="padding: 10px 16px;">
                 <i class="bi bi-archive" style="width: 24px; text-align: center;"></i> Inventory
             </a>

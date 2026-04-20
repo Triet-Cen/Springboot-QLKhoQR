@@ -25,6 +25,7 @@ public class SecurityConfig {
                         .requestMatchers("/categories/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
                         .requestMatchers("/units/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
                         .requestMatchers("/manager/inbound/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers("/manager/transfer/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
                         .requestMatchers("/manager/purchase-orders/**").permitAll()
                         .requestMatchers("/scan-station/warehouses/**").authenticated()
                         .anyRequest().authenticated()

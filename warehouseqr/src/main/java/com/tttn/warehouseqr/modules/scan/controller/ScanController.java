@@ -42,10 +42,10 @@ public class ScanController {
         model.addAttribute("warehouses", warehouses);
     }
 
+    //FIX: Tự động Redirect về trang Inbound cho chuẩn URL
     @GetMapping
-    public String showScanStation(Model model) {
-        loadScanStationData(model);
-        return "inboundOutboundTransfer/scan-inbound";
+    public String showScanStation() {
+        return "redirect:/scan-station/inbound";
     }
 
     @GetMapping("/inbound")
@@ -59,6 +59,14 @@ public class ScanController {
         loadScanStationData(model);
         return "inboundOutboundTransfer/scan-outbound";
     }
+
+
+    @GetMapping("/transfer")
+    public String showTransferStation(Model model) {
+        loadScanStationData(model);
+        return "inboundOutboundTransfer/scan-transfer";
+    }
+
 
     // 2. Hàm AJAX: Nhận dữ liệu ngầm từ Javascript Fetch API để không bị load lại trang làm tắt Camera
     @PostMapping("/outbound")

@@ -1,0 +1,243 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Lịch Sử Điều Chuyển Kho | WMS Pro</title>
+    <style th:inline="css">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #64748b 0%, #334155 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+        .dashboard-title {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+        .op-card { border: none; border-radius: 20px; background: var(--glass-bg); box-shadow: var(--card-shadow); }
+
+        .status-badge { padding: 6px 14px; border-radius: 30px; font-size: 0.75rem; font-weight: 700; }
+        .bg-completed { background-color: #dcfce7; color: #16a34a; }
+        .bg-rejected { background-color: #fee2e2; color: #dc2626; }
+
+        /* CSS dùng riêng cho lúc bấm Ctr+P (In ấn) */
+        @media print {
+            body * { visibility: hidden; } /* Ẩn toàn bộ trang web */
+            #detailModal .modal-content, #detailModal .modal-content * { visibility: visible; } /* Chỉ hiện cái Modal */
+            #detailModal .modal-content {
+                position: absolute; left: 0; top: 0; width: 100%; border: none; box-shadow: none;
+            }
+            .modal-header .btn-close, .modal-footer { display: none !important; } /* Ẩn nút X và nút Đóng/In lúc in ra giấy */
+            .print-title { font-size: 24px !important; text-align: center; font-weight: bold; margin-bottom: 20px; }
+        }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4 px-md-5">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2 rounded-pill mb-2 fw-bold">HISTORY LOG</span>
+                <h2 class="dashboard-title mb-0">Lịch Sử Điều Chuyển Hàng Hóa</h2>
+                <p class="text-muted mt-1">Truy vết toàn bộ các lệnh điều chuyển nội bộ và liên kho đã được xử lý.</p>
+            </div>
+            <div>
+                <a th:href="@{/manager/transfer/approval-list}" class="btn btn-outline-primary rounded-pill fw-bold px-4 shadow-sm">
+                    <i class="bi bi-shield-check me-2"></i>Xem Đơn Chờ Duyệt
+                </a>
+            </div>
+        </div>
+
+        <div class="card op-card overflow-hidden">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th class="py-4 px-4 text-center" width="5%">#</th>
+                            <th width="15%">MÃ LỆNH</th>
+                            <th width="15%">THỜI GIAN</th>
+                            <th width="15%">KHO XUẤT</th>
+                            <th width="15%">KHO NHẬP</th>
+                            <th class="text-center" width="15%">TRẠNG THÁI</th>
+                            <th class="text-center" width="20%">THAO TÁC</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="trf, stat : ${transferHistory}">
+                            <td class="text-center fw-bold text-muted px-4" th:text="${stat.count}">1</td>
+                            <td>
+                                <div class="fw-bold text-dark" th:text="${trf.transferCode}">TRF-123456</div>
+                                <small class="text-muted" th:text="'Người tạo: ID ' + ${trf.creator?.userId}">Bởi: Admin</small>
+                            </td>
+                            <td th:text="${#temporals.format(trf.transferDate, 'dd/MM/yyyy HH:mm')}">20/04/2026</td>
+                            <td>
+                                <span class="fw-bold text-secondary" th:text="'Kho ID: ' + ${whMap.get(trf.fromWarehouseId)}">Kho Xuất</span>
+                            </td>
+                            <td>
+                                <span class="fw-bold text-secondary" th:text="'Kho ID: ' + ${whMap.get(trf.toWarehouseId)}">Kho Nhập</span>
+                            </td>
+                            <td class="text-center">
+                                <span th:if="${trf.status == 'COMPLETED'}" class="status-badge bg-completed">
+                                    <i class="bi bi-check2-all me-1"></i>ĐÃ CHUYỂN
+                                </span>
+                                <span th:if="${trf.status == 'REJECTED'}" class="status-badge bg-rejected">
+                                    <i class="bi bi-x-octagon me-1"></i>BỊ TỪ CHỐI
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-light border rounded-pill px-3 fw-bold text-secondary"
+                                        th:attr="data-id=${trf.id}, data-from=${whMap.get(trf.fromWarehouseId)}, data-to=${whMap.get(trf.toWarehouseId)}"
+                                        onclick="viewTransferDetails(this)">
+                                    <i class="bi bi-eye me-1"></i>Chi tiết
+                                </button>
+
+                                <button th:if="${trf.status == 'COMPLETED'}"
+                                        class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold ms-1"
+                                        th:attr="data-id=${trf.id}, data-from=${whMap.get(trf.fromWarehouseId)}, data-to=${whMap.get(trf.toWarehouseId)}"
+                                        onclick="viewTransferDetails(this, true)">
+                                    <i class="bi bi-printer"></i>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <tr th:if="${#lists.isEmpty(transferHistory)}">
+                            <td colspan="7" class="text-center py-5">
+                                <i class="bi bi-clock-history display-1 text-secondary opacity-25 mb-3 d-block"></i>
+                                <h5 class="fw-bold text-muted">Chưa có dữ liệu lịch sử điều chuyển nào.</h5>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+                <div class="modal-header text-white py-3 px-4" style="background: var(--primary-gradient);">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-text me-2"></i>PHIẾU ĐIỀU CHUYỂN NỘI BỘ</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <h3 class="print-title text-uppercase text-dark mb-1">PHIẾU XUẤT KHO KIÊM VẬN CHUYỂN NỘI BỘ</h3>
+                        <p class="text-muted mb-0">Mã phiếu: <strong id="mdlCode" class="text-dark">---</strong></p>
+                        <p class="small text-muted" id="mdlDate">Ngày lập: ---</p>
+                    </div>
+
+                    <div class="row mb-4 bg-light p-3 rounded-3 border">
+                        <div class="col-sm-6 mb-2 mb-sm-0">
+                            <span class="d-block small text-muted fw-bold">XUẤT TỪ:</span>
+                            <strong id="mdlFromWh" class="text-danger">---</strong>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="d-block small text-muted fw-bold">NHẬP ĐẾN:</span>
+                            <strong id="mdlToWh" class="text-success">---</strong>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive rounded border shadow-sm mb-4">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th class="text-center" width="5%">#</th>
+                                <th width="35%">SẢN PHẨM & LÔ</th>
+                                <th class="text-center" width="20%">TỪ KỆ</th>
+                                <th class="text-center" width="20%">ĐẾN KỆ</th>
+                                <th class="text-center" width="20%">SỐ LƯỢNG</th>
+                            </tr>
+                            </thead>
+                            <tbody id="mdlTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row mt-5 text-center d-print-flex">
+                        <div class="col-4">
+                            <p class="fw-bold mb-5">Thủ kho Xuất</p>
+                            <p class="text-muted small">(Ký, họ tên)</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="fw-bold mb-5">Người vận chuyển</p>
+                            <p class="text-muted small">(Ký, họ tên)</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="fw-bold mb-5">Thủ kho Nhập</p>
+                            <p class="text-muted small">(Ký, họ tên)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 py-3 px-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-5 fw-bold shadow" onclick="window.print()">
+                        <i class="bi bi-printer me-2"></i>In Phiếu
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        async function viewTransferDetails(buttonElement, autoPrint = false) {
+            try {
+                // 1. Lấy dữ liệu từ các thuộc tính data-* của nút bấm
+                const id = buttonElement.getAttribute('data-id');
+                const fromWhName = buttonElement.getAttribute('data-from');
+                const toWhName = buttonElement.getAttribute('data-to');
+
+                // 2. Gọi API lấy JSON chi tiết
+                const response = await fetch(`/manager/transfer/api/${id}/details`);
+                const data = await response.json();
+
+                if (!response.ok) throw new Error(data.error || "Lỗi tải dữ liệu!");
+
+                // Cập nhật phần Header Modal
+                document.getElementById('mdlCode').innerText = data.transferCode;
+                document.getElementById('mdlDate').innerText = "Ngày tạo: " + new Date(data.transferDate).toLocaleString('vi-VN');
+                document.getElementById('mdlFromWh').innerText = fromWhName;
+                document.getElementById('mdlToWh').innerText = toWhName;
+
+                // Xóa dữ liệu cũ và cập nhật phần Table Hàng hóa
+                const tBody = document.getElementById('mdlTableBody');
+                tBody.innerHTML = '';
+
+                data.items.forEach((item, index) => {
+                    tBody.innerHTML += `
+                        <tr>
+                            <td class="text-center text-muted">${index + 1}</td>
+                            <td>
+                                <div class="fw-bold text-dark">${item.productName || 'Sản phẩm lỗi'}</div>
+                                <small class="text-muted">Lô: ${item.lotCode}</small>
+                            </td>
+                            <td class="text-center"><span class="badge bg-danger bg-opacity-10 text-danger border">${item.fromLocation || '---'}</span></td>
+                            <td class="text-center"><span class="badge bg-success bg-opacity-10 text-success border">${item.toLocation || '---'}</span></td>
+                            <td class="text-center"><span class="badge bg-dark px-3 py-2 fs-6">${item.qty}</span></td>
+                        </tr>
+                    `;
+                });
+
+                // Hiển thị Modal
+                const detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
+                detailModal.show();
+
+                // Nếu người dùng bấm từ nút "In Phiếu", đợi Modal mở xong (0.5s) rồi gọi lệnh In
+                if (autoPrint) {
+                    setTimeout(() => {
+                        window.print();
+                    }, 500);
+                }
+
+            } catch (err) {
+                alert("❌ " + err.message);
+            }
+        }
+    </script>
+</div>
+</body>
+</html>
