@@ -1,0 +1,93 @@
+:root {
+    --out-primary: #4f46e5;
+    --out-primary-soft: rgba(79, 70, 229, 0.08);
+    --out-border: #e5e7eb;
+    --out-shadow: 0 12px 35px rgba(15, 23, 42, 0.06);
+}
+
+.outbound-theme {
+    background: radial-gradient(circle at top right, #eef2ff 0%, #f8fafc 45%, #f8fafc 100%);
+}
+
+.outbound-theme .card-custom,
+.outbound-theme .station-card,
+.outbound-theme .op-card,
+.outbound-theme .filter-box,
+.outbound-theme .filter-toolbar,
+.outbound-theme .outbound-table-card,
+.outbound-theme .metric-card {
+    border: 1px solid var(--out-border);
+    box-shadow: var(--out-shadow);
+}
+
+.outbound-theme .metric-card {
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff, #fbfdff);
+}
+
+.outbound-theme .filter-toolbar {
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+}
+
+.outbound-theme .table thead th {
+    color: #475569;
+    background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+}
+
+.outbound-theme #orderTableBody tr,
+.outbound-theme #approvalTableBody tr,
+.outbound-theme #historyTableBody tr {
+    transition: all 0.2s ease;
+}
+
+.outbound-theme #orderTableBody tr:hover,
+.outbound-theme #approvalTableBody tr:hover,
+.outbound-theme #historyTableBody tr:hover {
+    background: var(--out-primary-soft);
+    transform: translateX(1px);
+}
+
+.outbound-theme .btn-group .btn.active {
+    background: linear-gradient(135deg, var(--out-primary) 0%, #7c3aed 100%);
+    color: #fff;
+    border-color: transparent;
+}
+
+.outbound-theme #searchKeyword {
+    border-radius: 999px;
+    border: 1px solid var(--out-border);
+    padding-left: 14px;
+}
+
+.outbound-theme .pagination .page-link {
+    color: #334155;
+    border-color: var(--out-border);
+}
+
+.outbound-theme .pagination .page-item.active .page-link {
+    background: linear-gradient(135deg, var(--out-primary) 0%, #6366f1 100%);
+    border-color: var(--out-primary);
+}
+
+.outbound-theme .pagination .page-item.disabled .page-link {
+    color: #94a3b8;
+}
+
+.outbound-theme #paymentModal .modal-content {
+    border: 1px solid var(--out-border);
+    box-shadow: 0 25px 50px rgba(15, 23, 42, 0.2);
+}
+
+.outbound-theme #paymentModal .form-control,
+.outbound-theme #paymentModal .form-select {
+    border: 1px solid #e2e8f0 !important;
+}
+
+.outbound-theme #paymentModal .form-control:focus,
+.outbound-theme #paymentModal .form-select:focus {
+    box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.14);
+    border-color: #a5b4fc !important;
+}
+

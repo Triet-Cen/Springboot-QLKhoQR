@@ -1,0 +1,269 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Tạo Đơn Mua Hàng | WMS Pro</title>
+    <style th:inline="css">
+        body { background: #f8fafc; }
+        .page-title {
+            font-weight: 800;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-soft {
+            border: 0;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        }
+        .table thead th {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .item-subtotal, .order-total {
+            font-weight: 700;
+        }
+        .form-label.small-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4 px-md-5">
+        <div th:if="${success}" class="alert alert-success alert-dismissible fade show shadow-sm border-0 rounded-4 mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i><span th:text="${success}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show shadow-sm border-0 rounded-4 mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${error}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-4 flex-wrap">
+            <div>
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-bold mb-2">PROCUREMENT</span>
+                <h2 class="page-title mb-1">Tạo Đơn Mua Hàng</h2>
+                <p class="text-muted mb-0">Nhập thông tin nhà cung cấp, kho nhận hàng và danh sách sản phẩm cần đặt.</p>
+            </div>
+            <a th:href="@{/manager/purchase-orders}" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold">
+                <i class="bi bi-arrow-left me-2"></i>Quay lại danh sách
+            </a>
+        </div>
+
+        <form th:action="@{/manager/purchase-orders/create}" method="post" id="purchaseOrderForm">
+            <div class="row g-4">
+                <div class="col-12 col-xl-4">
+                    <div class="card card-soft h-100">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-3">Thông tin đơn hàng</h5>
+
+                            <div class="mb-3">
+                                <label for="supplierId" class="form-label small-label">Nhà cung cấp <span class="text-danger">*</span></label>
+                                <select class="form-select" id="supplierId" name="supplierId" required>
+                                    <option value="">-- Chọn nhà cung cấp --</option>
+                                    <option th:each="s : ${suppliers}"
+                                            th:value="${s.supplierId}"
+                                            th:text="${s.supplierCode + ' - ' + s.supplierName}"></option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="warehouseId" class="form-label small-label">Kho nhận hàng <span class="text-danger">*</span></label>
+                                <select class="form-select" id="warehouseId" name="warehouseId" required>
+                                    <option value="">-- Chọn kho --</option>
+                                    <option th:each="w : ${warehouses}"
+                                            th:value="${w.warehouseId}"
+                                            th:text="${w.warehouseCode + ' - ' + w.warehouseName}"></option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="expectedDeliveryDate" class="form-label small-label">Ngày dự kiến nhận</label>
+                                <input type="datetime-local" class="form-control" id="expectedDeliveryDate" name="expectedDeliveryDate">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="notes" class="form-label small-label">Ghi chú</label>
+                                <textarea class="form-control" id="notes" name="notes" rows="5" placeholder="Ghi chú cho đơn mua hàng..."></textarea>
+                            </div>
+
+                            <div class="rounded-4 p-3 bg-light border">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted small fw-semibold text-uppercase">Tổng tạm tính</span>
+                                    <span class="order-total text-primary fs-5" id="orderTotal">0 đ</span>
+                                </div>
+                                <small class="text-muted">Tổng tiền sẽ được hệ thống tính tự động từ số lượng × đơn giá.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-8">
+                    <div class="card card-soft">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                <div>
+                                    <h5 class="fw-bold mb-1">Danh sách sản phẩm</h5>
+                                    <p class="text-muted mb-0">Thêm từng dòng sản phẩm vào đơn mua hàng.</p>
+                                </div>
+                                <button type="button" class="btn btn-primary rounded-pill px-4" onclick="addItemRow()">
+                                    <i class="bi bi-plus-lg me-2"></i>Thêm dòng
+                                </button>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table align-middle">
+                                    <thead>
+                                    <tr>
+                                        <th style="width: 36px;">#</th>
+                                        <th>Sản phẩm <span class="text-danger">*</span></th>
+                                        <th style="width: 140px;">Số lượng <span class="text-danger">*</span></th>
+                                        <th style="width: 170px;">Đơn giá</th>
+                                        <th style="width: 140px;" class="text-end">Thành tiền</th>
+                                        <th style="width: 60px;"></th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="poItemsBody">
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mt-4">
+                                <div class="text-muted small">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Batch / lô hàng sẽ được gắn ở bước nhập kho, không bắt buộc khi tạo PO.
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a th:href="@{/manager/purchase-orders}" class="btn btn-light rounded-pill px-4">Hủy</a>
+                                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-semibold">
+                                        <i class="bi bi-check2-circle me-2"></i>Lưu đơn mua hàng
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <template id="productOptionsTemplate">
+            <option value="">-- Chọn sản phẩm --</option>
+            <option th:each="p : ${products}"
+                    th:value="${p.product_id}"
+                    th:text="${p.sku + ' - ' + p.productName}"></option>
+        </template>
+
+        <template id="poRowTemplate">
+            <tr class="po-item-row">
+                <td class="row-index fw-bold text-muted"></td>
+                <td>
+                    <label class="visually-hidden" aria-hidden="true">Sản phẩm</label>
+                    <select class="form-select product-select" name="productIds" aria-label="Sản phẩm" required></select>
+                </td>
+                <td>
+                    <label class="visually-hidden" aria-hidden="true">Số lượng</label>
+                    <input type="number" class="form-control qty-input" name="orderedQtys" min="0.01" step="0.01" value="1" aria-label="Số lượng" required>
+                </td>
+                <td>
+                    <label class="visually-hidden" aria-hidden="true">Đơn giá</label>
+                    <input type="number" class="form-control price-input" name="unitPrices" min="0" step="0.01" value="0" aria-label="Đơn giá">
+                </td>
+                <td class="text-end">
+                    <span class="item-subtotal text-dark">0 đ</span>
+                </td>
+                <td class="text-end">
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-circle" onclick="removeItemRow(this)" title="Xóa dòng">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </td>
+            </tr>
+        </template>
+    </div>
+
+    <script>
+        const poItemsBody = document.getElementById('poItemsBody');
+        const productOptionsTemplate = document.getElementById('productOptionsTemplate');
+        const rowTemplate = document.getElementById('poRowTemplate');
+        const orderTotalEl = document.getElementById('orderTotal');
+        const moneyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 });
+
+        function buildRow() {
+            const fragment = rowTemplate.content.cloneNode(true);
+            const select = fragment.querySelector('.product-select');
+            select.innerHTML = productOptionsTemplate.innerHTML;
+            return fragment;
+        }
+
+        function addItemRow() {
+            poItemsBody.appendChild(buildRow());
+            refreshRows();
+            bindRowEvents();
+        }
+
+        function removeItemRow(button) {
+            const row = button.closest('tr');
+            if (row) {
+                row.remove();
+            }
+            if (!poItemsBody.querySelector('.po-item-row')) {
+                addItemRow();
+                return;
+            }
+            refreshRows();
+            recalculateTotals();
+        }
+
+        function refreshRows() {
+            const rows = poItemsBody.querySelectorAll('.po-item-row');
+            rows.forEach((row, index) => {
+                const idx = row.querySelector('.row-index');
+                if (idx) idx.textContent = index + 1;
+            });
+        }
+
+        function parseNumber(value) {
+            const n = parseFloat(value);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function recalculateTotals() {
+            let total = 0;
+            poItemsBody.querySelectorAll('.po-item-row').forEach(row => {
+                const qty = parseNumber(row.querySelector('.qty-input')?.value);
+                const price = parseNumber(row.querySelector('.price-input')?.value);
+                const subtotal = qty * price;
+                const subtotalEl = row.querySelector('.item-subtotal');
+                if (subtotalEl) {
+                    subtotalEl.textContent = moneyFormatter.format(subtotal);
+                }
+                total += subtotal;
+            });
+            orderTotalEl.textContent = moneyFormatter.format(total);
+        }
+
+        function bindRowEvents() {
+            poItemsBody.querySelectorAll('.qty-input, .price-input, .product-select').forEach(input => {
+                input.removeEventListener('input', recalculateTotals);
+                input.removeEventListener('change', recalculateTotals);
+                input.addEventListener('input', recalculateTotals);
+                input.addEventListener('change', recalculateTotals);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            addItemRow();
+            recalculateTotals();
+        });
+    </script>
+</div>
+</body>
+</html>
+

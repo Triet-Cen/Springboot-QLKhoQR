@@ -38,12 +38,13 @@
         <div class="col-md-7">
             <div class="card border-0 shadow-sm p-3 h-100">
                 <h6 class="fw-bold mb-3">Thống kê tổng quát</h6>
-                <a th:href="@{/api/dashboard/export-excel}" class="btn btn-sm btn-success">
-                    <i class="fas fa-file-excel"></i> Xuất Báo Cáo Excel
-                </a>
+
                 <div style="height: 300px;">
                     <canvas id="inventoryBarChart"></canvas>
                 </div>
+                <a th:href="@{/api/dashboard/export-excel}" class="btn btn-sm btn-success">
+                    <i class="fas fa-file-excel"></i> Xuất Báo Cáo Excel
+                </a>
             </div>
         </div>
         <div class="col-md-5">
@@ -56,13 +57,16 @@
         </div>
     </div>
 
-    <div class="row g-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm p-3">
-                <h6 class="fw-bold mb-3">Xu hướng nhập xuất 7 ngày qua</h6>
-                <div style="height: 350px;">
-                    <canvas id="trendLineChart"></canvas>
-                </div>
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm p-4" style="border-radius: 15px;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 class="fw-bold mb-0">
+                    <i class="bi bi-bar-chart-line-fill text-primary me-2"></i> So Sánh Nhập & Xuất (7 Ngày Qua)
+                </h6>
+                <div class="badge bg-light text-dark border">Đơn vị: Sản phẩm</div>
+            </div>
+            <div style="height: 350px;">
+                <canvas id="trendBarChart"></canvas>
             </div>
         </div>
     </div>
@@ -169,58 +173,68 @@
         fetch('/api/dashboard/trends')
             .then(response => response.json())
             .then(data => {
-                const ctxLine = document.getElementById('trendLineChart').getContext('2d');
-                new Chart(ctxLine, {
-                    type: 'line',
+                const ctxBar = document.getElementById('trendBarChart').getContext('2d');
+                new Chart(ctxBar, {
+                    type: 'bar', // Chuyển từ 'line' sang 'bar'
                     data: {
-                        labels: data.labels,
+                        labels: data.labels, // Các ngày trong tuần
                         datasets: [
                             {
                                 label: 'Nhập kho',
                                 data: data.inboundData,
-                                borderColor: '#198754',
-                                backgroundColor: 'rgba(25, 135, 84, 0.1)', // Đổ màu nhạt hơn
-                                borderWidth: 3,
-                                pointBackgroundColor: '#198754',
-                                pointRadius: 5, // Làm nốt chấm to lên cho dễ nhìn
-                                fill: true,
-                                tension: 0.4 // Bo tròn đường kẻ (làm mượt đường cong)
+                                backgroundColor: '#198754', // Màu xanh doanh nghiệp
+                                borderRadius: 6, // Bo góc cột cho hiện đại
+                                barPercentage: 0.6,
+                                categoryPercentage: 0.5
                             },
                             {
                                 label: 'Xuất kho',
                                 data: data.outboundData,
-                                borderColor: '#dc3545',
-                                backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                                borderWidth: 3,
-                                pointBackgroundColor: '#dc3545',
-                                pointRadius: 5,
-                                fill: true,
-                                tension: 0.4
+                                backgroundColor: '#dc3545', // Màu đỏ chuyên nghiệp
+                                borderRadius: 6,
+                                barPercentage: 0.6,
+                                categoryPercentage: 0.5
                             }
                         ]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        interaction: {
-                            intersect: false,
-                            mode: 'index', // Khi rà chuột vào sẽ hiện cả nhập và xuất cùng lúc
-                        },
                         plugins: {
-                            legend: { position: 'top', align: 'end' } // Đẩy chú thích sang góc phải
+                            legend: {
+                                position: 'top',
+                                align: 'end',
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 20
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12,
+                                cornerRadius: 8
+                            }
                         },
                         scales: {
                             y: {
                                 beginAtZero: true,
-                                grid: { display: true, drawBorder: false } // Hiện lưới ngang cho dễ dóng hàng
+                                grid: {
+                                    drawBorder: false,
+                                    color: '#f0f0f0'
+                                },
+                                ticks: {
+                                    stepSize: 10 // Tự điều chỉnh bước nhảy con số
+                                }
                             },
                             x: {
-                                grid: { display: false } // Ẩn lưới dọc cho đỡ rối
+                                grid: {
+                                    display: false // Ẩn lưới dọc để nhìn sạch hơn
+                                }
                             }
                         }
                     }
                 });
-            })
+            });
         /*]]>*/
     </script>
 </div>

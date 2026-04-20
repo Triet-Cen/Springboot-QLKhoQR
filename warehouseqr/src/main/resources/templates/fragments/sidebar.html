@@ -76,22 +76,22 @@
                 <ul class="nav flex-column sub-menu gap-1">
                     <li class="nav-item">
                         <a th:href="@{/manager/purchase-orders}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
-                            <i class="bi bi-cart3"></i> Purchase Orders
+                            <i class="bi bi-cart3"></i> Danh sách PO
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a th:href="@{/scan-station}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
-                            <i class="bi bi-upc-scan"></i> Scan Station
+                        <a th:href="@{/scan-station/inbound}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-upc-scan"></i> Scan Inbound
                         </a>
                     </li>
                     <li class="nav-item">
                         <a th:href="@{/manager/inbound/approval-list}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
-                            <i class="bi bi-check2-square"></i> Manager Approval
+                            <i class="bi bi-clipboard-square"></i> Manager Approval
                         </a>
                     </li>
                     <li class="nav-item">
                         <a th:href="@{/manager/inbound/history}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
-                            <i class="bi bi-check2-square"></i> Inbound Receipts History
+                            <i class="bi-clock-history"></i> Inbound Receipts History
                         </a>
                     </li>
                 </ul>
@@ -107,6 +107,21 @@
 
             <div class="collapse" id="outboundMenu">
                 <ul class="nav flex-column sub-menu gap-1">
+                    <li class="nav-item">
+                        <a th:href="@{/manager/sales-orders/list}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-list-ul"></i> Danh sách đơn bán
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/manager/sales-orders/create}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-cart-plus"></i> Tạo đơn bán hàng
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/scan-station/outbound}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
+                            <i class="bi bi-upc-scan"></i> Scan Outbound
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a th:href="@{/manager/approvals}" class="nav-link d-flex align-items-center gap-2 text-secondary" style="font-size: 13.5px; padding: 10px 16px 10px 48px;">
                             <i class="bi bi-person-check"></i> Tram truong xac nhan don

@@ -3,13 +3,77 @@
       th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
 <head>
     <title>Kế Toán | Quản Lý Thu Tiền</title>
+    <link rel="stylesheet" th:href="@{/css/outbound-theme.css}">
 
     <style>
+        :root {
+            --out-primary: #4f46e5;
+            --out-primary-soft: rgba(79, 70, 229, 0.08);
+            --out-border: #e5e7eb;
+            --out-bg: #f8fafc;
+            --out-shadow: 0 12px 35px rgba(15, 23, 42, 0.06);
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #eef2ff 0%, #f8fafc 45%, #f8fafc 100%);
+        }
+
         .card-custom { border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+        .outbound-table-card,
+        .metric-card,
+        .filter-toolbar {
+            border: 1px solid var(--out-border);
+            box-shadow: var(--out-shadow);
+        }
+
+        .metric-card {
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff, #fbfdff);
+        }
+
+        .filter-toolbar {
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(4px);
+        }
+
         .table thead th { background-color: #f8f9fa; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; border-bottom: 2px solid #dee2e6; }
+        .table thead th {
+            color: #475569;
+            background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+        }
+        #orderTableBody tr { transition: all 0.2s ease; }
+        #orderTableBody tr:hover {
+            background: var(--out-primary-soft);
+            transform: translateX(1px);
+        }
         .btn-view { background: #f8f9fa; color: #4f46e5; border: 1px solid #e5e7eb; border-radius: 8px; font-weight: 600; transition: all 0.3s; }
         .btn-view:hover { background: #4f46e5; color: white; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3); }
         .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+
+        .btn-group .btn.active {
+            background: linear-gradient(135deg, var(--out-primary) 0%, #7c3aed 100%);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        #searchKeyword {
+            border-radius: 999px;
+            border: 1px solid var(--out-border);
+            padding-left: 14px;
+        }
+
+        .pagination .page-link {
+            color: #334155;
+            border-color: var(--out-border);
+        }
+        .pagination .page-item.active .page-link {
+            background: linear-gradient(135deg, var(--out-primary) 0%, #6366f1 100%);
+            border-color: var(--out-primary);
+        }
+        .pagination .page-item.disabled .page-link {
+            color: #94a3b8;
+        }
 
         .qr-float-panel {
             position: fixed;
@@ -51,10 +115,24 @@
         .bg-unpaid { background-color: rgba(244, 63, 94, 0.1); color: #e11d48; border: 1px solid rgba(244, 63, 94, 0.2); }
         .bg-paid { background-color: rgba(34, 197, 94, 0.1); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.2); }
         .bg-pending { background-color: rgba(245, 158, 11, 0.1); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.2); }
+
+        #paymentModal .modal-content {
+            border: 1px solid var(--out-border);
+            box-shadow: 0 25px 50px rgba(15, 23, 42, 0.2);
+        }
+        #paymentModal .form-control,
+        #paymentModal .form-select {
+            border: 1px solid #e2e8f0 !important;
+        }
+        #paymentModal .form-control:focus,
+        #paymentModal .form-select:focus {
+            box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.14);
+            border-color: #a5b4fc !important;
+        }
     </style>
 </head>
 <body>
-<div id="mainContent">
+<div id="mainContent" class="outbound-theme">
     <div class="container-fluid py-4 px-md-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
@@ -68,26 +146,26 @@
 
         <div class="row g-3 mb-4">
             <div class="col-md-4">
-                <div class="card card-custom p-3">
+                <div class="card card-custom metric-card p-3">
                     <div class="text-muted small fw-bold">Tổng tiền đã thu</div>
                     <div class="h4 fw-bolder text-success mb-0" id="metricPaid">0 đ</div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card card-custom p-3">
+                <div class="card card-custom metric-card p-3">
                     <div class="text-muted small fw-bold">Tổng tiền chờ thu</div>
                     <div class="h4 fw-bolder text-danger mb-0" id="metricUnpaid">0 đ</div>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="card card-custom p-3">
+                <div class="card card-custom metric-card p-3">
                     <div class="text-muted small fw-bold">Số đơn chờ xử lý</div>
                     <div class="h4 fw-bolder text-warning mb-0" id="metricPendingCount">0</div>
                 </div>
             </div>
         </div>
 
-        <div class="card card-custom mb-3 p-3">
+        <div class="card card-custom filter-toolbar mb-3 p-3">
             <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
                 <div class="btn-group" role="group" aria-label="Bộ lọc trạng thái">
                     <button class="btn btn-sm btn-outline-secondary active" onclick="setFilter('ALL', this)">Tất cả</button>
@@ -95,11 +173,11 @@
                     <button class="btn btn-sm btn-outline-success" onclick="setFilter('PAID', this)">Đã thu tiền</button>
                 </div>
                 <input id="searchKeyword" type="text" class="form-control form-control-sm" style="max-width: 260px;"
-                       placeholder="Tìm theo mã SO / khách hàng..." oninput="renderOrders()">
+                       placeholder="Tìm theo mã SO / khách hàng..." oninput="renderOrders(true)">
             </div>
         </div>
 
-        <div class="card card-custom">
+        <div class="card card-custom outbound-table-card">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
@@ -119,6 +197,14 @@
                         <tr><td colspan="8" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white border-top-0 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small fw-bold" id="pageInfo">Hiển thị 0 kết quả</span>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginationControls"></ul>
+                    </nav>
                 </div>
             </div>
         </div>
@@ -199,6 +285,8 @@
         let paymentModal;
         let allOrders = [];
         let currentFilter = 'ALL';
+        let currentPage = 0;
+        const pageSize = 10;
         let lastQrPayload = '';
         let lastQrPayloads = [];
 
@@ -333,12 +421,16 @@
                 if(allOrders.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-muted">Chưa có đơn hàng nào trong hệ thống!</td></tr>';
                     updateMetrics([]);
+                    document.getElementById('pageInfo').innerText = 'Hiển thị 0 kết quả';
+                    document.getElementById('paginationControls').innerHTML = '';
                     return;
                 }
 
-                renderOrders();
+                renderOrders(true);
             } catch (err) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-danger fw-bold">Lỗi: ${err.message}</td></tr>`;
+                document.getElementById('pageInfo').innerText = 'Hiển thị 0 kết quả';
+                document.getElementById('paginationControls').innerHTML = '';
             }
         }
 
@@ -346,7 +438,7 @@
             currentFilter = value;
             document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            renderOrders();
+            renderOrders(true);
         }
 
         function updateMetrics(orders) {
@@ -377,9 +469,11 @@
                 .filter(item => item.payload);
         }
 
-        function renderOrders() {
+        function renderOrders(resetPage = false) {
             const tbody = document.getElementById('orderTableBody');
             const keyword = (document.getElementById('searchKeyword')?.value || '').trim().toLowerCase();
+
+            if (resetPage) currentPage = 0;
 
             let filtered = allOrders.filter(order => {
                 if (currentFilter === 'PAID' && order.paymentStatus !== 'PAID') return false;
@@ -395,10 +489,17 @@
 
             if(filtered.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-muted">Không có đơn phù hợp bộ lọc.</td></tr>';
+                document.getElementById('pageInfo').innerText = 'Hiển thị 0 kết quả';
+                document.getElementById('paginationControls').innerHTML = '';
                 return;
             }
 
-            tbody.innerHTML = filtered.map((order, index) => {
+            const totalPages = Math.max(Math.ceil(filtered.length / pageSize), 1);
+            if (currentPage >= totalPages) currentPage = totalPages - 1;
+            const start = currentPage * pageSize;
+            const pageRows = filtered.slice(start, start + pageSize);
+
+            tbody.innerHTML = pageRows.map((order, index) => {
                     const date = new Date(order.createdAt).toLocaleString('vi-VN');
                     const total = (order.totalAmount || 0).toLocaleString('vi-VN') + ' đ';
 
@@ -447,7 +548,7 @@
 
                     return `
                         <tr>
-                            <td class="text-center fw-bold text-muted">${index + 1}</td>
+                            <td class="text-center fw-bold text-muted">${start + index + 1}</td>
                             <td><span class="fw-bold text-primary">${order.soCode}</span></td>
                             <td class="text-muted small">${date}</td>
                             <td class="fw-medium">${order.customerName || 'Khách lẻ'}</td>
@@ -458,6 +559,24 @@
                         </tr>
                     `;
                 }).join('');
+
+            document.getElementById('pageInfo').innerText = `Tổng cộng ${filtered.length} mã phiếu (Trang ${currentPage + 1}/${totalPages})`;
+            renderPagination(totalPages, currentPage);
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderOrders(false);
+        }
+
+        function renderPagination(totalPages, current) {
+            let html = '';
+            html += `<li class="page-item ${current === 0 ? 'disabled' : ''}"><button class="page-link text-dark fw-bold" onclick="goToPage(${current - 1})">Trước</button></li>`;
+            for (let i = 0; i < totalPages; i++) {
+                html += `<li class="page-item ${current === i ? 'active' : ''}"><button class="page-link" onclick="goToPage(${i})">${i + 1}</button></li>`;
+            }
+            html += `<li class="page-item ${current === totalPages - 1 ? 'disabled' : ''}"><button class="page-link text-dark fw-bold" onclick="goToPage(${current + 1})">Sau</button></li>`;
+            document.getElementById('paginationControls').innerHTML = html;
         }
 
         // Mở Modal Thu Tiền

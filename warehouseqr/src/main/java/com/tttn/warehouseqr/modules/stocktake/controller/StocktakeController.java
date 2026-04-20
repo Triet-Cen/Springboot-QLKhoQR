@@ -104,14 +104,13 @@ public class StocktakeController {
     public ResponseEntity<?> createSessionApi(@RequestBody Map<String, Object> payload) {
         Long warehouseId = Long.valueOf(payload.get("warehouseId").toString());
         String sessionCode = (String) payload.get("sessionCode");
+        Long currentUserId = com.tttn.warehouseqr.common.util.SecurityUtils.getCurrentUserId();
 
         // Tạo session và items (logic như đã viết)
         StocktakeSession session = new StocktakeSession();
         session.setSessionCode(sessionCode != null ? sessionCode : "ST-" + System.currentTimeMillis());
 
-        //tạm lấy admin
-        session.setCreatedBy(1L);
-        //
+        session.setCreatedBy(currentUserId);
 
         session.setCreatedAt(LocalDateTime.now());
         session.setStatus("IN_PROGRESS");

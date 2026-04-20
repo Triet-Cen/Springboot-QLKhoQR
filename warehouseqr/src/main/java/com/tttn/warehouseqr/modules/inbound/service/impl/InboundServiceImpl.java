@@ -323,12 +323,37 @@ public class InboundServiceImpl implements InboundService {
         // Cập nhật trạng thái phiếu
         receipt.setStatus("COMPLETED");
         receipt.setReceivedAt(LocalDateTime.now());
+        receipt.setDeliveryNoteCode(adminNote);
 
         receiptRepo.save(receipt);
 
         if (receipt.getPurchaseOrders() != null) {
             poRepository.findById(receipt.getPurchaseOrders().getId()).ifPresent(po -> {
-                po.setStatus("COMPLETED");
+
+                // 1. Lấy tất cả các món hàng được yêu cầu trong Đơn mua hàng (PO) này
+                var poItems = poItemRepo.findByPurchaseOrders_Id(po.getId());
+
+                boolean isFullyReceived = true; // Cờ kiểm tra
+
+                // 2. Đối chiếu từng món hàng
+                for (var poItem : poItems) {
+                    double requested = poItem.getOrderedQty() != null ? poItem.getOrderedQty().doubleValue() : 0.0;
+                    double received = poItem.getReceivedQty() != null ? poItem.getReceivedQty().doubleValue() : 0.0;
+
+                    // Nếu phát hiện có bất kỳ món nào số lượng Đã Nhận < Số lượng Yêu cầu
+                    if (received < requested) {
+                        isFullyReceived = false;
+                        break; // Thoát vòng lặp sớm cho tối ưu
+                    }
+                }
+
+                // 3. Cập nhật trạng thái tương ứng
+                if (isFullyReceived) {
+                    po.setStatus("COMPLETED"); // Đã giao đủ 100% -> Chốt đơn!
+                } else {
+                    po.setStatus("PARTIAL");   // Mới giao một phần -> Vẫn treo đơn chờ giao tiếp.
+                }
+
                 poRepository.save(po);
             });
         }
@@ -347,6 +372,7 @@ public class InboundServiceImpl implements InboundService {
         // Đổi trạng thái thành REJECTED (Từ chối)
         receipt.setStatus("REJECTED");
         receipt.setReceivedAt(LocalDateTime.now());
+        receipt.setDeliveryNoteCode(adminNote);
 
         if (receipt.getPurchaseOrders() != null) {
             for (InboundReceiptItem item : receipt.getItems()) {
@@ -362,7 +388,16 @@ public class InboundServiceImpl implements InboundService {
                 );
             }
         }
+
+
         receiptRepo.save(receipt);
+
+        // 3. TÌM VÀ CẬP NHẬT ĐƠN MUA HÀNG (PO) LIÊN QUAN (Đây là phần bạn đang thiếu)
+        PurchaseOrders po = receipt.getPurchaseOrders(); // Lấy PO liên kết với phiếu nhập này
+        if (po != null) {
+            po.setStatus("REJECTED"); // Cập nhật trạng thái của PO
+            poRepository.save(po);          // Lưu PO xuống Database
+        }
     }
 
     @Override
