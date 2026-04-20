@@ -75,9 +75,10 @@ public class InboundController {
     @PostMapping("/{id}/reject")
     public String rejectReceipt(@PathVariable Long id,
                                 @RequestParam(required = false) String note,
+                                @RequestParam(name = "rejectAction", defaultValue = "KEEP_OPEN") String rejectAction,
                                 RedirectAttributes redirectAttributes) {
         try {
-            inboundService.rejectInboundReceipt(id,note);
+            inboundService.rejectInboundReceipt(id,note,rejectAction);
 
             redirectAttributes.addFlashAttribute("success", "Đã từ chối phiếu nhập kho.");
         } catch (Exception e) {

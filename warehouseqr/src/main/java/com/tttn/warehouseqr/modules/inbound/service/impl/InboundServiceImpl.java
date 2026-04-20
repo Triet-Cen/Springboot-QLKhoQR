@@ -21,6 +21,7 @@ import com.tttn.warehouseqr.modules.masterdata.supplier.repository.SupplierRepos
 import com.tttn.warehouseqr.modules.masterdata.warehouse.entity.Warehouse;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseLocationRepository;
 import com.tttn.warehouseqr.modules.masterdata.warehouse.repository.WarehouseRepository;
+import com.tttn.warehouseqr.modules.purchase.entity.PurchaseOrderItem;
 import com.tttn.warehouseqr.modules.purchase.entity.PurchaseOrders;
 import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrderItemRepository;
 import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrdersRepository;
@@ -154,8 +155,34 @@ public class InboundServiceImpl implements InboundService {
 
             // QUAN TRỌNG: Chỉ update PO nếu có PurchaseOrderId
             if (dto.getPurchaseOrderId() != null) {
-                // Cập nhật số lượng thực nhận vào đơn mua
-                poItemRepo.updateReceivedQty(dto.getPurchaseOrderId(), itemDto.getProductId(), itemDto.getActualQty());
+
+                // --- BẮT ĐẦU LOGIC KIỂM SOÁT SỐ LƯỢNG NGHIÊM NGẶT ---
+
+                // 1. Tìm lại món hàng này trong PO gốc
+                List<PurchaseOrderItem> poItems = poItemRepo.findByPurchaseOrders_Id(dto.getPurchaseOrderId());
+                PurchaseOrderItem targetPoItem = poItems.stream()
+                        .filter(pi -> pi.getProduct().getProduct_id() == (itemDto.getProductId()))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("Lỗi: Sản phẩm không thuộc Đơn mua hàng này!"));
+
+                // 2. Lấy các thông số để tính toán
+                double ordered = targetPoItem.getOrderedQty() != null ? targetPoItem.getOrderedQty().doubleValue() : 0.0;
+                double alreadyReceived = targetPoItem.getReceivedQty() != null ? targetPoItem.getReceivedQty().doubleValue() : 0.0;
+                double incoming = itemDto.getActualQty() != null ? itemDto.getActualQty() : 0.0;
+
+                double remaining = ordered - alreadyReceived;
+
+                // 3. CHẶN ĐỨNG NẾU NHẬP LỐ
+                if (incoming > remaining) {
+                    throw new RuntimeException("⛔ TỪ CHỐI NHẬP HÀNG: Sản phẩm [" + targetPoItem.getProduct().getProductName() +
+                            "] yêu cầu " + ordered + " cái. Trước đó đã nhập " + alreadyReceived +
+                            " cái. Lần này CHỈ ĐƯỢC NHẬP TỐI ĐA: " + remaining + " cái!");
+                }
+
+                // --- KẾT THÚC LOGIC ---
+
+                // Nếu hợp lệ thì mới cập nhật số lượng thực nhận vào đơn mua
+                poItemRepo.updateReceivedQty(dto.getPurchaseOrderId(), itemDto.getProductId(), incoming);
             }
         }
         return savedReceipt;
@@ -361,7 +388,7 @@ public class InboundServiceImpl implements InboundService {
 
     @Override
     @Transactional
-    public void rejectInboundReceipt(Long receiptId, String adminNote) {
+    public void rejectInboundReceipt(Long receiptId, String adminNote,String rejectAction) {
         InboundReceipt receipt = receiptRepo.findById(receiptId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phiếu"));
 
@@ -369,35 +396,55 @@ public class InboundServiceImpl implements InboundService {
             throw new RuntimeException("Chỉ có thể từ chối phiếu đang chờ duyệt!");
         }
 
-        // Đổi trạng thái thành REJECTED (Từ chối)
+        // 1. Đổi trạng thái thành REJECTED (Từ chối)
         receipt.setStatus("REJECTED");
         receipt.setReceivedAt(LocalDateTime.now());
+        // Lưu ý: Nếu DB của bạn có cột reject_reason thì nên lưu vào đó,
+        // ở đây đang mượn tạm deliveryNoteCode để lưu ghi chú từ chối
         receipt.setDeliveryNoteCode(adminNote);
 
-        if (receipt.getPurchaseOrders() != null) {
+        // 2. Rollback lại số lượng đã cộng tạm lúc tạo phiếu
+        PurchaseOrders po = receipt.getPurchaseOrders();
+        if (po != null) {
             for (InboundReceiptItem item : receipt.getItems()) {
-                // Lấy số lượng thực tế đã nhập, chuyển thành số ÂM để trừ đi
-                // Tùy thuộc vào hàm updateReceivedQty của bạn nhận kiểu Double hay BigDecimal
-                // Ví dụ nếu nó nhận Double:
                 double qtyToRollback = -item.getActualQty().doubleValue();
-
                 poItemRepo.updateReceivedQty(
-                        receipt.getPurchaseOrders().getId(),
+                        po.getId(),
                         item.getProduct().getProduct_id(),
                         qtyToRollback
                 );
             }
-        }
 
+            // 3. Rẽ nhánh xử lý trạng thái PO an toàn
+            if ("CANCEL_PO".equals(rejectAction)) {
+                po.setStatus("REJECTED");
+            } else if ("KEEP_OPEN".equals(rejectAction)) {
+
+                // LOGIC CHUẨN: Phải đếm lại xem trước đó đã nhập được cái nào chưa!
+                var poItems = poItemRepo.findByPurchaseOrders_Id(po.getId());
+                boolean hasReceivedAny = false;
+
+                for (var poItem : poItems) {
+                    double received = poItem.getReceivedQty() != null ? poItem.getReceivedQty().doubleValue() : 0.0;
+                    if (received > 0) {
+                        hasReceivedAny = true;
+                        break;
+                    }
+                }
+
+                // Nếu trước đó ĐÃ TỪNG nhận thành công 1 phần -> Giữ nguyên PARTIAL
+                // Nếu hoàn toàn chưa nhận được cái nào -> Mới lùi về OPEN
+                if (hasReceivedAny) {
+                    po.setStatus("PARTIAL");
+                } else {
+                    po.setStatus("OPEN");
+                }
+            }
+
+            poRepository.save(po);
+        }
 
         receiptRepo.save(receipt);
-
-        // 3. TÌM VÀ CẬP NHẬT ĐƠN MUA HÀNG (PO) LIÊN QUAN (Đây là phần bạn đang thiếu)
-        PurchaseOrders po = receipt.getPurchaseOrders(); // Lấy PO liên kết với phiếu nhập này
-        if (po != null) {
-            po.setStatus("REJECTED"); // Cập nhật trạng thái của PO
-            poRepository.save(po);          // Lưu PO xuống Database
-        }
     }
 
     @Override

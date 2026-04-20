@@ -679,24 +679,33 @@
         }
 
         // Hàm bổ sung để đổi màu khi người dùng sửa số lượng trực tiếp trên giao diện
+        // Hàm đổi màu và KIỂM SOÁT SỐ LƯỢNG khi người dùng gõ
         function validateQty(input) {
             const row = input.closest('.scanned-item');
-            const expected = parseFloat(row.getAttribute('data-expected-qty'));
-            const actual = parseFloat(input.value);
-            const badge = row.querySelector('.badge.bg-danger'); // Tìm cái badge "Sai lệch số lượng"
+            const expected = parseFloat(row.getAttribute('data-expected-qty')); // Đây là số lượng TỐI ĐA được phép nhập
+            let actual = parseFloat(input.value);
+            const badge = row.querySelector('.badge.bg-danger');
+
+            // --- FE BẮT LỖI NGAY TẠI TRẬN ---
+            if (actual > expected) {
+                alert(`BẠN ĐANG NHẬP THỪA HÀNG!\nSố lượng tối đa còn được phép nhập là: ${expected}`);
+                input.value = expected; // Ép số lượng lùi về mức tối đa cho phép
+                actual = expected;      // Cập nhật lại biến actual để chạy logic đổi màu bên dưới
+            }
+            // ---------------------------------
 
             if (actual === expected) {
-                // TRƯỜNG HỢP KHỚP: Đổi sang màu xanh lá
+                // TRƯỜNG HỢP KHỚP HOẶC ĐÃ NHẬP ĐỦ TỐI ĐA: Đổi sang màu xanh lá
                 row.style.borderLeftColor = "#10b981";
                 row.classList.remove('border-warning', 'border-danger');
                 row.classList.add('border-success');
-                if (badge) badge.style.display = 'none'; // Ẩn chữ cảnh báo đi
+                if (badge) badge.style.display = 'none';
             } else {
-                // TRƯỜNG HỢP SAI LỆCH: Đổi sang màu cam/đỏ
+                // TRƯỜNG HỢP NHẬP THIẾU (Nhập một phần): Đổi sang màu cam/đỏ
                 row.style.borderLeftColor = "#f59e0b";
                 row.classList.remove('border-success');
                 row.classList.add('border-warning');
-                if (badge) badge.style.display = 'inline-block'; // Hiện chữ cảnh báo lên
+                if (badge) badge.style.display = 'inline-block';
             }
         }
 
