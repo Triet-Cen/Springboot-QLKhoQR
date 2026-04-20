@@ -113,6 +113,16 @@ public class ProductController {
         return "redirect:/products";
     }
 
+    @GetMapping("/import-cancel")
+    public String cancelImport(@RequestParam("sessiomId") String sessionId, RedirectAttributes redirectAttributes){
+        List<TempImportData> temps = tempImportDataRepository.findByImportSessionId(sessionId);
+        if(!temps.isEmpty()){
+            tempImportDataRepository.deleteAll();
+        }
+        redirectAttributes.addFlashAttribute("success", "Đã hủy quá trình Import và xử lý dữ liệu tạm.");
+        return  "redirect:/products";
+    }
+
     @GetMapping
     public String listProduct(@RequestParam(defaultValue = "1") int page,
                               @RequestParam(defaultValue = "10") int limit,
