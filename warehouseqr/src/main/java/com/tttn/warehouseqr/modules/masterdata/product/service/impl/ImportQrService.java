@@ -125,6 +125,24 @@ public class ImportQrService {
             List<TempImportData> temps = tempImportDataRepository.findByImportSessionId(sessionId);
 
             for (TempImportData temp : temps){
+
+                if(isAnyFieldEmpty(temp)){
+                    temp.setValidationStatus("INVALID");
+                    temp.setValidationMessage("Lỗi: Dữ liệu bị thiếu! Phải điền đủ tất cả dữ liệu không được để trống.");
+                    continue;
+                }
+
+                try {
+                    double checkQty = Double.parseDouble(temp.getQuantity());
+                    if (checkQty <= 0) {
+                        temp.setValidationStatus("INVALID");
+                        temp.setValidationMessage("Lỗi: Số lượng nhập kho phải lớn hơn 0!");
+                    }
+                } catch (NumberFormatException e) {
+                    temp.setValidationStatus("INVALID");
+                    temp.setValidationMessage("Lỗi: Số lượng phải là định dạng số hợp lệ!");
+                }
+
                 Product existingProduct = productRepository.findBySku(temp.getSku());
 
                 if(existingProduct != null){
@@ -143,16 +161,7 @@ public class ImportQrService {
                     temp.setValidationStatus("INSERT");
                     temp.setValidationMessage("Sản phẩm mới. Sẽ tạo lô sản phẩm và lô hàng mới!");
                 }
-                try {
-                    double checkQty = Double.parseDouble(temp.getQuantity());
-                    if (checkQty <= 0) {
-                        temp.setValidationStatus("INVALID");
-                        temp.setValidationMessage("Lỗi: Số lượng nhập kho phải lớn hơn 0!");
-                    }
-                } catch (NumberFormatException e) {
-                    temp.setValidationStatus("INVALID");
-                    temp.setValidationMessage("Lỗi: Số lượng phải là định dạng số hợp lệ!");
-                }
+
                 tempImportDataRepository.save(temp);
             }
         }
@@ -476,6 +485,20 @@ public class ImportQrService {
             history.setUserId(currentUserId);
             inventoryHistoryRepository.save(history);
         }
+    }
+
+    private boolean isAnyFieldEmpty(TempImportData temp) {
+        return isEmpty(temp.getSku()) || isEmpty(temp.getProductName()) ||
+                isEmpty(temp.getDescription()) || isEmpty(temp.getMinStock()) ||
+                isEmpty(temp.getCategoryId()) || isEmpty(temp.getUnitId()) ||
+                isEmpty(temp.getBatchCode()) || isEmpty(temp.getSerialNum()) ||
+                isEmpty(temp.getCostPrice()) || isEmpty(temp.getExpiryDate()) ||
+                isEmpty(temp.getSupplierId()) || isEmpty(temp.getQuantity()) ||
+                isEmpty(temp.getLocationCode()) || isEmpty(temp.getWarehouseId());
+    }
+
+    private boolean isEmpty(String str) {
+        return str == null || str.trim().isEmpty();
     }
 
     private BigDecimal parseBigDecimal(String value) {
