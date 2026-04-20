@@ -56,12 +56,19 @@ public class User {
     public User() {
     }
 
-    public User(String username, String password, String fullName, String email, String phone) {
+    public User(String username, String password, String fullName, String email, String phone, String cccd, String gender, LocalDate dateOfBirth, String avatar, String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.username = username;
         this.password = password;
         this.fullName = fullName;
         this.email = email;
         this.phone = phone;
+        this.cccd = cccd;
+        this.gender = gender;
+        this.dateOfBirth = dateOfBirth;
+        this.avatar = avatar;
+        this.status = status;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     // --- GETTER & SETTER CŨ CỦA BẠN (GIỮ NGUYÊN) ---

@@ -9,11 +9,14 @@ import java.util.Collections;
 
 public class CustomUserDetails implements UserDetails {
     private final User user;
+    private String avatar;
 
     public CustomUserDetails(User user) {
         this.user = user;
+        this.avatar = (user.getAvatar() != null && !user.getAvatar().isEmpty())
+                ? "/assets/images/avatars/" + user.getAvatar()
+                : "/assets/images/default-avatar.png";
     }
-
     public Long getUserId() {
         return user.getUserId();
     }
@@ -29,6 +32,10 @@ public class CustomUserDetails implements UserDetails {
             roleName = "ROLE_" + roleName;
         }
         return Collections.singleton(new SimpleGrantedAuthority(roleName));
+    }
+
+    public String getAvatar() {
+        return avatar;
     }
 
     @Override
