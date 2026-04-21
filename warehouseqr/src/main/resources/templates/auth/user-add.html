@@ -20,37 +20,105 @@
             </h5>
         </div>
         <div class="card-body p-4">
-            <form th:action="@{/admin/users/add}" th:object="${userRequest}" method="post">
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <span th:text="${errorMessage}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <form th:action="@{/admin/users/add}" th:object="${userRequest}" method="post" enctype="multipart/form-data">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Tên đăng nhập</label>
-                        <input type="text" class="form-control" th:field="*{username}" placeholder="Ví dụ: nptthinh">
-                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('username')}" th:errors="*{username}"></div>
+                        <input type="text" class="form-control" th:field="*{username}"
+                               th:classappend="${#fields.hasErrors('username')} ? 'is-invalid' : ''"
+                               placeholder="Ví dụ: thinhnp">
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('username')}"
+                             th:text="${#fields.errors('username')[2]}"></div>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Họ và tên</label>
-                        <input type="text" class="form-control" th:field="*{fullName}" placeholder="Nguyễn Phú Thịnh">
-                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Email</label>
-                        <input type="email" class="form-control" th:field="*{email}" placeholder="example@gmail.com">
-                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Số điện thoại</label>
-                        <input type="text" class="form-control" th:field="*{phone}" placeholder="09xxxxxxx">
-                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></div>
-                    </div>
+
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Mật khẩu</label>
-                        <input type="password" class="form-control" th:field="*{password}" placeholder="******">
-                        <div class="text-danger mt-1 small" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+                        <input type="password" class="form-control" th:field="*{password}"
+                               th:classappend="${#fields.hasErrors('password')} ? 'is-invalid' : ''"
+                               placeholder="******">
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('password')}"
+                             th:text="${#fields.errors('password')[1]}"></div>
                     </div>
+
                     <div class="col-md-6">
+                        <label class="form-label fw-bold">Họ và tên</label>
+                        <input type="text" class="form-control" th:field="*{fullName}"
+                               th:classappend="${#fields.hasErrors('fullName')} ? 'is-invalid' : ''"
+                               placeholder="Nguyễn Phú Thịnh">
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('fullName')}" th:errors="*{fullName}"></div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" class="form-control" th:field="*{email}"
+                               th:classappend="${#fields.hasErrors('email')} ? 'is-invalid' : ''"
+                               placeholder="example@gmail.com">
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Số điện thoại</label>
+                        <input type="text" class="form-control" th:field="*{phone}"
+                               th:classappend="${#fields.hasErrors('phone')} ? 'is-invalid' : ''"
+                               placeholder="09xxxxxxx">
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('phone')}"
+                             th:text="${#fields.errors('phone')[1]}"></div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Số CCCD</label>
+                        <input type="text" class="form-control" th:field="*{cccd}"
+                               th:classappend="${#fields.hasErrors('cccd')} ? 'is-invalid' : ''"
+                               placeholder="12 số căn cước">
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('cccd')}"
+                             th:text="${#fields.errors('cccd')[1]}"></div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Ngày sinh</label>
+                        <input type="date" class="form-control" th:field="*{dateOfBirth}"
+                               th:classappend="${#fields.hasErrors('dateOfBirth')} ? 'is-invalid' : ''">
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('dateOfBirth')}" th:errors="*{dateOfBirth}"></div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Giới tính</label>
+                        <select th:field="*{gender}" class="form-select"
+                                th:classappend="${#fields.hasErrors('gender')} ? 'is-invalid' : ''">
+                            <option value="">-- Chọn giới tính --</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                        </select>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('gender')}" th:errors="*{gender}"></div>
+                    </div>
+
+                    <div class="col-md-4">
                         <label class="form-label fw-bold">Vai trò</label>
                         <select th:field="*{roleId}" class="form-select">
                             <option th:each="r : ${roles}" th:value="${r.roleId}" th:text="${r.roleName}"></option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Ảnh đại diện</label>
+                        <input type="file" name="imageFile" class="form-control" accept="image/*" onchange="previewImage(this)">
+                        <div class="mt-2">
+                            <img id="preview" src="/assets/images/default-avatar.png"
+                                 class="rounded-circle border" width="80" height="80" style="object-fit: cover;">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Trạng thái</label>
+                        <select th:field="*{status}" class="form-select">
+                            <option value="ACTIVE">Hoạt động</option>
+                            <option value="INACTIVE">Tạm khóa</option>
                         </select>
                     </div>
                 </div>
@@ -65,5 +133,16 @@
         </div>
     </div>
 </div>
+<script>
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('preview').src = e.target.result;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>
 </body>
 </html>

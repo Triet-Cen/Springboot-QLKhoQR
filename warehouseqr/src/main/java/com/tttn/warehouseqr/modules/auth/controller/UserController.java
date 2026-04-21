@@ -1,5 +1,6 @@
 package com.tttn.warehouseqr.modules.auth.controller;
 
+import com.tttn.warehouseqr.common.exception.AppException;
 import com.tttn.warehouseqr.modules.auth.dto.UserCreateRequest;
 import com.tttn.warehouseqr.modules.auth.dto.UserUpdateRequest;
 import com.tttn.warehouseqr.modules.auth.service.RoleService;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -22,14 +24,12 @@ public class UserController {
         this.roleService = roleService;
     }
 
-    // GET: Hiển thị danh sách
     @GetMapping
     public String list(Model model) {
         model.addAttribute("users", userService.getAllUsers());
         return "auth/user-list";
     }
 
-    // --- MỞ FORM THÊM MỚI ---
     @GetMapping("/add")
     public String showAddForm(Model model) {
         model.addAttribute("userRequest", new UserCreateRequest());
@@ -37,44 +37,70 @@ public class UserController {
         return "auth/user-add";
     }
 
-    // --- XỬ LÝ LƯU MỚI ---
     @PostMapping("/add")
     public String create(@Valid @ModelAttribute("userRequest") UserCreateRequest req,
-                         BindingResult result, Model model, RedirectAttributes ra) {
+                         BindingResult result,
+                         @RequestParam("imageFile") MultipartFile imageFile,
+                         Model model,
+                         RedirectAttributes ra) {
         if (result.hasErrors()) {
             model.addAttribute("roles", roleService.getAllRoles());
-            return "auth/user-add"; // Trả về trang add nếu có lỗi
+            return "auth/user-add";
         }
-        userService.createUser(req);
-        ra.addFlashAttribute("successMessage", "Thêm mới thành công!");
-        return "redirect:/admin/users";
+
+        try {
+            userService.createUserWithAvatar(req, imageFile);
+            ra.addFlashAttribute("successMessage", "Thêm mới người dùng thành công!");
+            return "redirect:/admin/users";
+        } catch (AppException e) {
+            // Bắt lỗi trùng user từ Service ném ra
+            model.addAttribute("errorMessage", e.getErrorCode().getMessage());
+            model.addAttribute("roles", roleService.getAllRoles());
+            return "auth/user-add"; // Quay lại trang add và mang theo errorMessage
+        } catch (Exception e) {
+            model.addAttribute("errorMessage", "Lỗi hệ thống: " + e.getMessage());
+            model.addAttribute("roles", roleService.getAllRoles());
+            return "auth/user-add";
+        }
     }
-    // --- MỞ FORM CẬP NHẬT ---
+
     @GetMapping("/edit/{id}")
     public String showEditForm(@PathVariable Long id, Model model) {
-        UserUpdateRequest updateReq = userService.getUpdateById(id);
-        model.addAttribute("userRequest", updateReq);
+        model.addAttribute("userRequest", userService.getUpdateById(id));
         model.addAttribute("roles", roleService.getAllRoles());
         return "auth/user-edit";
     }
 
-    // --- XỬ LÝ CẬP NHẬT ---
     @PostMapping("/edit")
     public String update(@Valid @ModelAttribute("userRequest") UserUpdateRequest req,
-                         BindingResult result, Model model, RedirectAttributes ra) {
+                         BindingResult result,
+                         @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
+                         Model model,
+                         RedirectAttributes ra) {
         if (result.hasErrors()) {
             model.addAttribute("roles", roleService.getAllRoles());
-            return "auth/user-edit"; // Trả về trang edit nếu có lỗi
+            return "auth/user-edit";
         }
-        userService.updateUser(req);
-        ra.addFlashAttribute("successMessage", "Cập nhật thành công!");
-        return "redirect:/admin/users";
+
+        try {
+            userService.updateUserWithAvatar(req, imageFile);
+            ra.addFlashAttribute("successMessage", "Cập nhật thành công!");
+            return "redirect:/admin/users";
+        } catch (AppException e) {
+            model.addAttribute("errorMessage", e.getErrorCode().getMessage());
+            model.addAttribute("roles", roleService.getAllRoles());
+            return "auth/user-edit";
+        }
     }
 
     @GetMapping("/delete/{id}")
     public String delete(@PathVariable Long id, RedirectAttributes ra) {
-        userService.deleteUser(id); // Bạn cần viết hàm này trong Service
-        ra.addFlashAttribute("successMessage", "Xóa người dùng thành công!");
-        return "redirect:/admin/users";
+        try {
+            userService.deleteUser(id);
+            ra.addFlashAttribute("successMessage", "Đã xóa người dùng thành công!");
+        } catch (AppException e) {
+            ra.addFlashAttribute("errorMessage", e.getErrorCode().getMessage());
+        }
+        return "redirect:/admin/users"; // Đã sửa từ /users thành /admin/users
     }
 }

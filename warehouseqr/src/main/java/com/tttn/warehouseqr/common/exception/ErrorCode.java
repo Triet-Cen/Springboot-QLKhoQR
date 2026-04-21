@@ -11,6 +11,10 @@ public enum ErrorCode {
     USER_NOT_EXISTED("USR001", "Người dùng không tồn tại", HttpStatus.NOT_FOUND),
     USER_ALREADY_EXISTS("USR002", "Tên đăng nhập đã tồn tại", HttpStatus.BAD_REQUEST),
     ROLE_NOT_FOUND("ROL001", "Quyền hạn không hợp lệ", HttpStatus.NOT_FOUND),
+    EMAIL_ALREADY_EXISTS("USR005", "Email đã được sử dụng bởi một tài khoản khác", HttpStatus.BAD_REQUEST),
+    PHONE_ALREADY_EXISTS("USR006", "Số điện thoại đã được sử dụng bởi một tài khoản khác", HttpStatus.BAD_REQUEST),
+    CCCD_ALREADY_EXISTS("USR007", "Số CCCD đã được sử dụng bởi một tài khoản khác", HttpStatus.BAD_REQUEST),
+
 
     // --- Validation Errors (Dùng cho DTO) ---
     USERNAME_REQUIRED("VAL001", "Tên đăng nhập không được để trống", HttpStatus.BAD_REQUEST),

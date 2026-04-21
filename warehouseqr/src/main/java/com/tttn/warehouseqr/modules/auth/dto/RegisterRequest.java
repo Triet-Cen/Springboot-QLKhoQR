@@ -4,7 +4,7 @@ import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
 
-public class UserCreateRequest {
+public class RegisterRequest {
     @NotBlank(message = "Vui lòng nhập tên đăng nhập")
     @Size(min = 4, max = 20, message = "Tên đăng nhập phải từ 4 đến 20 ký tự")
     @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "Tên đăng nhập không được chứa ký tự đặc biệt")
@@ -26,32 +26,55 @@ public class UserCreateRequest {
     private String phone;
 
     @NotBlank(message = "Vui lòng nhập số CCCD")
-    @Pattern(regexp = "^\\d{12}$", message = "CCCD phải đúng 12 số")
+    @Pattern(regexp = "^\\d{12}$", message = "CCCD phải bao gồm 12 chữ số")
     private String cccd;
 
     @NotBlank(message = "Vui lòng chọn giới tính")
     private String gender;
 
     @NotNull(message = "Vui lòng nhập ngày sinh")
-    @Past(message = "Ngày sinh không hợp lệ")
+    @Past(message = "Ngày sinh phải là một ngày trong quá khứ")
     private LocalDate dateOfBirth;
 
-    private String status = "ACTIVE";
+    public String getUsername() {
+        return username;
+    }
 
-    private Long roleId;
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
+    public String getPassword() {
+        return password;
+    }
 
-    // Getter & Setter
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
-    public String getFullName() { return fullName; }
-    public void setFullName(String fullName) { this.fullName = fullName; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
-    public String getPhone() { return phone; }
-    public void setPhone(String phone) { this.phone = phone; }
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
 
     public String getCccd() {
         return cccd;
@@ -76,15 +99,4 @@ public class UserCreateRequest {
     public void setDateOfBirth(LocalDate dateOfBirth) {
         this.dateOfBirth = dateOfBirth;
     }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public Long getRoleId() { return roleId; }
-    public void setRoleId(Long roleId) { this.roleId = roleId; }
 }
