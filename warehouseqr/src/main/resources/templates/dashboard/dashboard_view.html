@@ -7,6 +7,14 @@
 </head>
 <body>
 <div id="mainContent" class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0 fw-bold">Dashboard</h4>
+
+        <a th:href="@{/api/dashboard/export-excel}" class="btn btn-success">
+            <i class="fas fa-file-excel"></i> Xuất Excel
+        </a>
+    </div>
+
     <div class="row g-4 mb-4">
         <div class="col-md-3">
             <div class="card border-0 shadow-sm p-3 bg-primary text-white">
@@ -14,18 +22,21 @@
                 <h3 th:text="${stats.totalProducts}">0</h3>
             </div>
         </div>
+
         <div class="col-md-3">
             <div class="card border-0 shadow-sm p-3 bg-success text-white">
-                <h6>Tổng số lượng tồn</h6>
+                <h6 >Tổng số lượng tồn</h6>
                 <h3 th:text="${stats.totalQuantity}">0</h3>
             </div>
         </div>
+
         <div class="col-md-3">
             <div class="card border-0 shadow-sm p-3 bg-warning text-dark">
                 <h6>Cảnh báo sắp hết</h6>
                 <h3 th:text="${stats.lowStockWarnings}">0</h3>
             </div>
         </div>
+
         <div class="col-md-3">
             <div class="card border-0 shadow-sm p-3 bg-info text-white">
                 <h6>Giá trị kho sản phẩm</h6>
@@ -33,6 +44,7 @@
             </div>
         </div>
     </div>
+
 
     <div class="row g-4 mb-4">
         <div class="col-md-7">
@@ -42,9 +54,7 @@
                 <div style="height: 300px;">
                     <canvas id="inventoryBarChart"></canvas>
                 </div>
-                <a th:href="@{/api/dashboard/export-excel}" class="btn btn-sm btn-success">
-                    <i class="fas fa-file-excel"></i> Xuất Báo Cáo Excel
-                </a>
+
             </div>
         </div>
         <div class="col-md-5">
@@ -70,6 +80,7 @@
             </div>
         </div>
     </div>
+
     <div class="row g-4">
         <div class="col-12">
             <div class="card border-0 shadow-sm p-3">
@@ -105,6 +116,7 @@
             </div>
         </div>
     </div>
+
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 

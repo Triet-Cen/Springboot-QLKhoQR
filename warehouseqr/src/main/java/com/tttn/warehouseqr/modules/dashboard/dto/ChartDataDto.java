@@ -10,7 +10,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChartDataDto {
-    private List<String> labels;      // Danh sách các ngày (VD: ["01/04", "02/04", ...])
-    private List<Double> inboundData; // Dữ liệu nhập kho
-    private List<Double> outboundData;// Dữ liệu xuất kho
+    private List<String> labels;
+    private List<Double> inboundData;
+    private List<Double> outboundData;
 }
