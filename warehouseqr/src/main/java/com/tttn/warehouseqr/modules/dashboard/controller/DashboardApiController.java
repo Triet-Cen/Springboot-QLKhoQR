@@ -5,6 +5,7 @@ import com.tttn.warehouseqr.modules.inventory.dto.InventoryDashboardDto;
 import com.tttn.warehouseqr.modules.inventory.dto.InventoryItemDto;
 import com.tttn.warehouseqr.modules.inventory.repository.InventoryHistoryRepository;
 import com.tttn.warehouseqr.modules.inventory.service.InventoryService; // 1. NHỚ IMPORT DÒNG NÀY
+import com.tttn.warehouseqr.modules.masterdata.supplier.entity.Supplier;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
@@ -18,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -60,94 +62,95 @@ public class DashboardApiController {
 
 
     @GetMapping("/export-excel")
-    public void exportToExcel(HttpServletResponse response) throws IOException {
-        // 1. Lấy dữ liệu
-        List<InventoryItemDto> items = inventoryService.getInventoryItems(null, null);
-        InventoryDashboardDto stats = inventoryService.getDashboardStats(items);
+    public void exportFullDashboardExcel(HttpServletResponse response) throws IOException {
+        // 1. Lấy toàn bộ dữ liệu cần thiết
+        List<InventoryItemDto> allItems = inventoryService.getInventoryItems(null, null);
+        InventoryDashboardDto stats = inventoryService.getDashboardStats(allItems);
+
+        List<InventoryItemDto> lowStockItems = allItems.stream()
+                .filter(item -> item.getTotalQuantity() != null &&
+                        item.getTotalQuantity().compareTo(new java.math.BigDecimal("10")) < 0)
+                .collect(Collectors.toList());
+
         List<Object[]> trendResults = historyRepository.getInOutTrendLast7Days();
 
+
+        // 2. Khởi tạo Workbook
         Workbook workbook = new XSSFWorkbook();
+        Sheet summarySheet = workbook.createSheet("1. Tổng Quan & Dự Báo");
 
-        // --- TẠO STYLE CHUNG ---
-        // Style cho tiêu đề chính (Bold, Background xanh, chữ trắng)
+        // Style cho Header
         CellStyle headerStyle = workbook.createCellStyle();
-        headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        Font font = workbook.createFont();
+        font.setBold(true);
+        headerStyle.setFont(font);
+        headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
         headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        Font headerFont = workbook.createFont();
-        headerFont.setBold(true);
-        headerFont.setColor(IndexedColors.WHITE.getIndex());
-        headerStyle.setFont(headerFont);
-        headerStyle.setAlignment(HorizontalAlignment.CENTER);
 
-        // Style cho số tiền (Định dạng #,##0 VNĐ)
-        CellStyle currencyStyle = workbook.createCellStyle();
-        DataFormat df = workbook.createDataFormat();
-        currencyStyle.setDataFormat(df.getFormat("#,##0 \"VNĐ\""));
-
-        // --- SHEET 1: TỔNG QUAN HỆ THỐNG ---
-        Sheet summarySheet = workbook.createSheet("1. Tổng Quan");
-        String[] summaryHeaders = {"CHỈ SỐ", "GIÁ TRỊ HIỆN TẠI", "GHI CHÚ"};
-        Row sHeader = summarySheet.createRow(0);
-        for(int i=0; i<summaryHeaders.length; i++) {
-            Cell cell = sHeader.createCell(i);
-            cell.setCellValue(summaryHeaders[i]);
+        // --- SHEET 1: TỔNG QUAN ---
+        String[] headers = {"Chỉ số thống kê", "Giá trị"};
+        Row headerRow = summarySheet.createRow(0);
+        for(int i=0; i<headers.length; i++) {
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
             cell.setCellStyle(headerStyle);
         }
 
-        Object[][] summaryData = {
-                {"Tổng số mặt hàng", stats.getTotalProducts(), "Các mã SKU khác nhau"},
-                {"Tổng số lượng tồn kho", stats.getTotalQuantity(), "Tổng đơn vị sản phẩm"},
-                {"Số mặt hàng sắp hết", stats.getLowStockWarnings(), "Cần nhập hàng ngay!"},
-                {"Tổng giá trị kho", stats.getTotalInventoryValue(), "Giá trị ước tính hiện tại"},
-                {"", "", ""},
-
+        Object[][] statData = {
+                {"Tổng số mặt hàng", stats.getTotalProducts()},
+                {"Tổng số lượng tồn kho", stats.getTotalQuantity()},
+                {"Số lượng sản phẩm cảnh báo hàng thấp", stats.getLowStockWarnings()},
+                {"Tổng giá trị kho hàng (VNĐ)", stats.getTotalInventoryValue()}
         };
 
-        for (int i = 0; i < summaryData.length; i++) {
-            Row row = summarySheet.createRow(i + 1);
-            row.createCell(0).setCellValue(summaryData[i][0].toString());
-            Cell valCell = row.createCell(1);
-            if (summaryData[i][1] instanceof Number) {
-                valCell.setCellValue(Double.parseDouble(summaryData[i][1].toString()));
-                if(i == 3) valCell.setCellStyle(currencyStyle); // Áp dụng định dạng tiền cho hàng Giá trị kho
-            } else {
-                valCell.setCellValue(summaryData[i][1].toString());
-            }
-            row.createCell(2).setCellValue(summaryData[i][2].toString());
+        int rowIdx = 1;
+        for (Object[] data : statData) {
+            Row row = summarySheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(data[0].toString());
+            row.createCell(1).setCellValue(data[1].toString());
         }
         summarySheet.autoSizeColumn(0);
         summarySheet.autoSizeColumn(1);
-        summarySheet.autoSizeColumn(2);
 
         // --- SHEET 2: XU HƯỚNG NHẬP XUẤT ---
-        Sheet trendSheet = workbook.createSheet("2. Xu Hướng Nhập Xuất");
-        Row trendHeader = trendSheet.createRow(0);
-        String[] tHeaders = {"Ngày", "Số lượng Nhập (Inbound)", "Số lượng Xuất (Outbound)"};
-        for(int i=0; i<tHeaders.length; i++) {
-            Cell cell = trendHeader.createCell(i);
-            cell.setCellValue(tHeaders[i]);
+        Sheet trendSheet = workbook.createSheet("2. Biến Động 7 Ngày");
+        String[] trendHeaders = {"Ngày", "Nhập kho", "Xuất kho"};
+        Row tHeaderRow = trendSheet.createRow(0);
+        for(int i=0; i<trendHeaders.length; i++) {
+            Cell cell = tHeaderRow.createCell(i);
+            cell.setCellValue(trendHeaders[i]);
             cell.setCellStyle(headerStyle);
         }
 
-        int trendRowIdx = 1;
+        int tRowIdx = 1;
         for (Object[] res : trendResults) {
-            Row row = trendSheet.createRow(trendRowIdx++);
+            Row row = trendSheet.createRow(tRowIdx++);
             row.createCell(0).setCellValue(res[0].toString());
-
-            Cell inCell = row.createCell(1);
-            inCell.setCellValue(Double.parseDouble(res[1].toString()));
-
-            Cell outCell = row.createCell(2);
-            outCell.setCellValue(Double.parseDouble(res[2].toString()));
+            row.createCell(1).setCellValue(Double.parseDouble(res[1].toString()));
+            row.createCell(2).setCellValue(Double.parseDouble(res[2].toString()));
         }
-        trendSheet.autoSizeColumn(0);
-        trendSheet.autoSizeColumn(1);
-        trendSheet.autoSizeColumn(2);
-        trendSheet.createFreezePane(0, 1); // Cố định dòng đầu tiên
 
-        // 2. Xuất File
+        // --- SHEET 3: DANH SÁCH CẢNH BÁO NHẬP HÀNG ---
+        Sheet lowStockSheet = workbook.createSheet("3. Cần Nhập Hàng Ngay");
+        String[] lowStockHeaders = {"Mã SP", "Tên Sản Phẩm", "Tồn Kho Hiện Tại"};
+        Row lsHeaderRow = lowStockSheet.createRow(0);
+        for(int i=0; i<lowStockHeaders.length; i++) {
+            Cell cell = lsHeaderRow.createCell(i);
+            cell.setCellValue(lowStockHeaders[i]);
+            cell.setCellStyle(headerStyle);
+        }
+
+        int lsRowIdx = 1;
+        for (InventoryItemDto item : lowStockItems) {
+            Row row = lowStockSheet.createRow(lsRowIdx++);
+            row.createCell(0).setCellValue(item.getProductId());
+            row.createCell(1).setCellValue(item.getProductName());
+            row.createCell(2).setCellValue(item.getTotalQuantity().doubleValue());
+        }
+
+        // 3. Cấu hình Response để tải file
         response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        response.setHeader("Content-Disposition", "attachment; filename=BaoCao_WarehouseQR_Professional.xlsx");
+        response.setHeader("Content-Disposition", "attachment; filename=Bao_Cao_Kho_Tong_Hop.xlsx");
 
         workbook.write(response.getOutputStream());
         workbook.close();
