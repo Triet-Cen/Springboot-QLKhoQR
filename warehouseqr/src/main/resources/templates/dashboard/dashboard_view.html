@@ -81,6 +81,53 @@
         </div>
     </div>
 
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+                <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold text-danger mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Cần Nhập Hàng Gấp (Tồn Kho Thấp)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                            <tr>
+                                <th>Mã SKU</th>
+                                <th>Tên Sản Phẩm</th>
+                                <th class="text-center">Tồn Hiện Tại</th>
+                                <th>Trạng Thái</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="item : ${lowStockItems}">
+                                <td th:text="${item.sku}" class="fw-semibold text-secondary">SKU-001</td>
+                                <td th:text="${item.productName}" class="text-dark fw-medium">Tên mặt hàng</td>
+
+                                <td class="text-center fw-bold text-danger"
+                                    th:text="${#numbers.formatDecimal(item.totalQuantity, 0, 'COMMA', 0, 'POINT')}">12</td>
+
+                                <td class="">
+                                <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2">
+                                    <i class="bi bi-cart-plus me-1"></i>Cần nhập thêm
+                                </span>
+                                </td>
+                            </tr>
+
+                            <tr th:if="${#lists.isEmpty(lowStockItems)}">
+                                <td colspan="4" class="text-center text-success py-4">
+                                    <i class="bi bi-check-circle-fill me-2"></i>Tuyệt vời! Mọi mặt hàng đều ở mức an toàn.
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4">
         <div class="col-12">
             <div class="card border-0 shadow-sm p-3">
