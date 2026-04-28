@@ -12,4 +12,6 @@ public class InboundItemRequestDTO {
     private Double actualQty;  // Số lượng thực nhập
     private String productName;
     private String lotCode;
+    private Double importPrice;
+    private Double expectedQty;
 }

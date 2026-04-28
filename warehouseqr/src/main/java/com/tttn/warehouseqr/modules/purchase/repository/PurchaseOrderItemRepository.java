@@ -11,11 +11,17 @@ import java.util.List;
 
 @Repository
 public interface PurchaseOrderItemRepository extends JpaRepository<PurchaseOrderItem,Long> {
-    @Modifying // Bắt buộc khi dùng câu lệnh UPDATE/DELETE
+    @Modifying
     @Query("UPDATE PurchaseOrderItem p SET p.receivedQty = p.receivedQty + :qty " +
-            "WHERE p.purchaseOrderId = :poId AND p.productId = :productId")
-    void updateReceivedQty(@Param("poId") Long poId, @Param("productId") Long productId, @Param("qty") Double qty);
+            "WHERE p.purchaseOrders.id = :poId AND p.product.product_id = :productId")
 
-    List<PurchaseOrderItem> findByPurchaseOrderId(Long poId);
+    void updateReceivedQty(@Param("poId") Long poId,
+                           @Param("productId") Long productId,
+                           @Param("qty") Double qty);
+    List<PurchaseOrderItem> findByPurchaseOrders_Id(Long poId);
+
+    @Query("SELECT i.product.product_id, i.product.productName, i.product.sku, i.orderedQty, i.unitPrice " +
+            "FROM PurchaseOrderItem i WHERE i.purchaseOrders.id = :poId")
+    List<Object[]> findItemsByPoIdForScan(@Param("poId") Long poId);
 
 }

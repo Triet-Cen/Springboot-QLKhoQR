@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title th:text="${location != null and location.locationId != null ? 'Cập nhật vị trí kho' : 'Thêm mới vị trí kho'}">
+        Vị trí kho
+    </title>
+</head>
+<body>
+<div id="mainContent">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/warehouses/locations}">Vị trí kho</a></li>
+            <li class="breadcrumb-item active"
+                th:text="${location != null and location.locationId != null ? 'Cập nhật' : 'Thêm mới'}">
+                Thêm mới
+            </li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h5 class="card-title mb-0 fw-bold text-primary">
+                <i class="fa-solid fa-warehouse me-2"></i>
+                <span th:text="${location != null and location.locationId != null ? 'Chỉnh sửa vị trí kho' : 'Tạo vị trí kho mới'}">
+                    Tạo vị trí kho mới
+                </span>
+            </h5>
+        </div>
+
+        <div class="card-body p-4">
+            <div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+            <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+            <form th:action="${location != null and location.locationId != null} ? @{/warehouses/locations/update} : @{/warehouses/locations/save}"
+                  th:object="${location}" method="post">
+
+                <input type="hidden" th:field="*{locationId}"/>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Kho</label>
+                        <select class="form-select" th:field="*{warehouseId}">
+                            <option value="">-- Chọn kho --</option>
+                            <option th:each="w : ${warehouses}"
+                                    th:value="${w.warehouseId}"
+                                    th:text="${w.warehouseName}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Khu vực / Zone</label>
+                        <select class="form-select" th:field="*{zoneId}">
+                            <option value="">-- Chọn khu vực --</option>
+                            <option th:each="z : ${zones}"
+                                    th:value="${z.zoneId}"
+                                    th:text="${z.zoneName}">
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Lối đi</label>
+                        <input type="text" class="form-control" th:field="*{aisleCode}" placeholder="Ví dụ: A1">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Kệ</label>
+                        <input type="text" class="form-control" th:field="*{rackCode}" placeholder="Ví dụ: S1">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Ngăn</label>
+                        <input type="text" class="form-control" th:field="*{binCode}" placeholder="Ví dụ: B1">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Mã vị trí</label>
+                        <input type="text" class="form-control" th:field="*{locationCode}" placeholder="Ví dụ: A1-S1-B1">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Sức chứa</label>
+                        <input type="number" min="0" class="form-control" th:field="*{capacity}" placeholder="Ví dụ: 100">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Trạng thái</label>
+                        <select class="form-select" th:field="*{status}">
+                            <option value="ACTIVE">Hoạt động</option>
+                            <option value="EMPTY">Trống</option>
+                            <option value="FULL">Đã đầy</option>
+                            <option value="INACTIVE">Ngừng hoạt động</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Mô tả</label>
+                        <textarea class="form-control" rows="3" th:field="*{description}" placeholder="Nhập mô tả vị trí kho"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i>
+                        <span th:text="${location != null and location.locationId != null ? 'Cập nhật' : 'Xác nhận thêm'}">
+                            Xác nhận thêm
+                        </span>
+                    </button>
+                    <a th:href="@{/warehouses/locations}" class="btn btn-outline-secondary px-4">Quay lại</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,336 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Tram Truong | Xac Nhan Don</title>
+    <link rel="stylesheet" th:href="@{/css/outbound-theme.css}">
+    <style>
+        :root {
+            --out-primary: #4f46e5;
+            --out-border: #e5e7eb;
+            --out-bg: #f8fafc;
+            --out-shadow: 0 12px 35px rgba(15, 23, 42, 0.06);
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #eef2ff 0%, #f8fafc 45%, #f8fafc 100%);
+        }
+
+        .station-card { border: none; border-radius: 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06); }
+        .station-card {
+            border: 1px solid var(--out-border);
+            box-shadow: var(--out-shadow);
+        }
+
+        .table thead th {
+            color: #475569;
+            background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        #approvalTableBody tr { transition: all 0.2s ease; }
+        #approvalTableBody tr:hover {
+            background: rgba(79, 70, 229, 0.08);
+            transform: translateX(1px);
+        }
+
+        .status-badge { padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .bg-draft { background: rgba(245, 158, 11, 0.15); color: #b45309; }
+        .bg-pending { background: rgba(16, 185, 129, 0.15); color: #047857; }
+        .bg-other { background: rgba(107, 114, 128, 0.15); color: #374151; }
+
+        #searchKeyword,
+        #statusFilter {
+            border: 1px solid var(--out-border);
+            border-radius: 12px;
+        }
+
+        .pagination .page-link {
+            color: #334155;
+            border-color: var(--out-border);
+        }
+        .pagination .page-item.active .page-link {
+            background: linear-gradient(135deg, var(--out-primary) 0%, #6366f1 100%);
+            border-color: var(--out-primary);
+        }
+
+        .so-qr-panel {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            width: 320px;
+            max-width: calc(100vw - 40px);
+            z-index: 1060;
+            display: none;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+        .so-qr-panel.show { display: block; }
+        .so-qr-box { min-height: 160px; }
+        .so-qr-box canvas, .so-qr-box img { margin: 0 auto; display: block; }
+    </style>
+</head>
+<body>
+<div id="mainContent" class="outbound-theme">
+    <div class="container-fluid py-4 px-md-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h3 class="fw-bold mb-1"><i class="bi bi-person-check me-2 text-primary"></i>Tram truong xac nhan don</h3>
+                <p class="text-muted mb-0">Xac nhan don DRAFT de mo khoa cho kho va ke toan.</p>
+            </div>
+            <button class="btn btn-primary rounded-pill px-4" onclick="loadOrders()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Lam moi
+            </button>
+        </div>
+
+        <div class="card station-card mb-3 p-3">
+            <div class="d-flex gap-2 align-items-center">
+                <input id="searchKeyword" class="form-control" placeholder="Tim theo ma SO / khach hang..." oninput="renderOrders(true)">
+                <select id="statusFilter" class="form-select" style="max-width: 220px;" onchange="renderOrders(true)">
+                    <option value="ALL">Tat ca trang thai</option>
+                    <option value="DRAFT">Chi don cho xac nhan (DRAFT)</option>
+                    <option value="PENDING">Chi don da xac nhan (PENDING)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="card station-card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                        <tr>
+                            <th class="text-center" width="5%">#</th>
+                            <th>Ma SO</th>
+                            <th>Khach hang</th>
+                            <th class="text-end">Tong tien</th>
+                            <th class="text-center">Thanh toan</th>
+                            <th class="text-center">Trang thai don</th>
+                            <th class="text-center" width="20%">Thao tac</th>
+                        </tr>
+                        </thead>
+                        <tbody id="approvalTableBody">
+                        <tr><td colspan="7" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white border-top-0 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small fw-bold" id="pageInfo">Hien thi 0 ket qua</span>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginationControls"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="soQrPanel" class="so-qr-panel card border-0">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <div>
+                <div class="fw-bold">QR Ma Don SO</div>
+                <div id="soQrTitle" class="small opacity-75">SO-XXXX</div>
+            </div>
+            <button class="btn btn-sm btn-outline-light" type="button" onclick="hideSoQrPanel()">Dong</button>
+        </div>
+        <div class="card-body bg-white text-center">
+            <div id="soQrBox" class="so-qr-box d-flex align-items-center justify-content-center mb-3"></div>
+            <div class="small text-muted">Noi dung quet</div>
+            <div id="soQrPayload" class="fw-bold text-primary mb-3 text-break"></div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-primary flex-fill" type="button" onclick="copySoCode()">Copy</button>
+                <button class="btn btn-sm btn-outline-secondary flex-fill" type="button" onclick="window.print()">In</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script th:inline="javascript">
+        let allOrders = [];
+        let currentSoCode = '';
+        let currentPage = 0;
+        const pageSize = 10;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOrders();
+        });
+
+        function formatMoney(value) {
+            return `${Number(value || 0).toLocaleString('vi-VN')} đ`;
+        }
+
+        function statusBadge(status) {
+            if (status === 'DRAFT') return '<span class="status-badge bg-draft">DRAFT</span>';
+            if (status === 'PENDING') return '<span class="status-badge bg-pending">PENDING</span>';
+            return `<span class="status-badge bg-other">${status || 'N/A'}</span>`;
+        }
+
+        function paymentBadge(paymentStatus) {
+            return paymentStatus === 'PAID'
+                ? '<span class="badge bg-success">PAID</span>'
+                : '<span class="badge bg-secondary">UNPAID</span>';
+        }
+
+        async function loadOrders() {
+            const tbody = document.getElementById('approvalTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
+
+            try {
+                const res = await fetch('/api/manager/orders/pending-approval');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Khong tai duoc danh sach don.');
+                allOrders = Array.isArray(data) ? data : [];
+                renderOrders(true);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-5 text-danger">${err.message}</td></tr>`;
+                document.getElementById('pageInfo').innerText = 'Hien thi 0 ket qua';
+                document.getElementById('paginationControls').innerHTML = '';
+            }
+        }
+
+        function renderOrders(resetPage = false) {
+            const tbody = document.getElementById('approvalTableBody');
+            const keyword = (document.getElementById('searchKeyword').value || '').trim().toLowerCase();
+            const filterStatus = document.getElementById('statusFilter').value;
+
+            if (resetPage) currentPage = 0;
+
+            const rows = allOrders.filter(item => {
+                if (filterStatus !== 'ALL' && String(item.status || '').toUpperCase() !== filterStatus) return false;
+                if (!keyword) return true;
+                const so = String(item.soCode || '').toLowerCase();
+                const cus = String(item.customerName || '').toLowerCase();
+                return so.includes(keyword) || cus.includes(keyword);
+            });
+
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">Khong co don phu hop.</td></tr>';
+                document.getElementById('pageInfo').innerText = 'Hien thi 0 ket qua';
+                document.getElementById('paginationControls').innerHTML = '';
+                return;
+            }
+
+            const totalPages = Math.max(Math.ceil(rows.length / pageSize), 1);
+            if (currentPage >= totalPages) currentPage = totalPages - 1;
+            const start = currentPage * pageSize;
+            const pageRows = rows.slice(start, start + pageSize);
+
+            tbody.innerHTML = pageRows.map((order, idx) => {
+                const canApprove = String(order.status || '').toUpperCase() === 'DRAFT';
+                const soCode = String(order.soCode || '');
+                const safeSoCode = soCode.replace(/'/g, "\\'");
+
+                const approveBtn = canApprove
+                    ? `<button class="btn btn-sm btn-primary" onclick="approveOrder(${order.id}, '${safeSoCode}')">
+                           <i class="bi bi-check2-circle me-1"></i>Xac nhan
+                       </button>`
+                    : `<button class="btn btn-sm btn-light text-muted" disabled>
+                           <i class="bi bi-lock me-1"></i>Da xu ly
+                       </button>`;
+
+                const qrBtn = soCode
+                    ? `<button class="btn btn-sm btn-outline-success" onclick="showSoQr('${safeSoCode}')">
+                           <i class="bi bi-qr-code me-1"></i>QR SO
+                       </button>`
+                    : '';
+
+                const btn = `<div class="d-flex gap-2 justify-content-center">${approveBtn}${qrBtn}</div>`;
+
+                return `
+                    <tr>
+                        <td class="text-center">${start + idx + 1}</td>
+                        <td class="fw-bold text-primary">${order.soCode || ''}</td>
+                        <td>${order.customerName || 'Khach le'}</td>
+                        <td class="text-end fw-bold">${formatMoney(order.totalAmount)}</td>
+                        <td class="text-center">${paymentBadge(order.paymentStatus)}</td>
+                        <td class="text-center">${statusBadge(String(order.status || '').toUpperCase())}</td>
+                        <td class="text-center">${btn}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('pageInfo').innerText = `Tong cong ${rows.length} ma phieu (Trang ${currentPage + 1}/${totalPages})`;
+            renderPagination(totalPages, currentPage);
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderOrders(false);
+        }
+
+        function renderPagination(totalPages, current) {
+            let html = '';
+            html += `<li class="page-item ${current === 0 ? 'disabled' : ''}"><button class="page-link text-dark fw-bold" onclick="goToPage(${current - 1})">Truoc</button></li>`;
+            for (let i = 0; i < totalPages; i++) {
+                html += `<li class="page-item ${current === i ? 'active' : ''}"><button class="page-link" onclick="goToPage(${i})">${i + 1}</button></li>`;
+            }
+            html += `<li class="page-item ${current === totalPages - 1 ? 'disabled' : ''}"><button class="page-link text-dark fw-bold" onclick="goToPage(${current + 1})">Sau</button></li>`;
+            document.getElementById('paginationControls').innerHTML = html;
+        }
+
+        function showSoQr(soCode) {
+            const code = String(soCode || '').trim();
+            if (!code) {
+                alert('Khong co ma SO de tao QR.');
+                return;
+            }
+
+            currentSoCode = code;
+            document.getElementById('soQrTitle').innerText = code;
+            document.getElementById('soQrPayload').innerText = code;
+
+            const box = document.getElementById('soQrBox');
+            box.innerHTML = '';
+
+            if (!window.QRCode) {
+                box.innerHTML = '<div class="text-danger small">Khong tai duoc thu vien QR.</div>';
+            } else {
+                new QRCode(box, {
+                    text: code,
+                    width: 180,
+                    height: 180,
+                    colorDark: '#111827',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }
+
+            document.getElementById('soQrPanel').classList.add('show');
+        }
+
+        function hideSoQrPanel() {
+            document.getElementById('soQrPanel').classList.remove('show');
+        }
+
+        async function copySoCode() {
+            if (!currentSoCode) return;
+            try {
+                await navigator.clipboard.writeText(currentSoCode);
+                alert('Da copy ma SO.');
+            } catch (e) {
+                alert('Khong copy tu dong duoc, vui long copy thu cong.');
+            }
+        }
+
+        async function approveOrder(id, soCode) {
+            if (!confirm(`Xac nhan don ${soCode} ?`)) return;
+
+            try {
+                const res = await fetch(`/api/sales-orders/${id}/approve`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Xac nhan that bai');
+                alert(`Thanh cong: ${data.message || 'Da xac nhan don.'}`);
+                await loadOrders();
+            } catch (err) {
+                alert(`Loi: ${err.message}`);
+            }
+        }
+    </script>
+</div>
+</body>
+</html>
+

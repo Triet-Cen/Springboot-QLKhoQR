@@ -1,5 +1,6 @@
 package com.tttn.warehouseqr.modules.auth.service.impl;
 
+import com.tttn.warehouseqr.modules.auth.entity.CustomUserDetails;
 import com.tttn.warehouseqr.modules.auth.entity.User;
 import com.tttn.warehouseqr.modules.auth.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -24,9 +25,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return org.springframework.security.core.userdetails.User.withUsername(user.getUsername())
-                .password(user.getPassword())
-                .authorities(new SimpleGrantedAuthority(user.getRole().getRoleName()))
-                .build();
+        return new CustomUserDetails(user);
     }
 }

@@ -1,5 +1,7 @@
 package com.tttn.warehouseqr.modules.masterdata.product.service.impl;
 
+import com.tttn.warehouseqr.modules.inventory.entity.InventoryLocationBalance;
+import com.tttn.warehouseqr.modules.inventory.repository.InventoryLocationBalanceRepository;
 import com.tttn.warehouseqr.modules.masterdata.category.entity.ProductCategory;
 import com.tttn.warehouseqr.modules.masterdata.category.repository.CategoryRepository;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductDTO;
@@ -16,7 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.util.Optional;
 
 @Service
 public class ProductService {
@@ -24,13 +26,15 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final UnitRepository unitRepository;
     private final ProductBatchRepository productBatchRepository;
+    private final InventoryLocationBalanceRepository balanceRepo;
 
     public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository
-            , UnitRepository unitRepository, ProductBatchRepository productBatchRepository) {
+            , UnitRepository unitRepository, ProductBatchRepository productBatchRepository, InventoryLocationBalanceRepository balanceRepo) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.unitRepository = unitRepository;
         this.productBatchRepository = productBatchRepository;
+        this.balanceRepo = balanceRepo;
     }
     public ProductPageResponse getALlProductCustom(int page, int limit, String keyw, long categoryId){
         Pageable pageable = PageRequest.of(page -1,limit);
@@ -109,24 +113,66 @@ public class ProductService {
         return "Đã xóa sản phẩm";
     }
 
-    public ProductScanDTO getProductForScan(String sku, String lotCode) {
-        // 1. Tìm Product
+    public ProductScanDTO getProductForScan(String sku, String lotCode, Long warehouseId) {
+        // 1. Tìm Sản phẩm qua SKU (Lấy từ phần đầu của QR)
         Product product = productRepository.findBySku(sku);
-        if (product == null) throw new RuntimeException("SKU " + sku + " không tồn tại!");
+        if (product == null) throw new RuntimeException("Không tìm thấy sản phẩm với SKU: " + sku);
 
-        // 2. Tìm Batch liên kết với Product đó
+        // 2. Tìm Lô hàng qua LotCode (Lấy từ phần sau của QR)
+        // Phải tìm theo cả Product_id để tránh trùng LotCode giữa các sản phẩm khác nhau
         ProductBatch batch = productBatchRepository.findByLotCodeAndProductProduct_id(lotCode, product.getProduct_id())
-                .orElseThrow(() -> new RuntimeException("Lô " + lotCode + " không thuộc sản phẩm này!"));
+                .orElseThrow(() -> new RuntimeException("Lô " + lotCode + " không tồn tại cho sản phẩm này!"));
 
-        // 3. Đóng gói vào DTO
-        return new ProductScanDTO(
-                product.getProduct_id(),
-                product.getProductName(),
-                batch.getBatchId(),
-                batch.getLotCode(),
-                product.getSku(),
-                1.0
-        );
+        // 3. Gợi ý vị trí cũ (Ghi điểm nghiệp vụ)
+        Optional<InventoryLocationBalance> balanceOpt = balanceRepo.findFirstByWarehouseIdAndProductIdAndBatchId(
+                warehouseId, product.getProduct_id(), batch.getBatchId());
+
+        Long locationId = null;
+        String locationCode = "Chưa có vị trí gợi ý";
+
+        if (balanceOpt.isPresent()) {
+            locationId = balanceOpt.get().getLocationId();
+            locationCode = "Kệ cũ: " + locationId;
+        }
+
+        double availableQty = balanceOpt
+                .map(balance -> balance.getQty() != null ? balance.getQty().doubleValue() : 0.0)
+                .orElse(0.0);
+        boolean stockEnough = availableQty > 0;
+        String stockMessage = stockEnough
+                ? "Tồn kho hiện tại: " + availableQty
+                : "Kho không đủ hàng. Tồn kho hiện tại: 0";
+
+        // 4. Trả về DTO hoàn chỉnh (Đủ 10 tham số cho đối soát Phương án A)
+        // 4. Khởi tạo DTO bằng Setter (Tránh lỗi Constructor Parameter)
+        ProductScanDTO dto = new ProductScanDTO();
+        dto.setProductId(product.getProduct_id());
+        dto.setProductName(product.getProductName());
+        dto.setSku(product.getSku());
+
+        dto.setBatchId(batch.getBatchId());
+        dto.setLotCode(batch.getLotCode());
+
+        dto.setExpectedQty(1.0); // Mặc định khi quét lẻ là 1
+        dto.setActualQty(1.0);
+
+        dto.setLocationId(locationId);
+        dto.setLocationCode(locationCode);
+        dto.setWarehouseId(warehouseId); // Truyền luôn kho hiện tại vào
+
+        dto.setImportPrice(batch.getCostPrice() != null ? batch.getCostPrice().doubleValue() : 0.0);
+        dto.setAvailableQty(availableQty);
+        dto.setStockEnough(stockEnough);
+        dto.setStockMessage(stockMessage);
+
+        return dto;
     }
 
+    public Page<Product> getProductsForIndex(String keyw, int page, int size) {
+        // Spring Boot tính trang bắt đầu từ 0
+        Pageable pageable = PageRequest.of(page - 1, size);
+
+        // Gọi hàm mới ở Repository để loại bỏ hàng mồ côi
+        return productRepository.findValidProducts(keyw, pageable);
+    }
 }

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Quản lý vị trí kho</title>
+</head>
+<body>
+<div id="mainContent">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="fa-solid fa-location-dot"></i> Quản lý vị trí kho
+            </h2>
+            <p class="text-muted mb-0">Danh sách vị trí lưu trữ hàng hóa trong hệ thống kho</p>
+        </div>
+
+        <div class="d-flex gap-2">
+            <a th:href="@{/warehouses/manage/create}" class="btn btn-outline-primary d-flex align-items-center gap-2">
+                <i class="bi bi-plus-circle"></i> Thêm kho
+            </a>
+
+            <a th:href="@{/warehouses/manage/zones/create}" class="btn btn-outline-primary d-flex align-items-center gap-2">
+                <i class="bi bi-plus-circle"></i> Thêm zone
+            </a>
+
+            <a th:href="@{/warehouses/locations/create}" class="btn btn-primary d-flex align-items-center gap-2">
+                <i class="bi bi-plus-circle"></i> Thêm vị trí
+            </a>
+        </div>
+    </div>
+
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <span th:text="${successMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <span th:text="${errorMessage}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-2">Tổng vị trí</div>
+                    <h3 class="fw-bold mb-0" th:text="${summary.totalLocations}">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-2">Đang sử dụng</div>
+                    <h3 class="fw-bold mb-0 text-success" th:text="${summary.usedLocations}">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-2">Đã đầy</div>
+                    <h3 class="fw-bold mb-0 text-danger" th:text="${summary.fullLocations}">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="text-muted small mb-2">Trống</div>
+                    <h3 class="fw-bold mb-0 text-secondary" th:text="${summary.emptyLocations}">0</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form th:action="@{/warehouses/locations}" method="get" class="mb-3">
+        <div class="row g-2">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text"
+                           name="keyword"
+                           class="form-control"
+                           placeholder="Tìm theo mã vị trí, lối đi, kệ, ngăn..."
+                           th:value="${keyword}">
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <select class="form-select" name="warehouseId">
+                    <option value="">-- Chọn kho --</option>
+                    <option th:each="w : ${warehouses}"
+                            th:value="${w.warehouseId}"
+                            th:text="${w.warehouseName}"
+                            th:selected="${warehouseId != null and warehouseId == w.warehouseId}">
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Tìm kiếm
+                </button>
+                <a th:href="@{/warehouses/locations}" class="btn btn-outline-secondary w-100">Reset</a>
+            </div>
+        </div>
+    </form>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0 fw-bold text-primary">
+                <i class="bi bi-qr-code-scan me-2"></i>Quét mã vị trí kho để xem sản phẩm bên trong
+            </h5>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-2 align-items-end mb-3">
+                <div class="col-lg-6">
+                    <div class="alert alert-info mb-0">
+                        Bấm <b>Mở camera</b>, đưa QR vị trí kho vào giữa khung.
+                        Hệ thống sẽ tự động hiển thị vị trí, zone, lối đi, kệ, ngăn, sản phẩm và số lượng.
+                    </div>
+                </div>
+
+                <div class="col-lg-3">
+                    <button type="button" class="btn btn-primary w-100" onclick="startLocationCameraScan()">
+                        <i class="bi bi-camera me-1"></i> Mở camera
+                    </button>
+                </div>
+
+                <div class="col-lg-3">
+                    <button type="button" class="btn btn-outline-danger w-100" onclick="stopLocationCameraScan()">
+                        <i class="bi bi-x-circle me-1"></i> Tắt camera
+                    </button>
+                </div>
+            </div>
+
+            <div id="locationCameraSection" class="border rounded p-3 mb-3" style="display:none;">
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <div id="location-qr-reader" class="border rounded p-2 bg-white" style="min-height: 320px;"></div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="alert alert-info mb-2">
+                            Đưa QR vị trí kho vào giữa khung. Sau khi quét, hệ thống sẽ tự hiển thị vị trí, zone, kệ, ngăn, sản phẩm và số lượng.
+                        </div>
+                        <div class="small text-muted">
+                            Camera hoạt động tốt nhất trên Chrome hoặc Edge, chạy bằng localhost hoặc https.
+                        </div>
+                        <div id="locationCameraStatus" class="mt-3 fw-semibold text-primary"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="locationInventoryResult" class="mt-3"></div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Mã vị trí</th>
+                        <th>Lối đi</th>
+                        <th>Kệ</th>
+                        <th>Ngăn</th>
+                        <th>Sức chứa</th>
+                        <th>Đã dùng</th>
+                        <th>Tỷ lệ</th>
+                        <th>Trạng thái</th>
+                        <th class="text-center pe-4">Hành động</th>
+                    </tr>
+                    </thead>
+
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(locations)}">
+                        <td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu vị trí kho</td>
+                    </tr>
+
+                    <tr th:each="loc : ${locations}">
+                        <td class="ps-4 fw-semibold text-primary" th:text="${loc.locationCode}">A1-S1-B1</td>
+                        <td th:text="${loc.aisleCode}">A1</td>
+                        <td th:text="${loc.rackCode}">S1</td>
+                        <td th:text="${loc.binCode}">B1</td>
+                        <td th:text="${loc.capacity}">100</td>
+                        <td class="fw-semibold" th:text="${loc.usedCapacity}">85</td>
+                        <td>
+                            <div th:with="percent=${loc.capacity != null and loc.capacity > 0 and loc.usedCapacity != null ? (loc.usedCapacity * 100 / loc.capacity) : 0}">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress" style="width: 110px; height: 8px;">
+                                        <div class="progress-bar"
+                                             th:style="'width:' + ${percent} + '%'"
+                                             th:classappend="${percent >= 100} ? ' bg-danger' : (${percent >= 70} ? ' bg-warning' : ' bg-success')">
+                                        </div>
+                                    </div>
+                                    <span th:text="${percent + '%'}">0%</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${loc.status == 'FULL'} ? ' text-bg-danger' : (${loc.status == 'EMPTY'} ? ' text-bg-secondary' : ' text-bg-success')"
+                                  th:text="${loc.status == 'FULL'} ? 'Đã đầy' : (${loc.status == 'EMPTY'} ? 'Trống' : 'Hoạt động')">
+                                Hoạt động
+                            </span>
+                        </td>
+                        <td class="text-center pe-4">
+                            <div class="d-flex justify-content-center gap-2">
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-info"
+                                        th:onclick="'showLocationQr(' + ${loc.locationId} + ')'">
+                                    <i class="bi bi-qr-code"></i> QR
+                                </button>
+
+                                <a th:href="@{/warehouses/locations/edit/{id}(id=${loc.locationId})}"
+                                   class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-pencil"></i> Sửa
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="locationQrModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">QR vị trí kho</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body text-center">
+                    <h6 id="locationQrCodeText" class="mb-3"></h6>
+                    <img id="locationQrImage" src="" alt="QR Location" class="img-fluid border rounded p-2"/>
+                    <p id="locationQrContent" class="mt-3 text-muted small"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <script>
+        let locationQrScanner = null;
+        let locationCameraRunning = false;
+
+        async function traceInventoryByLocationQr(qrContent) {
+            const resultBox = document.getElementById("locationInventoryResult");
+
+            if (!qrContent || !qrContent.trim()) {
+                resultBox.innerHTML = '<div class="alert alert-warning mb-0">Không đọc được QR vị trí kho.</div>';
+                return;
+            }
+
+            resultBox.innerHTML = '<div class="text-muted">Đang truy xuất tồn kho theo vị trí...</div>';
+
+            try {
+                const response = await fetch(`/warehouses/locations/trace-inventory-by-location-qr?qrContent=${encodeURIComponent(qrContent.trim())}`);
+                const text = await response.text();
+
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    data = text;
+                }
+
+                if (!response.ok) {
+                    resultBox.innerHTML = `<div class="alert alert-danger mb-0">${data}</div>`;
+                    return;
+                }
+
+                const first = data[0];
+
+                let html = `
+                    <div class="alert alert-success">
+                        <div><b>Mã vị trí:</b> ${first.locationCode ?? ''}</div>
+                        <div><b>Zone:</b> ${first.zoneName ?? 'Chưa gán zone'}</div>
+                        <div><b>Lối đi:</b> ${first.aisleCode ?? ''}</div>
+                        <div><b>Kệ:</b> ${first.rackCode ?? ''}</div>
+                        <div><b>Ngăn:</b> ${first.binCode ?? ''}</div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tên sản phẩm</th>
+                                    <th>SKU</th>
+                                    <th>Lô hàng</th>
+                                    <th>Số lượng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                data.forEach(item => {
+                    html += `
+                        <tr>
+                            <td>${item.productName ?? ''}</td>
+                            <td>${item.sku ?? ''}</td>
+                            <td>${item.lotCode ?? ''}</td>
+                            <td>${item.qty ?? 0}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                resultBox.innerHTML = html;
+            } catch (error) {
+                resultBox.innerHTML = '<div class="alert alert-danger mb-0">Có lỗi khi truy xuất vị trí kho.</div>';
+            }
+        }
+
+        async function showLocationQr(locationId) {
+            try {
+                const response = await fetch(`/warehouses/locations/location-qr/${locationId}`);
+                const text = await response.text();
+
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    data = text;
+                }
+
+                if (!response.ok) {
+                    alert(data);
+                    return;
+                }
+
+                document.getElementById("locationQrCodeText").innerText = data.locationCode ?? '';
+                document.getElementById("locationQrContent").innerText = data.qrContent ?? '';
+                document.getElementById("locationQrImage").src = `data:image/png;base64,${data.imgBase64}`;
+
+                const modal = new bootstrap.Modal(document.getElementById('locationQrModal'));
+                modal.show();
+            } catch (error) {
+                alert("Không thể tải QR vị trí kho.");
+            }
+        }
+
+        async function startLocationCameraScan() {
+            const cameraSection = document.getElementById("locationCameraSection");
+            const status = document.getElementById("locationCameraStatus");
+            const resultBox = document.getElementById("locationInventoryResult");
+            const readerId = "location-qr-reader";
+
+            resultBox.innerHTML = "";
+
+            if (locationCameraRunning) {
+                status.innerText = "Camera đang hoạt động.";
+                return;
+            }
+
+            cameraSection.style.display = "block";
+            status.innerText = "Đang mở camera...";
+
+            try {
+                locationQrScanner = new Html5Qrcode(readerId);
+
+                const cameras = await Html5Qrcode.getCameras();
+                if (!cameras || cameras.length === 0) {
+                    status.innerText = "Không tìm thấy camera trên thiết bị.";
+                    return;
+                }
+
+                const cameraId = cameras[0].id;
+
+                await locationQrScanner.start(
+                    cameraId,
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    (decodedText, decodedResult) => {
+                        status.innerText = "Đã quét được QR vị trí: " + decodedText;
+                        stopLocationCameraScan();
+                        traceInventoryByLocationQr(decodedText);
+                    },
+                    (errorMessage) => {}
+                );
+
+                locationCameraRunning = true;
+                status.innerText = "Camera đang hoạt động. Hãy đưa QR vị trí vào giữa khung.";
+            } catch (error) {
+                console.error(error);
+                status.innerText = "Không mở được camera vị trí. Hãy kiểm tra quyền camera.";
+            }
+        }
+
+        async function stopLocationCameraScan() {
+            const cameraSection = document.getElementById("locationCameraSection");
+            const status = document.getElementById("locationCameraStatus");
+            const reader = document.getElementById("location-qr-reader");
+
+            try {
+                if (locationQrScanner && locationCameraRunning) {
+                    await locationQrScanner.stop();
+                    await locationQrScanner.clear();
+                }
+            } catch (error) {
+                console.error("Lỗi khi tắt camera vị trí:", error);
+            }
+
+            locationCameraRunning = false;
+            locationQrScanner = null;
+
+            if (reader) {
+                reader.innerHTML = "";
+            }
+
+            cameraSection.style.display = "none";
+            status.innerText = "";
+        }
+
+        window.addEventListener("beforeunload", () => {
+            stopLocationCameraScan();
+        });
+    </script>
+</div>
+</body>
+</html>

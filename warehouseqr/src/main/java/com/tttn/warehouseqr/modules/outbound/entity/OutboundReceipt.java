@@ -38,4 +38,6 @@ public class OutboundReceipt {
     private Long customerId;
 
 
+
+
 }

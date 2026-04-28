@@ -1,24 +1,41 @@
 package com.tttn.warehouseqr.modules.auth.dto;
 
-import com.tttn.warehouseqr.modules.auth.entity.Role;
 import jakarta.validation.constraints.*;
 
+import java.time.LocalDate;
+
 public class UserUpdateRequest {
-    @NotNull(message = "ID_REQUIRED")
+    @NotNull(message = "ID người dùng không được trống")
     private Long userId;
 
-
-    @NotBlank(message = "FULLNAME_REQUIRED")
-    private String fullName;
-
-    @Email(message = "EMAIL_INVALID")
-    private String email;
-    @Pattern(regexp = "^$|^.{6,}$", message = "PASSWORD_TOO_SHORT")
+    // Đối với Update, password có thể để trống nếu không đổi,
+    // nhưng nếu nhập thì phải đủ 6 ký tự.
+    @Pattern(regexp = "^$|^.{6,}$", message = "Mật khẩu mới phải từ 6 ký tự trở lên")
     private String password;
 
-    @NotBlank(message = "PHONE_REQUIRED") // Nếu bạn muốn bắt buộc nhập
-    @Pattern(regexp = "^(0|\\+84)(\\d{9})$", message = "PHONE_INVALID")
+    @NotBlank(message = "Vui lòng nhập họ và tên")
+    private String fullName;
+
+    @NotBlank(message = "Vui lòng nhập email")
+    @Email(message = "Email không đúng định dạng")
+    private String email;
+
+    @NotBlank(message = "Vui lòng nhập số điện thoại")
+    @Pattern(regexp = "^0[0-9]{9}$", message = "Số điện thoại phải đúng 10 số và bắt đầu bằng số 0")
     private String phone;
+
+    @NotBlank(message = "Vui lòng nhập CCCD")
+    @Pattern(regexp = "^\\d{12}$", message = "CCCD phải đúng 12 số")
+    private String cccd;
+
+    private String gender;
+
+    @Past(message = "Ngày sinh phải là ngày trong quá khứ")
+    @org.springframework.format.annotation.DateTimeFormat(pattern = "yyyy-MM-dd")
+    private LocalDate dateOfBirth;
+
+    private String status;
+
     private Long roleId;
 
     // Getter & Setter
@@ -32,6 +49,39 @@ public class UserUpdateRequest {
     public void setPassword(String password) { this.password = password; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public String getCccd() {
+        return cccd;
+    }
+
+    public void setCccd(String cccd) {
+        this.cccd = cccd;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     public Long getRoleId() { return roleId; }
     public void setRoleId(Long roleId) { this.roleId = roleId; }
 }

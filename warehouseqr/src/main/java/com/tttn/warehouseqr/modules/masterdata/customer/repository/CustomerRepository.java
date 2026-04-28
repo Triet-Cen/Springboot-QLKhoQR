@@ -24,4 +24,3 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     """)
     List<Customer> searchByKeyword(@Param("keyword") String keyword);
 }
-

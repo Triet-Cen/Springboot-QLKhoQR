@@ -1,0 +1,301 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Bảng Điều Khiển Hệ Thống | WarehouseQR</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div id="mainContent" class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0 fw-bold">Dashboard</h4>
+
+        <a th:href="@{/api/dashboard/export-excel}" class="btn btn-success">
+            <i class="fas fa-file-excel"></i> Xuất Excel
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-primary text-white">
+                <h6>Tổng sản phẩm</h6>
+                <h3 th:text="${stats.totalProducts}">0</h3>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-success text-white">
+                <h6 >Tổng số lượng tồn</h6>
+                <h3 th:text="${stats.totalQuantity}">0</h3>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-warning text-dark">
+                <h6>Cảnh báo sắp hết</h6>
+                <h3 th:text="${stats.lowStockWarnings}">0</h3>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-info text-white">
+                <h6>Giá trị kho sản phẩm</h6>
+                <h3 th:text="${#numbers.formatDecimal(stats.totalInventoryValue, 0, 'COMMA', 0, 'POINT')} + ' đ'">0 đ</h3>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <h6 class="fw-bold mb-3">Thống kê tổng quát</h6>
+
+                <div style="height: 300px;">
+                    <canvas id="inventoryBarChart"></canvas>
+                </div>
+
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm p-3 h-100">
+                <h6 class="fw-bold mb-3">Tỉ lệ hàng tồn</h6>
+                <div style="height: 300px;">
+                    <canvas id="inventoryPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm p-4" style="border-radius: 15px;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 class="fw-bold mb-0">
+                    <i class="bi bi-bar-chart-line-fill text-primary me-2"></i> So Sánh Nhập & Xuất (7 Ngày Qua)
+                </h6>
+                <div class="badge bg-light text-dark border">Đơn vị: Sản phẩm</div>
+            </div>
+            <div style="height: 350px;">
+                <canvas id="trendBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-2">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 12px;">
+                <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold text-danger mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Cần Nhập Hàng Gấp (Tồn Kho Thấp)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                            <tr>
+                                <th>Mã SKU</th>
+                                <th>Tên Sản Phẩm</th>
+                                <th class="text-center">Tồn Hiện Tại</th>
+                                <th>Trạng Thái</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="item : ${lowStockItems}">
+                                <td th:text="${item.sku}" class="fw-semibold text-secondary">SKU-001</td>
+                                <td th:text="${item.productName}" class="text-dark fw-medium">Tên mặt hàng</td>
+
+                                <td class="text-center fw-bold text-danger"
+                                    th:text="${#numbers.formatDecimal(item.totalQuantity, 0, 'COMMA', 0, 'POINT')}">12</td>
+
+                                <td class="">
+                                <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2">
+                                    <i class="bi bi-cart-plus me-1"></i>Cần nhập thêm
+                                </span>
+                                </td>
+                            </tr>
+
+                            <tr th:if="${#lists.isEmpty(lowStockItems)}">
+                                <td colspan="4" class="text-center text-success py-4">
+                                    <i class="bi bi-check-circle-fill me-2"></i>Tuyệt vời! Mọi mặt hàng đều ở mức an toàn.
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm p-3">
+                <h6 class="fw-bold mb-3">Danh sách Nhà cung cấp đối tác</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                        <tr>
+                            <th>Mã NCC</th>
+                            <th>Tên Nhà cung cấp</th>
+                            <th>Người liên hệ</th>
+                            <th>Điện thoại</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="sup : ${suppliers}">
+                            <td th:text="${sup.supplierCode}" class="fw-bold">NCC001</td>
+                            <td th:text="${sup.supplierName}">Công ty ABC</td>
+                            <td th:text="${sup.contactPerson}">Nguyễn Văn A</td>
+                            <td th:text="${sup.phone}">090xxxxxxx</td>
+                            <td>
+                                <span th:if="${sup.active}" class="badge bg-success">Đang hợp tác</span>
+                                <span th:unless="${sup.active}" class="badge bg-danger">Ngừng cung cấp</span>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(suppliers)}">
+                            <td colspan="5" class="text-center text-muted">Chưa có dữ liệu nhà cung cấp</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // 1. Lấy dữ liệu an toàn từ Model Java thông qua Thymeleaf
+        // Cú pháp /*[[...]]*/ giúp JS nhận giá trị trực tiếp từ server
+        const totalProducts = /*[[${stats.totalProducts}]]*/ 0;
+        const totalQuantity = /*[[${stats.totalQuantity}]]*/ 0;
+        const lowStock = /*[[${stats.lowStockWarnings}]]*/ 0;
+
+        // Kiểm tra dữ liệu trong Console của trình duyệt (Nhấn F12 để xem)
+        console.log("Dữ liệu nhận được:", {totalProducts, totalQuantity, lowStock});
+
+        // Hàm vẽ biểu đồ sẽ chạy sau khi trang web load xong
+        document.addEventListener("DOMContentLoaded", function() {
+
+            // 2. Biểu đồ Cột (Inventory Bar Chart)
+            const ctxBar = document.getElementById('inventoryBarChart');
+            if (ctxBar) {
+                new Chart(ctxBar.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Mặt hàng', 'Số lượng tồn', 'Cảnh báo'],
+                        datasets: [{
+                            label: 'Số lượng',
+                            data: [totalProducts, totalQuantity, lowStock],
+                            backgroundColor: [
+                                'rgba(13, 110, 253, 0.7)',
+                                'rgba(25, 135, 84, 0.7)',
+                                'rgba(255, 193, 7, 0.7)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+
+            // 3. Biểu đồ Tròn (Pie Chart)
+            const ctxPie = document.getElementById('inventoryPieChart');
+            if (ctxPie) {
+                new Chart(ctxPie.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Bình thường', 'Sắp hết hàng'],
+                        datasets: [{
+                            data: [totalProducts - lowStock, lowStock],
+                            backgroundColor: ['#0d6efd', '#ffc107'],
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        });
+        fetch('/api/dashboard/trends')
+            .then(response => response.json())
+            .then(data => {
+                const ctxBar = document.getElementById('trendBarChart').getContext('2d');
+                new Chart(ctxBar, {
+                    type: 'bar', // Chuyển từ 'line' sang 'bar'
+                    data: {
+                        labels: data.labels, // Các ngày trong tuần
+                        datasets: [
+                            {
+                                label: 'Nhập kho',
+                                data: data.inboundData,
+                                backgroundColor: '#198754', // Màu xanh doanh nghiệp
+                                borderRadius: 6, // Bo góc cột cho hiện đại
+                                barPercentage: 0.6,
+                                categoryPercentage: 0.5
+                            },
+                            {
+                                label: 'Xuất kho',
+                                data: data.outboundData,
+                                backgroundColor: '#dc3545', // Màu đỏ chuyên nghiệp
+                                borderRadius: 6,
+                                barPercentage: 0.6,
+                                categoryPercentage: 0.5
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                align: 'end',
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 20
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 12,
+                                cornerRadius: 8
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: {
+                                    drawBorder: false,
+                                    color: '#f0f0f0'
+                                },
+                                ticks: {
+                                    stepSize: 10 // Tự điều chỉnh bước nhảy con số
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false // Ẩn lưới dọc để nhìn sạch hơn
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        /*]]>*/
+    </script>
+</div>
+</body>
+</html>

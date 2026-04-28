@@ -16,12 +16,30 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable()) // Tạm thời disable để test cho nhanh, nếu chạy rồi thì bật lại sau
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/css/**", "/js/**", "/img/**").permitAll()
-                        .requestMatchers("/auth/login").permitAll()
-                        .requestMatchers("/admin/users/**").hasAnyRole("ADMIN", "MANAGER")
+                        // 1. Công khai (Public)
+                        .requestMatchers("/","/product-detail/**","/product/**","/css/**", "/js/**", "/img/**", "/auth/**").permitAll()
+                        .requestMatchers("/manager/purchase-orders/**").permitAll() // Cho phép xem/tạo đơn mua hàng công khai
+
+                        // 2. Quản trị hệ thống (Chỉ ADMIN)
+                        .requestMatchers("/admin/users/**").hasRole("ADMIN")
+
+                        // 3. Phê duyệt & Tài chính (ADMIN và MANAGER)
+                        .requestMatchers("/api/sales-orders/*/approve").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/api/sales-orders/*/rollback-payment").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/manager/approvals/**", "/api/manager/orders/**").hasAnyRole("ADMIN", "MANAGER")
+
+                        // 4. Quản lý danh mục & Thiết lập kho (ADMIN và MANAGER)
+                        // Staff không nên có quyền sửa Đơn vị tính (Units) hoặc Danh mục (Categories)
+                        .requestMatchers("/units/**", "/categories/**").hasAnyRole("ADMIN", "MANAGER")
+
+                        // 5. Nghiệp vụ vận hành kho (ADMIN, MANAGER và STAFF)
                         .requestMatchers("/products/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
-                        .requestMatchers("/categories/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
-                        .requestMatchers("/units/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers("/manager/inbound/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers("/manager/transfer/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers("/scan-station/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
+                        .requestMatchers("/scan-station/warehouses/**").authenticated()
+
+                        // 6. Quyền cơ bản cho USER (Khách hàng/Khác)
                         .anyRequest().authenticated()
                 )
                 .formLogin(login -> login
@@ -36,10 +54,12 @@ public class SecurityConfig {
                                     .removeRequest(request, response);
 
                             String targetUrl = "/";
-                            if (roles.contains("ROLE_ADMIN") || roles.contains("ROLE_MANAGER")) {
+                            if (roles.contains("ROLE_ADMIN")) {
                                 targetUrl = "/admin/users";
+                            } else if (roles.contains("ROLE_MANAGER")) {
+                                targetUrl = "/manager/approvals"; // Quản lý vào trang duyệt đơn
                             } else if (roles.contains("ROLE_STAFF")) {
-                                targetUrl = "/products";
+                                targetUrl = "/products"; // Nhân viên vào trang hàng hóa
                             }
                             response.sendRedirect(request.getContextPath() + targetUrl);
                         })

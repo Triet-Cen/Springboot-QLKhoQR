@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theo dõi tồn kho</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <th:block th:replace="fragments/header"></th:block>
+
+    <style>
+        body { background-color: #f8f9fa; }
+
+        .card-stat {
+            border-radius: 12px; border: 1px solid #eef0f4; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            padding: 20px; background: #fff; display: flex; justify-content: space-between; align-items: center;
+        }
+        .card-stat .title { font-size: 14px; color: #6b7280; margin-bottom: 8px; }
+        .card-stat .value { font-size: 24px; font-weight: 700; color: #111827; }
+        .icon-box {
+            width: 48px; height: 48px; border-radius: 8px;
+            display: flex; justify-content: center; align-items: center; font-size: 24px;
+        }
+        .icon-blue { background: #e0f2fe; color: #0284c7; }
+        .icon-green { background: #dcfce7; color: #16a34a; }
+        .icon-purple { background: #f3e8ff; color: #9333ea; }
+        .icon-red { background: #fee2e2; color: #dc2626; }
+
+        .table-custom th { text-transform: uppercase; font-size: 12px; color: #6b7280; font-weight: 600; padding: 12px 16px; border-bottom: 2px solid #e5e7eb;}
+        .table-custom td { padding: 16px; vertical-align: middle; color: #374151; font-weight: 500;}
+        .table-custom tr { border-bottom: 1px solid #e5e7eb; background: #fff; }
+        .table-custom tr:hover { background-color: #f9fafb; }
+
+        .badge-category { background: #f3f4f6; color: #4b5563; padding: 4px 10px; border-radius: 9999px; font-size: 13px; border: 1px solid #e5e7eb;}
+        .sku-link { color: #2563eb; font-weight: 600; text-decoration: none; }
+
+        .badge-status { padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center;}
+        .status-safe { background: #dcfce7; color: #15803d; }
+        .status-danger { background: #fee2e2; color: #b91c1c; }
+
+        .row-warning { background-color: #fff1f2 !important; }
+        .text-warning-red { color: #dc2626 !important; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="d-flex min-vh-100">
+
+    <!-- Sidebar -->
+    <div th:replace="fragments/sidebar"></div>
+
+    <div class="flex-grow-1 d-flex flex-column w-100">
+
+        <!-- Navbar -->
+        <div th:replace="fragments/navbar"></div>
+
+        <!-- Nội dung chính -->
+        <div class="p-4 flex-grow-1">
+            <div class="container-fluid">
+                <h5 class="mb-4 text-secondary fw-bold">Theo dõi số lượng và giá trị hàng tồn kho</h5>
+
+                <!-- 4 thẻ thống kê -->
+                <div class="row mb-4">
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100">
+                            <div class="flex-grow-1 overflow-hidden pe-2">
+                                <div class="title">Tổng sản phẩm</div>
+                                <div class="value text-truncate">
+                                    <span th:text="${dashboard?.totalProducts ?: 0}">0</span>
+                                </div>
+                            </div>
+                            <div class="icon-box icon-blue flex-shrink-0"><i class="bi bi-box-seam"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100">
+                            <div class="flex-grow-1 overflow-hidden pe-2">
+                                <div class="title">Tổng số lượng</div>
+                                <div class="value text-truncate">
+                                    <span th:text="${dashboard?.formattedTotalQuantity ?: dashboard?.totalQuantity ?: 0}">0</span>
+                                </div>
+                            </div>
+                            <div class="icon-box icon-green flex-shrink-0"><i class="bi bi-boxes"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100">
+                            <div class="flex-grow-1 overflow-hidden pe-2">
+                                <div class="title">Giá trị tồn kho</div>
+                                <div class="value text-truncate" title="Giá trị tồn kho chi tiết">
+                                    <span th:text="${dashboard?.formattedTotalValue ?: '0'}">0</span>
+                                    <span class="ms-1">đ</span>
+                                </div>
+                            </div>
+                            <div class="icon-box icon-purple flex-shrink-0"><i class="bi bi-cash-stack"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <div class="card-stat h-100">
+                            <div class="flex-grow-1 overflow-hidden pe-2">
+                                <div class="title">Sắp hết hàng</div>
+                                <div class="value text-truncate text-danger">
+                                    <span th:text="${dashboard?.lowStockWarnings ?: 0}">0</span>
+                                </div>
+                            </div>
+                            <div class="icon-box icon-red flex-shrink-0"><i class="bi bi-exclamation-triangle"></i></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thanh tìm kiếm + bộ lọc kho -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <form th:action="@{/admin/inventory}" method="get" class="flex-grow-1 d-flex gap-2">
+                        <!-- Ô tìm kiếm -->
+                        <div class="position-relative flex-grow-1" style="max-width: 350px;">
+                            <i class="bi bi-search position-absolute" style="top: 10px; left: 15px; color: #9ca3af;"></i>
+                            <input type="text" name="keyword" th:value="${keyword}" class="form-control ps-5 rounded-pill border-0 shadow-sm" placeholder="Tìm theo SKU, tên sản phẩm...">
+                        </div>
+
+                        <!-- Dropdown chọn kho -->
+                        <div style="min-width: 220px;">
+                            <select name="warehouseId" class="form-select rounded-pill border-0 shadow-sm" onchange="this.form.submit()">
+                                <option value="">-- Tất cả kho --</option>
+                                <option th:each="wh : ${warehouses}"
+                                        th:value="${wh.warehouseId}"
+                                        th:text="${wh.warehouseName}"
+                                        th:selected="${wh.warehouseId == selectedWarehouseId}">
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Nút lọc (có thể bỏ nếu dùng onchange) -->
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 shadow-sm">Lọc</button>
+                    </form>
+                </div>
+
+                <!-- Bảng tồn kho -->
+                <div class="bg-white rounded-3 shadow-sm overflow-hidden">
+                    <table class="table table-borderless table-custom mb-0 w-100">
+                        <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Tên sản phẩm</th>
+                            <th>Danh mục</th>
+                            <th>Số lượng</th>
+                            <th>Giá trị (đ)</th>
+                            <th>Tình trạng</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <th:block th:each="item : ${items}">
+
+                            <tr th:classappend="${item?.lowStock} ? 'row-warning' : ''" th:id="'row-' + ${item.productId}">
+
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary border-0 me-1"
+                                            th:onclick="'toggleDetails(' + ${item.productId} + ')'"
+                                            title="Xem chi tiết vị trí">
+                                        <i th:id="'icon-' + ${item.productId}" class="bi bi-plus-square"></i>
+                                    </button>
+                                    <a href="#" class="sku-link" th:text="${item?.sku}">SKU</a>
+                                </td>
+
+                                <td th:text="${item?.productName}" class="fw-semibold">Tên SP</td>
+                                <td><span class="badge-category" th:text="${item?.categoryName}">Danh mục</span></td>
+
+                                <td th:text="${#numbers.formatDecimal(item?.totalQuantity ?: 0, 0, 'COMMA', 0, 'POINT')}"
+                                    th:classappend="${item?.lowStock} ? 'text-warning-red' : ''">0</td>
+
+                                <td th:text="${#numbers.formatDecimal(item?.totalValue ?: 0, 0, 'COMMA', 0, 'POINT')}">0</td>
+
+                                <td>
+                                    <span th:if="${item?.lowStock}" class="badge-status status-danger">
+                                        <i class="bi bi-exclamation-octagon-fill me-2"></i> Báo động
+                                    </span>
+                                    <span th:unless="${item?.lowStock}" class="badge-status status-safe">
+                                        <i class="bi bi-check-circle-fill me-2"></i> Ổn định
+                                    </span>
+                                </td>
+                            </tr>
+
+                            <tr th:id="'details-' + ${item.productId}" style="display: none;">
+                                <td colspan="6" class="p-0 border-0">
+                                    <div th:id="'content-' + ${item.productId}" class="p-3 bg-white" style="border-left: 4px solid #0d6efd;">
+                                        <div class="text-center py-2 text-muted">
+                                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                            Đang tải dữ liệu vị trí...
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+
+                        </th:block>
+
+                        <tr th:if="${#lists.isEmpty(items)}">
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-2 text-light"></i>
+                                Không tìm thấy dữ liệu tồn kho.
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div th:replace="fragments/footer"></div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<template>
+    <div th:fragment="detail-fragment">
+        <table class="table table-sm table-bordered bg-light mb-0">
+            <thead class="table-dark">
+            <tr>
+                <th>Vị trí (Kệ/Ô)</th>
+                <th>Mã lô </th>
+                <th>Số lượng</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="d : ${details}">
+                <td th:text="${d.locationCode}">-</td>
+                <td th:text="${d.lotCode != null ? d.lotCode : 'N/A'}">N/A</td>
+                <td th:text="${d.qty}">0</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</template>
+<script>
+    function toggleDetails(productId) {
+        const detailRow = document.getElementById('details-' + productId);
+        const contentDiv = document.getElementById('content-' + productId);
+        const icon = document.getElementById('icon-' + productId);
+
+        // Lấy ID kho đang được chọn trên bộ lọc
+        const warehouseSelect = document.querySelector('select[name="warehouseId"]');
+        const warehouseId = warehouseSelect ? warehouseSelect.value : '';
+
+        if (detailRow.style.display === 'none') {
+            // Mở dòng
+            detailRow.style.display = 'table-row';
+            icon.classList.remove('bi-plus-square');
+            icon.classList.add('bi-dash-square', 'text-danger');
+
+            contentDiv.innerHTML = '<div class="text-center py-2 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Đang tải dữ liệu vị trí...</div>';
+
+            // Xây dựng URL thông minh
+            let fetchUrl = `/admin/inventory/details/${productId}`;
+            if (warehouseId !== '') {
+                fetchUrl += `?warehouseId=${warehouseId}`;
+            }
+
+            // Gọi Ajax
+            fetch(fetchUrl)
+                .then(res => {
+                    if (!res.ok) throw new Error('Network response was not ok');
+                    return res.text();
+                })
+                .then(html => {
+                    // Chốt chặn an toàn: Kiểm tra nếu HTML trả về chứa cả thẻ <html> hoặc <head> (tức là bị redirect sai)
+                    if (html.includes('<html') || html.includes('<!DOCTYPE html>')) {
+                        contentDiv.innerHTML = '<div class="text-danger text-center p-2"><i class="bi bi-exclamation-triangle"></i> Lỗi máy chủ: Trả về sai định dạng fragment.</div>';
+                    } else {
+                        // Nếu đúng là thẻ fragment nhỏ gọn thì mới in ra
+                        contentDiv.innerHTML = html;
+                    }
+                })
+                .catch(err => {
+                    contentDiv.innerHTML = '<div class="text-danger text-center p-2"><i class="bi bi-x-circle"></i> Không thể tải dữ liệu chi tiết!</div>';
+                });
+        } else {
+            // Đóng dòng
+            detailRow.style.display = 'none';
+            icon.classList.remove('bi-dash-square', 'text-danger');
+            icon.classList.add('bi-plus-square');
+        }
+    }
+</script>
+</body>
+</html>

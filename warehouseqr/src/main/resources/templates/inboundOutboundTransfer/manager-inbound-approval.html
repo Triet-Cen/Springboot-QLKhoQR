@@ -1,0 +1,292 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Quản lý Xét duyệt | WMS Pro</title>
+    <style th:inline="css">
+        :root {
+            --primary-gradient: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+            --success-gradient: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            --warning-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+
+        .dashboard-title {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .op-card {
+            border: none;
+            border-radius: 20px;
+            background: var(--glass-bg);
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .table-custom th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            padding: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .table-custom td {
+            padding: 15px;
+            vertical-align: middle;
+            color: #1e293b;
+            font-weight: 500;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .status-pending { background-color: #fef3c7; color: #d97706; }
+
+        .btn-view {
+            background-color: #eff6ff;
+            color: #2563eb;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-view:hover { background-color: #2563eb; color: white; }
+
+        /* Highlight dòng bị sai lệch số lượng */
+        .row-discrepancy {
+            background-color: #fef2f2 !important;
+            border-left: 4px solid #ef4444 !important;
+        }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4 px-md-5">
+
+        <div th:if="${success}" class="alert alert-success alert-dismissible fade show rounded-pill px-4 border-0 shadow-sm mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${success}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show rounded-pill px-4 border-0 shadow-sm mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <span th:text="${error}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <div class="d-flex justify-content-between align-items-end mb-4">
+            <div>
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill mb-2 fw-bold">MANAGER PORTAL</span>
+                <h2 class="dashboard-title mb-0">Phê duyệt Nhập Kho</h2>
+                <p class="text-muted mt-1">Kiểm tra và đối soát số lượng từ bộ phận kho gửi lên</p>
+            </div>
+            <div>
+                <button class="btn btn-outline-secondary rounded-pill fw-bold" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Làm mới
+                </button>
+            </div>
+        </div>
+
+        <div class="card op-card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-custom mb-0 table-hover">
+                        <thead>
+                        <tr>
+                            <th width="5%" class="text-center">#</th>
+                            <th width="15%">Mã Phiếu Nhập</th>
+                            <th width="15%">Ngày Quét</th>
+                            <th width="20%">Kho Nhận</th>
+                            <th width="15%">Người Quét</th>
+                            <th width="15%" class="text-center">Trạng Thái</th>
+                            <th width="15%" class="text-center">Thao Tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="r : ${pendingReceipts}">
+                            <td class="text-center" th:text="${r.id}">1</td>
+                            <td>
+                                <span class="fw-bold text-dark" th:text="${r.inboundReceiptCode}">PN-123</span><br>
+                                <small class="text-muted" th:text="'PO Ref: ' + ${r.purchaseOrders != null ? r.purchaseOrders.id : 'Nhập lẻ'}"></small>
+                            </td>
+                            <td th:text="${#temporals.format(r.createdAt, 'dd/MM/yyyy HH:mm')}">16/04/2026</td>
+                            <td th:text="${r.warehouse.warehouseName}">Kho Nhận</td>
+                            <td th:text="${r.user.username}">Người Quét</td>
+                            <td class="text-center">
+                                <span class="status-badge status-pending"><i class="bi bi-hourglass-split me-1"></i>Chờ duyệt</span>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-view px-3"
+                                        th:data-id="${r.id}"
+                                        th:data-code="${r.inboundReceiptCode}"
+                                        onclick="openApprovalModal(this.dataset.id, this.dataset.code)">
+                                    Đối soát <i class="bi bi-arrow-right-short"></i>
+                                </button>
+
+                            </td>
+
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(pendingReceipts)}">
+                            <td colspan="7" class="text-center py-5 text-muted fw-bold">
+                                Không có phiếu nhập kho nào đang chờ duyệt.
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div th:replace="~{fragments/approval-modal :: modal}"></div>
+
+    <script th:inline="javascript">
+        let currentReceiptId = null;
+        let myModalInstance = null; // Khai báo rỗng ban đầu
+
+        // Hàm gọi API lấy chi tiết phiếu nhập (Dùng Fetch thật)
+        async function openApprovalModal(receiptId, receiptCode) {
+            currentReceiptId = receiptId;
+            document.getElementById('modalReceiptCode').innerText = receiptCode;
+            document.getElementById('approvalNote').value = ""; // Reset ghi chú
+
+            // Hiện trạng thái đang tải dữ liệu
+            const tbody = document.getElementById('detailTableBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+
+            // KHỞI TẠO VÀ HIỂN THỊ MODAL AN TOÀN TẠI ĐÂY
+            const modalElement = document.getElementById('approvalModal');
+            myModalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+            myModalInstance.show();
+
+            try {
+                // Gọi API lấy danh sách items thực tế của phiếu nhập
+                const response = await fetch(`/manager/inbound/api/receipts/${receiptId}/items`);
+                if (!response.ok) throw new Error("Không thể tải chi tiết phiếu nhập này!");
+
+                const items = await response.json();
+
+                // Chuẩn hóa dữ liệu trước khi render
+                const normalizedItems = items.map(item => ({
+                    productName: item.product ? item.product.productName : "SP Không xác định",
+                    lotCode: item.batch ? item.batch.lotCode : "Chờ nhập",
+                    locationCode: item.putawayLocationId || "Chưa xếp kệ",
+                    expectedQty: item.expectedQty || 0,
+                    actualQty: item.actualQty || 0
+                }));
+
+                renderDetailTable(normalizedItems);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger fw-bold py-4">Lỗi: ${err.message}</td></tr>`;
+                console.error(err);
+            }
+        }
+
+        function renderDetailTable(items) {
+            const tbody = document.getElementById('detailTableBody');
+            let hasDiscrepancy = false;
+
+            tbody.innerHTML = items.map(item => {
+                const diff = item.actualQty - item.expectedQty;
+                const isDiff = diff !== 0;
+                if(isDiff) hasDiscrepancy = true;
+
+                // Xử lý hiển thị cột Chênh lệch
+                let diffBadge = `<span class="badge bg-secondary">Khớp</span>`;
+                if (diff > 0) diffBadge = `<span class="badge bg-warning text-dark">+${diff} (Dư)</span>`;
+                if (diff < 0) diffBadge = `<span class="badge bg-danger">${diff} (Thiếu)</span>`;
+
+                return `
+                    <tr class="${isDiff ? 'row-discrepancy' : ''}">
+                        <td class="px-3">
+                            <div class="fw-bold text-dark">${item.productName}</div>
+                            <div class="small text-muted">Lô: ${item.lotCode}</div>
+                        </td>
+                        <td class="text-center"><span class="badge bg-light border text-dark">${item.locationCode}</span></td>
+                        <td class="text-end fw-bold text-muted">${item.expectedQty}</td>
+                        <td class="text-end fw-bold ${isDiff ? 'text-danger' : 'text-success'} fs-5">${item.actualQty}</td>
+                        <td class="text-center">${diffBadge}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Hiệu ứng cảnh báo cho Trưởng phòng
+            const btnApprove = document.getElementById('btnApprove');
+            if (hasDiscrepancy) {
+                btnApprove.className = "btn btn-warning fw-bold rounded-pill px-5 shadow-sm text-dark";
+                btnApprove.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>Duyệt chấp nhận Sai lệch`;
+            } else {
+                btnApprove.className = "btn btn-success fw-bold rounded-pill px-5 shadow-sm";
+                btnApprove.innerHTML = `<i class="bi bi-check-circle me-2"></i>Xác nhận Phê Duyệt`;
+            }
+        }
+
+        function approveReceipt() {
+            const note = document.getElementById('approvalNote').value;
+
+            if(!confirm("Hành động này sẽ cập nhật Tồn kho chính thức. Bạn có chắc chắn?")) return;
+
+            const btn = document.getElementById('btnApprove');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Đang xử lý...`;
+
+            // BẮN DỮ LIỆU LÊN SERVER THẬT QUA FORM ẨN
+            const form = document.getElementById('actionForm');
+            form.action = `/manager/inbound/${currentReceiptId}/approve`;
+            document.getElementById('formNote').value = note;
+            form.submit();
+        }
+
+        function rejectReceipt() {
+            const note = document.getElementById('approvalNote').value;
+            const actionContainer = document.getElementById('rejectActionContainer');
+
+            // 1. Nếu khung chọn hướng xử lý PO đang ẩn, thì HIỆN NÓ LÊN và yêu cầu chọn
+            if (actionContainer.style.display === 'none') {
+                actionContainer.style.display = 'block';
+                document.getElementById('rejectActionSelect').focus();
+                // Đổi màu nút từ chối để gây chú ý
+                const btnReject = document.getElementById('btnReject') || document.querySelector('.btn-danger');
+                if(btnReject) {
+                    btnReject.innerHTML = `<i class="bi bi-x-circle me-2"></i>Xác nhận Từ chối & Xử lý PO`;
+                }
+                return; // Dừng lại chưa submit vội
+            }
+
+            // 2. Nếu khung đã hiện, kiểm tra xem đã nhập ghi chú chưa
+            if(!note) {
+                alert("Vui lòng ghi rõ lý do từ chối vào ô Ghi chú!");
+                document.getElementById('approvalNote').focus();
+                return;
+            }
+
+            // 3. Tiến hành submit
+            if(confirm("Xác nhận TỪ CHỐI phiếu nhập này?")) {
+                const rejectAction = document.getElementById('rejectActionSelect').value;
+
+                const form = document.getElementById('actionForm');
+                form.action = `/manager/inbound/${currentReceiptId}/reject`;
+                document.getElementById('formNote').value = note;
+                document.getElementById('formRejectAction').value = rejectAction; // Gửi giá trị này đi
+                form.submit();
+            }
+        }
+
+
+    </script>
+</div>
+</body>
+</html>

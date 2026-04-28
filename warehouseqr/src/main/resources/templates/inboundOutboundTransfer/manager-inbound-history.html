@@ -1,0 +1,216 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/admin-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Lịch sử Nhập kho | WMS Pro</title>
+    <style th:inline="css">
+        :root {
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .history-title {
+            background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        .op-card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .table-custom th {
+            background-color: #f8fafc;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            padding: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .table-custom td {
+            vertical-align: middle;
+            padding: 1rem 15px;
+        }
+
+        /* --- XU HƯỚNG SOFT BADGE MỚI NHẤT --- */
+        .badge-status {
+            padding: 8px 16px;
+            border-radius: 8px; /* Đổi từ pill sang bo góc nhẹ */
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            border: 1px solid transparent;
+        }
+
+        /* Cập nhật màu xanh ngọc tươi sáng cho chữ Hoàn tất */
+        .badge-success-soft {
+            background-color: #d1fae5 !important;
+            color: #1e293b !important; /* Chữ màu Xám Than / Dark Slate */
+            border: 1px solid #a7f3d0;
+        }
+
+        /* Cập nhật màu đỏ hồng dịu mắt cho chữ Từ chối */
+        .badge-danger-soft {
+            background-color: #fee2e2 !important; /* Nền đỏ hồng */
+            color: #991b1b !important; /* Chữ màu Đỏ Đô / Mận chín (Thay cho màu trắng) */
+            border: 1px solid #fecaca;
+        }
+    </style>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container-fluid py-4 px-md-5">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="history-title mb-0">Lịch sử Nhập kho</h2>
+                <p class="text-muted">Danh sách các phiếu nhập đã xử lý (Hoàn tất hoặc Từ chối)</p>
+            </div>
+            <div>
+                <a href="/manager/inbound/approval-list" class="btn btn-outline-primary rounded-pill fw-bold">
+                    <i class="bi bi-arrow-left me-2"></i>Về trang Chờ duyệt
+                </a>
+            </div>
+        </div>
+
+        <div class="card op-card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover mb-0 align-middle">
+                        <thead>
+                        <tr>
+                            <th class="text-center">ID</th>
+                            <th>Mã Phiếu Nhập</th>
+                            <th>Thời Gian Xử Lý</th>
+                            <th>Kho Hàng</th>
+                            <th class="text-center">Trạng Thái</th>
+                            <th class="text-center">Thao Tác</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="r : ${historyReceipts}">
+                            <td class="text-center text-muted" th:text="${r.id}"></td>
+                            <td>
+                                <span class="fw-bold text-dark" th:text="${r.inboundReceiptCode}"></span>
+                                <div class="small text-muted" th:text="${r.purchaseOrders != null ? 'PO Ref: ' + r.purchaseOrders.id : 'Nhập lẻ'}"></div>
+                            </td>
+                            <td th:text="${#temporals.format(r.receivedAt, 'dd/MM/yyyy HH:mm')}"></td>
+                            <td th:text="${r.warehouse.warehouseName}">Kho chính</td>
+                            <td class="text-center">
+                                <span th:if="${r.status == 'COMPLETED'}" class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-3 shadow-sm" style="font-size: 0.8rem;">
+                                    <i class="bi bi-check-circle-fill me-1"></i>HOÀN TẤT
+                                </span>
+
+                                <span th:if="${r.status == 'REJECTED'}" class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-3 shadow-sm" style="font-size: 0.8rem;">
+                                    <i class="bi bi-x-circle-fill me-1"></i>TỪ CHỐI
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group shadow-sm rounded-3">
+                                    <button class="btn btn-sm btn-white border" title="Xem chi tiết"
+                                            th:data-id="${r.id}"
+                                            th:data-code="${r.inboundReceiptCode}"
+                                            onclick="openViewModal(this.dataset.id, this.dataset.code)">
+                                        <i class="bi bi-eye text-primary"></i>
+                                    </button>
+                                    <a th:href="@{'/manager/inbound/' + ${r.id} + '/print'}"
+                                       target="_blank" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-printer"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(historyReceipts)}">
+                            <td colspan="6" class="text-center py-5 text-muted">Chưa có dữ liệu lịch sử.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div th:replace="~{fragments/approval-modal :: modal}"></div>
+
+    <script th:inline="javascript">
+        let currentReceiptId = null;
+        let myModalInstance = null;
+
+        async function openViewModal(receiptId, receiptCode) {
+            currentReceiptId = receiptId;
+            document.getElementById('modalReceiptCode').innerText = receiptCode;
+            const tbody = document.getElementById('detailTableBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border text-primary"></div></td></tr>';
+
+            // Lấy các phần tử hành động
+            const btnApprove = document.getElementById('btnApprove');
+            const btnReject = document.getElementById('btnReject');
+            const noteArea = document.getElementById('noteArea');
+
+            // RESET trạng thái hiển thị (Đảm bảo các nút hiện ra trước khi bị ẩn)
+            if (btnApprove) btnApprove.style.display = 'block';
+            if (btnReject) btnReject.style.display = 'block';
+            if (noteArea) noteArea.style.display = 'block';
+
+            // ẨN CHO TRANG LỊCH SỬ
+            if (btnApprove) btnApprove.style.display = 'none';
+            if (btnReject) btnReject.style.display = 'none';
+            if (noteArea) noteArea.style.display = 'none';
+
+            // 3. Hiển thị Modal
+            const modalElement = document.getElementById('approvalModal');
+            myModalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
+            myModalInstance.show();
+
+            try {
+                // 4. Gọi API lấy chi tiết (Dùng chung Endpoint với bên Approval)
+                const response = await fetch(`/manager/inbound/api/receipts/${receiptId}/items`);
+                if (!response.ok) throw new Error("Không thể tải chi tiết phiếu!");
+
+                const items = await response.json();
+
+                // 5. Render bảng dữ liệu
+                renderHistoryDetailTable(items);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Lỗi: ${err.message}</td></tr>`;
+            }
+        }
+
+        function renderHistoryDetailTable(items) {
+            const tbody = document.getElementById('detailTableBody');
+
+            tbody.innerHTML = items.map(item => {
+                const expected = item.expectedQty || 0;
+                const actual = item.actualQty || 0;
+                const diff = actual - expected;
+                const isDiff = diff !== 0;
+
+                let diffBadge = `<span class="badge bg-light text-success border">Khớp</span>`;
+                if (diff > 0) diffBadge = `<span class="badge bg-warning text-dark">+${diff}</span>`;
+                if (diff < 0) diffBadge = `<span class="badge bg-danger">${diff}</span>`;
+
+                return `
+            <tr class="${isDiff ? 'bg-light' : ''}">
+                <td class="px-3">
+                    <div class="fw-bold text-dark">${item.product ? item.product.productName : 'N/A'}</div>
+                    <div class="small text-muted">Lô: ${item.batch ? item.batch.lotCode : '---'}</div>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-white border text-dark">${item.putawayLocationId || '---'}</span>
+                </td>
+                <td class="text-end text-muted">${expected}</td>
+                <td class="text-end fw-bold ${isDiff ? 'text-danger' : 'text-dark'}">${actual}</td>
+                <td class="text-center">${diffBadge}</td>
+            </tr>
+        `;
+            }).join('');
+        }
+    </script>
+</div>
+</body>
+</html>

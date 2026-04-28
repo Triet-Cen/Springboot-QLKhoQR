@@ -14,6 +14,8 @@ public class InboundRequestDTO {
     private Long supplierId;
     private Long warehouseId;
     private String deliveryNoteCode;
+    private Double price;
+
 
     private List<InboundItemRequestDTO> items;
 }

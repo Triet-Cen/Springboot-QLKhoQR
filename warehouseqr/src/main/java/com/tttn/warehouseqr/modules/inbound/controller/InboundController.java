@@ -1,65 +1,185 @@
 package com.tttn.warehouseqr.modules.inbound.controller;
 
+import com.tttn.warehouseqr.common.util.SecurityUtils;
 import com.tttn.warehouseqr.modules.inbound.dto.InboundRequestDTO;
+import com.tttn.warehouseqr.modules.inbound.entity.InboundReceipt;
+import com.tttn.warehouseqr.modules.inbound.repository.InboundReceiptRepository;
+import com.tttn.warehouseqr.modules.inbound.request.InboundItemRequestDTO;
 import com.tttn.warehouseqr.modules.inbound.service.InboundService;
+import com.tttn.warehouseqr.modules.inbound.service.impl.InboundServiceImpl;
 import com.tttn.warehouseqr.modules.masterdata.product.dto.ProductScanDTO;
 import com.tttn.warehouseqr.modules.masterdata.product.service.impl.ProductService;
+import com.tttn.warehouseqr.modules.purchase.entity.PurchaseOrders;
+import com.tttn.warehouseqr.modules.purchase.repository.PurchaseOrdersRepository;
+import com.tttn.warehouseqr.modules.purchase.service.PurchaseOrderService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Controller
-@RequestMapping("/api/inbound")
+@RequestMapping("/manager/inbound")
 public class InboundController {
 
-    private final InboundService inboundService;
-    private final ProductService productService;
+    private final InboundServiceImpl inboundService;
+    private final InboundReceiptRepository receiptRepo;
+    private final SecurityUtils securityUtils;
+    private final PurchaseOrderService poService;
+    private final PurchaseOrdersRepository poRepo;
 
-    public InboundController(InboundService inboundService, ProductService productService) {
+    public InboundController(InboundServiceImpl inboundService,
+                             InboundReceiptRepository receiptRepo,
+                             SecurityUtils securityUtils,
+                             PurchaseOrderService poService,
+                             PurchaseOrdersRepository poRepo) {
         this.inboundService = inboundService;
-        this.productService = productService;
+        this.receiptRepo = receiptRepo;
+        this.securityUtils = securityUtils;
+        this.poService = poService;
+        this.poRepo = poRepo;
     }
 
+    // ==========================================
+    // 1. WEB VIEW METHODS (Thymeleaf)
+    // ==========================================
 
-    @GetMapping("/scan-item")
-    @ResponseBody
-    public ResponseEntity<?> scanItem(@RequestParam String sku, @RequestParam String lotCode) {
+    @GetMapping("/approval-list")
+    public String showApprovalPage(Model model) {
+        List<InboundReceipt> pendingList = receiptRepo.findAll().stream()
+                .filter(r -> "PENDING".equals(r.getStatus()))
+                .collect(Collectors.toList());
+
+        model.addAttribute("pendingReceipts", pendingList);
+        // Đảm bảo đường dẫn file HTML này là đúng trong thư mục templates
+        return "inboundOutboundTransfer/manager-inbound-approval";
+    }
+
+    @PostMapping("/{id}/approve")
+    public String approveReceipt(@PathVariable Long id,
+                                 @RequestParam(required = false) String note,
+                                 RedirectAttributes redirectAttributes) {
         try {
-            // Gọi hàm xử lý logic từ ProductService mà bạn vừa viết
-            ProductScanDTO data = productService.getProductForScan(sku, lotCode);
-            return ResponseEntity.ok(data);
+            inboundService.approveInboundReceipt(id, note);
+            redirectAttributes.addFlashAttribute("success", "Đã phê duyệt phiếu nhập kho và cập nhật tồn kho!");
         } catch (Exception e) {
-            // Trả về thông báo lỗi cụ thể để Frontend hiển thị Alert
+            redirectAttributes.addFlashAttribute("error", "Lỗi phê duyệt: " + e.getMessage());
+        }
+        return "redirect:/manager/inbound/approval-list"; // Thống nhất đường dẫn redirect
+    }
+
+    @PostMapping("/{id}/reject")
+    public String rejectReceipt(@PathVariable Long id,
+                                @RequestParam(required = false) String note,
+                                @RequestParam(name = "rejectAction", defaultValue = "KEEP_OPEN") String rejectAction,
+                                RedirectAttributes redirectAttributes) {
+        try {
+            inboundService.rejectInboundReceipt(id,note,rejectAction);
+
+            redirectAttributes.addFlashAttribute("success", "Đã từ chối phiếu nhập kho.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Lỗi: " + e.getMessage());
+        }
+        return "redirect:/manager/inbound/approval-list"; // Thống nhất đường dẫn redirect
+    }
+
+    // ==========================================
+    // 2. API METHODS (Cho Máy quét JavaScript)
+    // ==========================================
+
+    @GetMapping("/api/purchase-orders/{poCode}/items")
+    @ResponseBody
+    public ResponseEntity<?> getPoItemsForScan(@PathVariable String poCode) {
+        try {
+            PurchaseOrders po = poRepo.findByPoCode(poCode)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy mã PO: " + poCode));
+
+            List<InboundItemRequestDTO> items = poService.getItemsByPoId(po.getId());
+
+            java.util.Map<String, Object> result = new java.util.HashMap<>();
+
+            result.put("poId", po.getId());
+            result.put("supplierId", po.getSupplier() != null ? po.getSupplier().getSupplierId() : null);
+            result.put("warehouseId", po.getWarehouse() != null ? po.getWarehouse().getWarehouseId() : null);
+            result.put("items", items);
+
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    @PostMapping("/confirm")
-    @ResponseBody // Báo cho Spring trả về dữ liệu/text thay vì tìm file HTML
-    public ResponseEntity<String> processInbound(@RequestBody InboundRequestDTO dto) {
-        try {
-            // Gọi service xử lý nghiệp vụ trừ PO, cộng tồn kho mà ta đã viết
-            inboundService.createInboundReceipt(dto);
-            return ResponseEntity.ok("Nhập kho thành công!");
-        } catch (Exception e) {
-            // Trả về lỗi 400 để JavaScript nhảy vào khối .catch()
-            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
-        }
-    }
-
-    @PostMapping("/parse-csv")
+    @PostMapping("/api/confirm")
     @ResponseBody
-    public ResponseEntity<?> parseInboundCsv(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> createInboundFromScan(@RequestBody InboundRequestDTO dto) {
         try {
-            // Gọi hàm parse từ InboundService
-            List<ProductScanDTO> data = inboundService.parseCsvToDTO(file);
-            return ResponseEntity.ok(data);
+            Long userId = securityUtils.getCurrentUserId();
+            InboundReceipt saved = inboundService.createInboundReceipt(dto, userId);
+            return ResponseEntity.ok("Phiếu nhập kho " + saved.getInboundReceiptCode() + " đã được tạo, chờ phê duyệt.");
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Lỗi file Inbound: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Lỗi lưu phiếu: " + e.getMessage());
         }
     }
 
+    @GetMapping("/api/receipts/{id}/items")
+    @ResponseBody
+    public ResponseEntity<?> getReceiptItems(@PathVariable Long id) {
+        try {
+            InboundReceipt receipt = inboundService.getById(id);
+
+            // Đóng gói dữ liệu ra Map để tránh lỗi vòng lặp vô hạn (Infinite Loop) của JPA
+            List<java.util.Map<String, Object>> responseList = receipt.getItems().stream().map(item -> {
+                java.util.Map<String, Object> map = new java.util.HashMap<>();
+                map.put("expectedQty", item.getExpectedQty());
+                map.put("actualQty", item.getActualQty());
+                map.put("putawayLocationId", item.getPutawayLocationId());
+
+                // Tránh lỗi null product
+                if (item.getProduct() != null) {
+                    java.util.Map<String, Object> productMap = new java.util.HashMap<>();
+                    productMap.put("productName", item.getProduct().getProductName());
+                    map.put("product", productMap);
+                }
+
+                // Tránh lỗi null batch
+                if (item.getBatch() != null) {
+                    java.util.Map<String, Object> batchMap = new java.util.HashMap<>();
+                    batchMap.put("lotCode", item.getBatch().getLotCode());
+                    map.put("batch", batchMap);
+                }
+
+                return map;
+            }).collect(Collectors.toList());
+
+            return ResponseEntity.ok(responseList);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // Thêm vào InboundController.java
+
+    @GetMapping("/{id}/print")
+    public String printInboundReceipt(@PathVariable Long id, Model model) {
+        // Lấy thông tin phiếu nhập từ Service
+        InboundReceipt receipt = inboundService.getById(id);
+
+        // Đưa dữ liệu vào Model để Thymeleaf đổ ra HTML
+        model.addAttribute("receipt", receipt);
+
+        // Trả về file HTML nằm trong thư mục templates/inbound/print-receipt.html
+        return "inboundOutboundTransfer/print-inbound-receipt";
+    }
+    @GetMapping("/history")
+    public String inboundHistory(Model model) {
+        // Lấy tất cả phiếu có status khác PENDING (hoặc lấy COMPLETED và REJECTED)
+        List<InboundReceipt> historyReceipts = inboundService.getHistoryReceipts();
+
+        model.addAttribute("historyReceipts", historyReceipts);
+        return "inboundOutboundTransfer/manager-inbound-history";
+    }
 }

@@ -1,29 +1,45 @@
 package com.tttn.warehouseqr.modules.auth.dto;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
+
+import java.time.LocalDate;
 
 public class UserCreateRequest {
-
-    @NotBlank(message = "USERNAME_REQUIRED")
+    @NotBlank(message = "Vui lòng nhập tên đăng nhập")
+    @Size(min = 4, max = 20, message = "Tên đăng nhập phải từ 4 đến 20 ký tự")
+    @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "Tên đăng nhập không được chứa ký tự đặc biệt")
     private String username;
 
-    @NotBlank(message = "FULLNAME_REQUIRED")
-    private String fullName;
-
-    @Email(message = "EMAIL_INVALID")
-    private String email;
-
-    @Size(min = 6, message = "PASSWORD_TOO_SHORT")
+    @NotBlank(message = "Vui lòng nhập mật khẩu")
+    @Size(min = 6, message = "Mật khẩu phải từ 6 ký tự trở lên")
     private String password;
 
-    @NotBlank(message = "PHONE_REQUIRED") // Nếu bạn muốn bắt buộc nhập
-    @Pattern(regexp = "^(0|\\+84)(\\d{9})$", message = "PHONE_INVALID")
+    @NotBlank(message = "Vui lòng nhập họ và tên")
+    private String fullName;
+
+    @NotBlank(message = "Vui lòng nhập email")
+    @Email(message = "Email không đúng định dạng")
+    private String email;
+
+    @NotBlank(message = "Vui lòng nhập số điện thoại")
+    @Pattern(regexp = "^0[0-9]{9}$", message = "Số điện thoại phải đúng 10 số và bắt đầu bằng số 0")
     private String phone;
 
+    @NotBlank(message = "Vui lòng nhập số CCCD")
+    @Pattern(regexp = "^\\d{12}$", message = "CCCD phải đúng 12 số")
+    private String cccd;
+
+    @NotBlank(message = "Vui lòng chọn giới tính")
+    private String gender;
+
+    @NotNull(message = "Vui lòng nhập ngày sinh")
+    @Past(message = "Ngày sinh không hợp lệ")
+    private LocalDate dateOfBirth;
+
+    private String status = "ACTIVE";
+
     private Long roleId;
+
 
     // Getter & Setter
     public String getUsername() { return username; }
@@ -36,6 +52,39 @@ public class UserCreateRequest {
     public void setPassword(String password) { this.password = password; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+
+    public String getCccd() {
+        return cccd;
+    }
+
+    public void setCccd(String cccd) {
+        this.cccd = cccd;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     public Long getRoleId() { return roleId; }
     public void setRoleId(Long roleId) { this.roleId = roleId; }
 }
