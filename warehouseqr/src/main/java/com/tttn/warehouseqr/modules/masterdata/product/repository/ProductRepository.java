@@ -72,5 +72,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "WHERE ilb.productId = :productId AND ilb.warehouseId = :warehouseId")
     List<InventoryDetailDto> getProductInventoryDetails(@Param("productId") Long productId, @Param("warehouseId") Long warehouseId);
 
-
+    //Ham nay de query cac product bi mo coi du lieu
+    @Query("SELECT p FROM Product p " +
+            "INNER JOIN p.category c " +
+            "INNER JOIN p.unit u " +
+            "WHERE (:keyw IS NULL OR p.productName LIKE %:keyw% OR p.sku LIKE %:keyw%)" +
+            "ORDER BY p.product_id ASC")
+    Page<Product> findValidProducts(@Param("keyw") String keyw, Pageable pageable);
 }

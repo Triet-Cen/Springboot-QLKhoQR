@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/user-layout :: layout(~{::title}, ~{::#mainContent})}">
+<head>
+    <title>Chi tiết sản phẩm | WMS Pro</title>
+</head>
+<body>
+<div id="mainContent">
+    <div class="container py-5">
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li>
+                <li class="breadcrumb-item active" th:text="${product?.productName}">Chi tiết</li>
+            </ol>
+        </nav>
+
+        <div class="row g-5">
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm p-4 text-center bg-white rounded-4">
+                    <i class="bi bi-box-seam text-primary opacity-10 mb-4" style="font-size: 10rem;"></i>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="ps-lg-4">
+                    <span class="badge bg-primary mb-2 px-3"
+                          th:text="${product?.category?.categoryName ?: 'Chưa phân loại'}"></span>
+                    <h1 class="display-6 fw-bold text-dark mb-3" th:text="${product?.productName}"></h1>
+
+                    <div class="row mb-4">
+                        <div class="col-6 border-end">
+                            <label class="text-muted small text-uppercase fw-bold">Mã sản phẩm (SKU)</label>
+                            <p class="fs-5 fw-medium text-primary" th:text="${product?.sku}"></p>
+                        </div>
+                        <div class="col-6 ps-4">
+                            <label class="text-muted small text-uppercase fw-bold">Đơn vị tính</label>
+                            <p class="fs-5 fw-medium" th:text="${product?.unit?.unitName ?: 'N/A'}"></p>
+                        </div>
+                    </div>
+
+
+
+                    <h5 class="fw-bold">Mô tả</h5>
+                    <p class="text-secondary lh-lg mb-4" th:text="${product?.description ?: 'Không có mô tả.'}"></p>
+
+                    <a th:href="@{/}" class="btn btn-outline-secondary px-4 py-2 rounded-3">Quay lại</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

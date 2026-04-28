@@ -168,4 +168,11 @@ public class ProductService {
         return dto;
     }
 
+    public Page<Product> getProductsForIndex(String keyw, int page, int size) {
+        // Spring Boot tính trang bắt đầu từ 0
+        Pageable pageable = PageRequest.of(page - 1, size);
+
+        // Gọi hàm mới ở Repository để loại bỏ hàng mồ côi
+        return productRepository.findValidProducts(keyw, pageable);
+    }
 }
