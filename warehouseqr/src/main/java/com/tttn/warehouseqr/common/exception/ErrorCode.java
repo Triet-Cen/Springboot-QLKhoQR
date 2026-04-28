@@ -14,7 +14,7 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS("USR005", "Email đã được sử dụng bởi một tài khoản khác", HttpStatus.BAD_REQUEST),
     PHONE_ALREADY_EXISTS("USR006", "Số điện thoại đã được sử dụng bởi một tài khoản khác", HttpStatus.BAD_REQUEST),
     CCCD_ALREADY_EXISTS("USR007", "Số CCCD đã được sử dụng bởi một tài khoản khác", HttpStatus.BAD_REQUEST),
-
+    ACCESS_DENIED("SYS002", "Bạn không có quyền thực hiện hành động này", HttpStatus.FORBIDDEN),
 
     // --- Validation Errors (Dùng cho DTO) ---
     USERNAME_REQUIRED("VAL001", "Tên đăng nhập không được để trống", HttpStatus.BAD_REQUEST),

@@ -1,10 +1,73 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/user-layout :: layout(~{::title}, ~{::#mainContent})}">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Tra cứu hàng hóa | WMS Pro</title>
 </head>
 <body>
-    <h1>Day la trang index</h1>
+<div id="mainContent">
+    <div class="container py-5">
+        <div class="row align-items-center mb-5">
+            <div class="col-lg-6">
+                <h1 class="display-5 fw-bold text-dark">Tra cứu tồn kho <span class="text-primary">thời gian thực.</span></h1>
+            </div>
+            <div class="col-lg-5 offset-lg-1">
+                <form th:action="@{/}" method="get" class="card p-2 shadow-sm border-0">
+                    <div class="input-group input-group-lg">
+                        <input type="text" name="keyw" class="form-control border-0 bg-transparent"
+                               placeholder="Nhập tên sản phẩm hoặc mã SKU..." th:value="${param.keyw}">
+                        <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <th:block th:each="p : ${productPage.content}">
+                <div th:if="${p != null}" class="col-md-3">
+                    <div class="card h-100 border-0 shadow-sm p-2">
+                        <div class="card-img-top bg-light rounded-3 d-flex align-items-center justify-content-center" style="height: 180px;">
+                            <i class="bi bi-box-seam text-primary opacity-25" style="font-size: 4rem;"></i>
+                        </div>
+
+                        <div class="card-body px-2">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge bg-primary-subtle text-primary border-0"
+                                      th:text="${p.category?.categoryName ?: 'N/A'}"></span>
+                                <small class="text-muted font-monospace" th:text="${p.sku ?: 'No SKU'}"></small>
+                            </div>
+                            <h6 class="card-title fw-bold text-dark mb-2 text-truncate"
+                                th:title="${p.productName}"
+                                th:text="${p.productName ?: 'Sản phẩm không tên'}"></h6>
+                            <p class="card-text text-secondary small text-truncate"
+                               th:text="${(p.description != null and p.description != '') ? p.description : 'Chưa có mô tả cho sản phẩm này'}"></p>
+                        </div>
+                        <div class="card-footer bg-transparent border-0 pt-0">
+                            <a th:if="${p.product_id != null}"
+                               th:href="@{'/product/' + ${p.product_id}}" class="btn btn-outline-primary btn-sm w-100 py-2">
+                                Xem chi tiết
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </th:block>
+        </div>
+
+        <nav th:if="${productPage.totalPages > 1}" class="mt-5 d-flex justify-content-center">
+            <ul class="pagination shadow-sm">
+                <li class="page-item" th:classappend="${productPage.number == 0} ? 'disabled'">
+                    <a class="page-link" th:href="@{/(page=${productPage.number}, keyw=${param.keyw})}">Trước</a>
+                </li>
+                <li class="page-item" th:each="i : ${#numbers.sequence(1, productPage.totalPages)}"
+                    th:classappend="${i == productPage.number + 1} ? 'active'">
+                    <a class="page-link" th:href="@{/(page=${i}, keyw=${param.keyw})}" th:text="${i}"></a>
+                </li>
+                <li class="page-item" th:classappend="${productPage.number + 1 >= productPage.totalPages} ? 'disabled'">
+                    <a class="page-link" th:href="@{/(page=${productPage.number + 2}, keyw=${param.keyw})}">Sau</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
 </body>
 </html>
